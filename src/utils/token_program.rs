@@ -77,7 +77,6 @@ impl TokenProgram {
                         args.source.clone(),
                         args.destination.clone(),
                         args.authority.clone(),
-                        args.mint.clone(),
                         args.token_program.clone(),
                     ],
                 )?;
