@@ -12,16 +12,46 @@ use crate::{
 
 #[derive(Debug)]
 pub struct BurnAndRefundV1Accounts<'a, 'info> {
-    pub authority: &'a AccountInfo<'info>,         // NFT owner
-    pub nft_token_account: &'a AccountInfo<'info>, // Owner's NFT account
-    pub nft_mint: &'a AccountInfo<'info>,          // NFT mint
-    pub vault_pda: &'a AccountInfo<'info>,         // Vault PDA (escrow)
-    pub vault_ata: &'a AccountInfo<'info>,         // Vault's ATA
-    pub payer_ata: &'a AccountInfo<'info>,         // Owner's ATA
-    pub vault_authority: &'a AccountInfo<'info>,   // Vault authority PDA
-    pub config_pda: &'a AccountInfo<'info>,        // Config PDA
-    pub token_asset: &'a AccountInfo<'info>,       // Token mint
-    pub token_program: &'a AccountInfo<'info>,     // Token program
+    /// NFT owner — must sign to burn.
+    /// Must be owner of `nft_token_account`.
+    pub authority: &'a AccountInfo<'info>,
+
+    /// User's NFT token account — holds 1 NFT.
+    /// Must be writable, amount = 1, owned by `token_program`.
+    pub nft_token_account: &'a AccountInfo<'info>,
+
+    /// NFT asset — must be burned.
+    /// Must be valid MPL Core asset.
+    pub nft_asset: &'a AccountInfo<'info>,
+
+    /// PDA: `[program_id, "vault"]` — escrow state.
+    /// Must be readable.
+    pub vault_pda: &'a AccountInfo<'info>,
+
+    /// Vault's ATA — source of refund token_mint.
+    /// Must be writable, owned by `token_program`.
+    pub vault_ata: &'a AccountInfo<'info>,
+
+    /// User's ATA — receives refund.
+    /// Must be writable, owned by `token_program`.
+    pub payer_ata: &'a AccountInfo<'info>,
+
+    /// Vault authority PDA: `[program_id, "vault_authority"]`.
+    /// Signs CPI to transfer from `vault_ata`.
+    /// Must be PDA, not required to sign.
+    pub vault_authority: &'a AccountInfo<'info>,
+
+    /// PDA: `[program_id, "config"]` — for price/refund logic.
+    /// Must be readable.
+    pub config_pda: &'a AccountInfo<'info>,
+
+    /// Token mint — must match config (e.g. ZDLT.
+    /// Must be valid mint.
+    pub token_mint: &'a AccountInfo<'info>,
+
+    /// SPL Token Program (legacy or Token-2022).
+    /// Must match `token_asset.owner`.
+    pub token_program: &'a AccountInfo<'info>,
 }
 
 impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a, 'info> {
@@ -60,13 +90,13 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
         Ok(Self {
             authority,
             nft_token_account,
-            nft_mint: nft_asset,
+            nft_asset,
             vault_pda,
             vault_ata,
             payer_ata,
             vault_authority,
             config_pda,
-            token_asset: token_mint,
+            token_mint,
             token_program,
         })
     }
@@ -104,10 +134,10 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
     fn burn_nft(&self, config: &Config) -> ProgramResult {
         let authority = self.accounts.authority;
         let nft_token_account = self.accounts.nft_token_account;
-        let nft_mint = self.accounts.nft_mint;
+        let nft_asset = self.accounts.nft_asset;
         let token_program = self.accounts.token_program;
 
-        TokenProgram::burn_nft(token_program, nft_token_account, nft_mint, authority, config.mint_decimals, &[])?;
+        TokenProgram::burn_nft(token_program, nft_token_account, nft_asset, authority, config.mint_decimals, &[])?;
 
         Ok(())
     }
@@ -117,7 +147,7 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
         let payer_ata = self.accounts.payer_ata;
         let vault_authority = self.accounts.vault_authority;
         let config_pda = self.accounts.config_pda;
-        let token_mint = self.accounts.token_asset;
+        let token_mint = self.accounts.token_mint;
         let token_program = self.accounts.token_program;
 
         let (expected_vault_auth, vault_bump) =
@@ -170,13 +200,13 @@ impl<'a, 'info> ProcessInstruction for BurnAndRefundV1<'a, 'info> {
         let config = Config::load(&config_data)?;
 
         let mut vault_data = self.accounts.vault_pda.data.borrow_mut();
-        let mut vault = Vault::load_mut(&mut vault_data)?;
+        let vault = Vault::load_mut(&mut vault_data)?;
 
-        self.check_vesting(&config, &vault)?;
+        self.check_vesting(config, vault)?;
 
-        self.burn_nft(&config)?;
+        self.burn_nft(config)?;
 
-        self.refund_token(&config, &mut vault)?;
+        self.refund_token(config, vault)?;
 
         let amount = vault.amount;
 

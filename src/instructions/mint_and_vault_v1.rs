@@ -1,7 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use mpl_core::{
-    instructions::CreateV1CpiBuilder,
-};
+use mpl_core::instructions::CreateV1CpiBuilder;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
     pubkey::Pubkey,
@@ -19,19 +17,58 @@ use crate::{
 
 #[derive(Debug)]
 pub struct MintAndVaultV1Accounts<'a, 'info> {
-    pub authority: &'a AccountInfo<'info>, // Config authority (not required signer for mint)
-    pub payer: &'a AccountInfo<'info>,     // User wallet paying price
-    pub config_pda: &'a AccountInfo<'info>, // Config PDA
-    pub vault_pda: &'a AccountInfo<'info>, // Vault data PDA (holds Vault struct)
-    pub vault_ata: &'a AccountInfo<'info>, // Token account owned by vault authority (ATA)
-    pub payer_ata: &'a AccountInfo<'info>, // Payer's associated token account
-    pub minted_user_pda: &'a AccountInfo<'info>, // MintedUser PDA (per-wallet minted flag)
-    pub nft_asset: &'a AccountInfo<'info>, // NFT mint
-    pub nft_token_account: &'a AccountInfo<'info>, // User's NFT token account (where minted token will be sent)
-    pub token_mint: &'a AccountInfo<'info>,        // Token mint will be stored to vault (e.g. ZDLT)
-    pub token_program: &'a AccountInfo<'info>,     // SPL token program
-    pub system_program: &'a AccountInfo<'info>,    // System program
-    pub mpl_core: &'a AccountInfo<'info>,          // Metaplex core program
+    /// Config authority — allowed to mint (checked via `Config::authority`).
+    /// Not required to sign unless enforced by config.
+    pub authority: &'a AccountInfo<'info>,
+
+    /// User paying the mint price in 'token_mint' and solana.
+    /// Must be signer and owner of `payer_ata`.
+    pub payer: &'a AccountInfo<'info>,
+
+    /// PDA: `[program_id, "config"]` — stores global config.
+    /// Must be readable, owned by program.
+    pub config_pda: &'a AccountInfo<'info>,
+
+    /// PDA: `[program_id, "vault"]` — stores `Vault` state.
+    /// Must be writable if updating vault balance.
+    pub vault_pda: &'a AccountInfo<'info>,
+
+    /// Associated Token Account (ATA) of the vault PDA.
+    /// Holds 'token_mint' received from users.
+    /// Must be writable, owned by `token_program`.
+    pub vault_ata: &'a AccountInfo<'info>,
+
+    /// Payer's ATA for 'token_mint' — source of payment.
+    /// Must be writable, owned by `token_program`.
+    pub payer_ata: &'a AccountInfo<'info>,
+
+    /// PDA: `[program_id, "minted", payer.key]` — per-user mint flag.
+    /// Prevents double-minting.
+    /// Must be uninitialized or checked for prior mint.
+    pub minted_user_pda: &'a AccountInfo<'info>,
+
+    /// NFT asset (MPL Core) — the NFT being minted.
+    /// Must be uninitialized, owned by `mpl_core`.
+    pub nft_asset: &'a AccountInfo<'info>,
+
+    /// User's NFT token account — receives the minted NFT.
+    /// Must be writable, owned by `token_program`.
+    pub nft_token_account: &'a AccountInfo<'info>,
+
+    /// Token mint — the token being escrowed (e.g. ZDLT.
+    /// Must match `config_pda.data.mint`, owned by `token_program`.
+    pub token_mint: &'a AccountInfo<'info>,
+
+    /// SPL Token Program (legacy or Token-2022).
+    /// Must match `token_mint.owner`.
+    pub token_program: &'a AccountInfo<'info>,
+
+    /// System program — for account allocation.
+    pub system_program: &'a AccountInfo<'info>,
+
+    /// Metaplex Core program — for NFT minting.
+    /// Must be the official MPL Core program.
+    pub mpl_core: &'a AccountInfo<'info>,
 }
 
 impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAndVaultV1Accounts<'a, 'info> {
@@ -69,7 +106,12 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAndVaultV1Accounts<'a,
         WritableAccount::check(nft_asset)?;
         WritableAccount::check_uninitialized(nft_asset)?;
         WritableAccount::check(nft_token_account)?;
-        AssociatedTokenAccount::check(nft_token_account, payer.key, nft_asset.key, token_program.key)?;
+        AssociatedTokenAccount::check(
+            nft_token_account,
+            payer.key,
+            nft_asset.key,
+            token_program.key,
+        )?;
         MintAccount::check(token_mint)?;
         SystemAccount::check(system_program)?;
         MplCoreAccount::check(mpl_core)?;
@@ -261,21 +303,21 @@ impl<'a, 'info>
 impl<'a, 'info> ProcessInstruction for MintAndVaultV1<'a, 'info> {
     fn process(self) -> ProgramResult {
         let mut config_data = self.accounts.config_pda.data.borrow_mut();
-        let mut config = Config::load_mut(&mut config_data)?;
+        let config = Config::load_mut(&mut config_data)?;
 
-        self.check_mint_eligibility(&config)?;
+        self.check_mint_eligibility(config)?;
 
         self.init_minted_user()?;
 
         // Read minted user
         let mut minted_user_data = self.accounts.minted_user_pda.data.borrow_mut();
-        let mut minted_user = MintedUser::load_mut(&mut minted_user_data)?;
+        let minted_user = MintedUser::load_mut(&mut minted_user_data)?;
         if minted_user.is_minted() {
             msg!("Already minted");
             return Err(ProgramError::Custom(2));
         }
 
-        self.transfer_to_vault(&mut config, &mut minted_user)?;
+        self.transfer_to_vault(config, minted_user)?;
 
         self.mint_nft()?;
 

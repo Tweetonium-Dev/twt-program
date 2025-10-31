@@ -1,18 +1,28 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use mpl_core::{instructions::UpdateV1CpiBuilder, Asset};
+use mpl_core::{Asset, instructions::UpdateV1CpiBuilder};
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
 };
 
 use crate::utils::{
-    AccountCheck, MplCoreAccount, ProcessInstruction, SignerAccount, SystemAccount, WritableAccount
+    AccountCheck, MplCoreAccount, ProcessInstruction, SignerAccount, SystemAccount, WritableAccount,
 };
 
 #[derive(Debug)]
 pub struct UpdateNftV1Accounts<'a, 'info> {
+    /// Authority allowed to update the NFT (e.g. update authority).
+    /// Must be signer if required by MPL Core.
     pub authority: &'a AccountInfo<'info>,
+
+    /// NFT asset (MPL Core) — the asset being updated.
+    /// Must be mutable, owned by `mpl_core`.
     pub nft_asset: &'a AccountInfo<'info>,
+
+    /// System program — for potential realloc.
     pub system_program: &'a AccountInfo<'info>,
+
+    /// Metaplex Core program — performs the update.
+    /// Must be the official MPL Core program.
     pub mpl_core: &'a AccountInfo<'info>,
 }
 
@@ -56,8 +66,8 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
         let nft_asset = self.accounts.nft_asset;
 
         let asset_data = &nft_asset.data.borrow();
-        let asset = Asset::deserialize(&asset_data[..])
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+        let asset =
+            Asset::deserialize(&asset_data[..]).map_err(|_| ProgramError::InvalidAccountData)?;
 
         if asset.base.owner != *authority.key {
             msg!("Signer is not the NFT owner");
@@ -85,19 +95,13 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
     }
 }
 
-impl<'a, 'info>
-    TryFrom<(
-        &'a [AccountInfo<'info>],
-        UpdateNftV1InstructionData,
-    )> for UpdateNftV1<'a, 'info>
+impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], UpdateNftV1InstructionData)>
+    for UpdateNftV1<'a, 'info>
 {
     type Error = ProgramError;
 
     fn try_from(
-        (accounts, instruction_data): (
-            &'a [AccountInfo<'info>],
-            UpdateNftV1InstructionData,
-        ),
+        (accounts, instruction_data): (&'a [AccountInfo<'info>], UpdateNftV1InstructionData),
     ) -> Result<Self, Self::Error> {
         let accounts = UpdateNftV1Accounts::try_from(accounts)?;
         Ok(Self {

@@ -5,18 +5,32 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, CONFIG_SEED},
+    states::{CONFIG_SEED, Config},
     utils::{
-        AccountCheck, MintAccount, Pda, ProcessInstruction, SignerAccount, SystemAccount, TokenProgram, WritableAccount
+        AccountCheck, MintAccount, Pda, ProcessInstruction, SignerAccount, SystemAccount,
+        TokenProgram, WritableAccount,
     },
 };
 
 #[derive(Debug)]
 pub struct InitConfigV1Accounts<'a, 'info> {
+    /// Authority that will control config updates (e.g. admin wallet).
+    /// Must be a signer.
     pub authority: &'a AccountInfo<'info>,
-    pub config: &'a AccountInfo<'info>,
+
+    /// PDA: `[program_id, "config"]` — stores `Config` struct.
+    /// Must be uninitialized, writable, owned by this program.
+    pub config_pda: &'a AccountInfo<'info>,
+
+    /// Token mint (fungible token used for minting/refunding e.g. ZDLT).
+    /// Must be valid mint (82 or 90+ bytes), owned by SPL Token or Token-2022.
     pub mint: &'a AccountInfo<'info>,
-    pub token_program: &'a AccountInfo<'info>,     // SPL token program
+
+    /// SPL Token Program (legacy) or Token-2022 Program.
+    /// Must match the mint's owner.
+    pub token_program: &'a AccountInfo<'info>,
+
+    /// System program — required for PDA creation and rent.
     pub system_program: &'a AccountInfo<'info>,
 }
 
@@ -24,18 +38,18 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [authority, config, mint, token_program, system_program] = accounts else {
+        let [authority, config_pda, mint, token_program, system_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         SignerAccount::check(authority)?;
-        WritableAccount::check(config)?;
+        WritableAccount::check(config_pda)?;
         MintAccount::check(mint)?;
         SystemAccount::check(system_program)?;
 
         Ok(Self {
             authority,
-            config,
+            config_pda,
             mint,
             token_program,
             system_program,
@@ -88,14 +102,14 @@ impl<'a, 'info>
 impl<'a, 'info> ProcessInstruction for InitConfigV1<'a, 'info> {
     fn process(self) -> ProgramResult {
         let authority = self.accounts.authority;
-        let config = self.accounts.config;
+        let config_pda = self.accounts.config_pda;
         let mint = self.accounts.mint;
-        let token_program= self.accounts.token_program;
+        let token_program = self.accounts.token_program;
         let system_program = self.accounts.system_program;
 
         Pda::new(
             authority,
-            config,
+            config_pda,
             system_program,
             &[CONFIG_SEED, authority.key.as_ref()],
             Config::LEN,
@@ -118,7 +132,7 @@ impl<'a, 'info> ProcessInstruction for InitConfigV1<'a, 'info> {
             mint_decimals: decimals,
         };
 
-        Config::init(&mut config.data.borrow_mut()[..], &cfg)?;
+        Config::init(&mut config_pda.data.borrow_mut()[..], &cfg)?;
 
         Ok(())
     }
