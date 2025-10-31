@@ -1,14 +1,13 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, program::invoke_signed, program_error::ProgramError, pubkey::Pubkey, rent::Rent, sysvar::Sysvar
+    account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
+    pubkey::Pubkey,
 };
-use solana_system_interface::instruction as system_instruction;
 
 use crate::{
     states::{Config, CONFIG_SEED},
     utils::{
-        AccountCheck, ProcessInstruction, SignerAccount, SystemAccount,
-        WritableAccount,
+        AccountCheck, MintAccount, Pda, ProcessInstruction, SignerAccount, SystemAccount, TokenProgram, WritableAccount
     },
 };
 
@@ -17,6 +16,7 @@ pub struct InitConfigV1Accounts<'a, 'info> {
     pub authority: &'a AccountInfo<'info>,
     pub config: &'a AccountInfo<'info>,
     pub mint: &'a AccountInfo<'info>,
+    pub token_program: &'a AccountInfo<'info>,     // SPL token program
     pub system_program: &'a AccountInfo<'info>,
 }
 
@@ -24,18 +24,20 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [authority, config, mint, system_program] = accounts else {
+        let [authority, config, mint, token_program, system_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         SignerAccount::check(authority)?;
         WritableAccount::check(config)?;
+        MintAccount::check(mint)?;
         SystemAccount::check(system_program)?;
 
         Ok(Self {
             authority,
             config,
             mint,
+            token_program,
             system_program,
         })
     }
@@ -88,34 +90,21 @@ impl<'a, 'info> ProcessInstruction for InitConfigV1<'a, 'info> {
         let authority = self.accounts.authority;
         let config = self.accounts.config;
         let mint = self.accounts.mint;
+        let token_program= self.accounts.token_program;
         let system_program = self.accounts.system_program;
 
-        let (expected_pda, bump) = Pubkey::find_program_address(
+        Pda::new(
+            authority,
+            config,
+            system_program,
             &[CONFIG_SEED, authority.key.as_ref()],
+            Config::LEN,
             self.program_id,
-        );
+            self.program_id,
+        )?
+        .init_if_needed()?;
 
-        if expected_pda != *config.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        if config.data_is_empty() {
-            let rent = Rent::get()?;
-            let space = Config::LEN;
-            let lamports = rent.minimum_balance(space);
-
-            invoke_signed(
-                &system_instruction::create_account(
-                    authority.key,
-                    config.key,
-                    lamports,
-                    space as u64,
-                    self.program_id,
-                ),
-                &[authority.clone(), config.clone(), system_program.clone()],
-                &[&[CONFIG_SEED, authority.key.as_ref(), &[bump]]],
-            )?;
-        }
+        let decimals = TokenProgram::get_decimal(mint, token_program)?;
 
         let cfg = Config {
             authority: *authority.key,
@@ -126,9 +115,10 @@ impl<'a, 'info> ProcessInstruction for InitConfigV1<'a, 'info> {
             vesting_end_ts: self.instruction_data.vesting_end_ts,
             merkle_root: self.instruction_data.merkle_root,
             mint: *mint.key,
+            mint_decimals: decimals,
         };
 
-        cfg.serialize(&mut &mut config.data.borrow_mut()[..])?;
+        Config::init(&mut config.data.borrow_mut()[..], &cfg)?;
 
         Ok(())
     }
