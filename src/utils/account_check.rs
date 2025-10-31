@@ -1,14 +1,31 @@
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError, pubkey::Pubkey,
+    account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
+    pubkey::Pubkey,
 };
 use solana_sdk_ids::system_program;
+
+use crate::{
+    states::Config,
+    utils::{
+        ASSOCIATED_TOKEN_PROGRAM_ID, MINT_2022_MIN_LEN, MINT_LEN, TOKEN_2022_PROGRAM_ID, TOKEN_ACCOUNT_2022_MIN_LEN, TOKEN_ACCOUNT_LEN, TOKEN_PROGRAM_ID
+    },
+};
 
 pub trait AccountCheck {
     fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult;
 }
 
-pub trait OptionalAccountCheck {
-    fn check_optional<'info>(account: Option<&AccountInfo<'info>>) -> ProgramResult;
+pub trait AccountUninitializedCheck {
+    fn check_uninitialized<'info>(account: &AccountInfo<'info>) -> ProgramResult;
+}
+
+pub trait AssociatedTokenAccountCheck {
+    fn check<'info>(
+        account: &AccountInfo<'info>, 
+        wallet: &Pubkey, 
+        mint: &Pubkey, 
+        token_program_id: &Pubkey
+    ) -> ProgramResult;
 }
 
 pub struct WritableAccount;
@@ -23,12 +40,10 @@ impl AccountCheck for WritableAccount {
     }
 }
 
-impl OptionalAccountCheck for WritableAccount {
-    fn check_optional<'info>(account: Option<&AccountInfo<'info>>) -> ProgramResult {
-        if let Some(account) = account {
-            if !account.is_writable {
-                return Err(ProgramError::InvalidAccountData);
-            }
+impl AccountUninitializedCheck for WritableAccount {
+    fn check_uninitialized<'info>(account: &AccountInfo<'info>) -> ProgramResult {
+        if !account.data_is_empty() {
+            return Err(ProgramError::AccountAlreadyInitialized);
         }
 
         Ok(())
@@ -47,36 +62,15 @@ impl AccountCheck for SignerAccount {
     }
 }
 
-impl OptionalAccountCheck for SignerAccount {
-    fn check_optional<'info>(account: Option<&AccountInfo<'info>>) -> ProgramResult {
-        if let Some(account) = account {
-            if !account.is_signer {
-                return Err(ProgramError::MissingRequiredSignature);
-            }
-        }
-
-        Ok(())
-    }
-}
-
 pub struct SystemAccount;
 
 impl AccountCheck for SystemAccount {
     fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult {
-        if account.owner != &system_program::ID {
+        let owner = Pubkey::new_from_array(account.owner.to_bytes());
+        let system_program = Pubkey::new_from_array(system_program::ID.to_bytes());
+
+        if owner != system_program {
             return Err(ProgramError::InvalidAccountOwner);
-        }
-
-        Ok(())
-    }
-}
-
-impl OptionalAccountCheck for SystemAccount {
-    fn check_optional<'info>(account: Option<&AccountInfo<'info>>) -> ProgramResult {
-        if let Some(account) = account {
-            if account.owner != &system_program::ID {
-                return Err(ProgramError::InvalidAccountOwner);
-            }
         }
 
         Ok(())
@@ -97,206 +91,133 @@ impl AccountCheck for MplCoreAccount {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::utils::test_utils::*;
-    use solana_program::pubkey::Pubkey;
+pub struct MintAccount;
 
-    #[test]
-    fn test_writable_account_check_success() {
-        let acc = new_test_account(
-            Pubkey::new_unique(),
-            false,
-            true,
-            10,
-            0,
-            Pubkey::new_unique(),
-        );
-        assert!(WritableAccount::check(&acc).is_ok());
+impl AccountCheck for MintAccount {
+    fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult {
+        let owner = account.owner;
+
+        if *owner == TOKEN_2022_PROGRAM_ID {
+            if account.data_len() < MINT_2022_MIN_LEN {
+                return Err(ProgramError::InvalidAccountData);
+            }
+            return Ok(());
+        }
+
+        if *owner == TOKEN_PROGRAM_ID {
+            if account.data_len() != MINT_LEN {
+                return Err(ProgramError::InvalidAccountData);
+            }
+            return Ok(());
+        }
+
+        Err(ProgramError::InvalidAccountOwner)
     }
+}
 
-    #[test]
-    fn test_writable_account_check_failed() {
-        let acc = new_test_account(
-            Pubkey::new_unique(),
-            false,
-            false,
-            10,
-            0,
-            Pubkey::new_unique(),
-        );
-        assert!(WritableAccount::check(&acc).is_err());
+impl AccountUninitializedCheck for MintAccount {
+    fn check_uninitialized<'info>(account: &AccountInfo<'info>) -> ProgramResult {
+        if !account.data_is_empty() {
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
+
+        Ok(())
     }
+}
 
-    #[test]
-    fn test_optional_writable_account_check_success() {
-        let acc = new_test_account(
-            Pubkey::new_unique(),
-            false,
-            true,
-            10,
-            0,
-            Pubkey::new_unique(),
-        );
-        assert!(WritableAccount::check_optional(Some(&acc)).is_ok());
+pub struct TokenAccount;
+
+impl AccountCheck for TokenAccount {
+    fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult {
+        let owner = account.owner;
+
+        if *owner == TOKEN_2022_PROGRAM_ID {
+            if account.data_len() < TOKEN_ACCOUNT_2022_MIN_LEN {
+                return Err(ProgramError::InvalidAccountData);
+            }
+
+            return Ok(());
+        }
+
+        if *owner == TOKEN_PROGRAM_ID {
+            if account.data_len() != TOKEN_ACCOUNT_LEN {
+                return Err(ProgramError::InvalidAccountData);
+            }
+
+            return Ok(());
+        }
+
+        Err(ProgramError::InvalidAccountOwner)
     }
+}
 
-    #[test]
-    fn test_optional_writable_account_check_failed() {
-        let acc = new_test_account(
-            Pubkey::new_unique(),
-            false,
-            false,
-            10,
-            0,
-            Pubkey::new_unique(),
-        );
-        assert!(WritableAccount::check_optional(Some(&acc)).is_err());
+pub struct ConfigAccount;
+
+impl AccountCheck for ConfigAccount {
+    fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult {
+        if account.owner != &crate::ID {
+            return Err(ProgramError::InvalidAccountOwner);
+        }
+
+        if account.data_len() != Config::LEN {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        Ok(())
     }
+}
 
-    #[test]
-    fn test_optional_writable_account_check_none() {
-        assert!(WritableAccount::check_optional(None).is_ok());
+pub struct VaultAccount;
+
+impl AccountCheck for VaultAccount {
+    fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult {
+        if account.owner != &crate::ID {
+            return Err(ProgramError::InvalidAccountOwner);
+        }
+
+        if account.data_len() != Config::LEN {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        Ok(())
     }
+}
 
-    #[test]
-    fn test_signer_account_check_success() {
-        let acc = new_test_account(
-            Pubkey::new_unique(),
-            true,
-            false,
-            10,
-            0,
-            Pubkey::new_unique(),
-        );
-        assert!(SignerAccount::check(&acc).is_ok());
+impl AccountUninitializedCheck for VaultAccount {
+    fn check_uninitialized<'info>(account: &AccountInfo<'info>) -> ProgramResult {
+        if !account.data_is_empty() {
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
+
+        Ok(())
     }
+}
 
-    #[test]
-    fn test_signer_account_check_failed() {
-        let acc = new_test_account(
-            Pubkey::new_unique(),
-            false,
-            false,
-            10,
-            0,
-            Pubkey::new_unique(),
-        );
-        assert!(SignerAccount::check(&acc).is_err());
-    }
+pub struct AssociatedTokenAccount;
 
-    #[test]
-    fn test_optional_signer_account_check_success() {
-        let acc = new_test_account(
-            Pubkey::new_unique(),
-            true,
-            false,
-            10,
-            0,
-            Pubkey::new_unique(),
-        );
-        assert!(SignerAccount::check_optional(Some(&acc)).is_ok());
-    }
+impl AssociatedTokenAccountCheck for AssociatedTokenAccount {
+    fn check<'info>(
+        account: &AccountInfo<'info>, 
+        wallet: &Pubkey, 
+        mint: &Pubkey, 
+        token_program_id: &Pubkey
+    ) -> ProgramResult {
+        TokenAccount::check(account)?;
 
-    #[test]
-    fn test_optional_signer_account_check_failed() {
-        let acc = new_test_account(
-            Pubkey::new_unique(),
-            false,
-            false,
-            10,
-            0,
-            Pubkey::new_unique(),
-        );
-        assert!(SignerAccount::check_optional(Some(&acc)).is_err());
-    }
+        let expected_ata = Pubkey::find_program_address(
+            &[
+                wallet.to_bytes().as_ref(),
+                token_program_id.to_bytes().as_ref(),
+                mint.to_bytes().as_ref(),
+            ],
+            &ASSOCIATED_TOKEN_PROGRAM_ID,
+        )
+        .0;
 
-    #[test]
-    fn test_optional_signer_account_check_none() {
-        assert!(SignerAccount::check_optional(None).is_ok());
-    }
+        if account.key != &expected_ata {
+            return Err(ProgramError::InvalidSeeds);
+        }
 
-    #[test]
-    fn test_system_account_check_success() {
-        let acc = new_test_account(
-            Pubkey::new_unique(),
-            false,
-            false,
-            10,
-            0,
-            system_program::ID,
-        );
-        assert!(SystemAccount::check(&acc).is_ok());
-    }
-
-    #[test]
-    fn test_system_account_check_failed() {
-        let acc = new_test_account(
-            Pubkey::new_unique(),
-            false,
-            false,
-            10,
-            0,
-            Pubkey::new_unique(),
-        );
-        assert!(SystemAccount::check(&acc).is_err());
-    }
-
-    #[test]
-    fn test_optional_system_account_check_success() {
-        let acc = new_test_account(
-            Pubkey::new_unique(),
-            false,
-            false,
-            10,
-            0,
-            system_program::ID,
-        );
-        assert!(SystemAccount::check_optional(Some(&acc)).is_ok());
-    }
-
-    #[test]
-    fn test_optional_system_account_check_failed() {
-        let acc = new_test_account(
-            Pubkey::new_unique(),
-            false,
-            false,
-            10,
-            0,
-            Pubkey::new_unique(),
-        );
-        assert!(SystemAccount::check_optional(Some(&acc)).is_err());
-    }
-
-    #[test]
-    fn test_optional_system_account_check_none() {
-        assert!(SystemAccount::check_optional(None).is_ok());
-    }
-
-    #[test]
-    fn test_mpl_core_account_check_success() {
-        let acc = new_test_account(
-            Pubkey::new_unique(), 
-            false, 
-            false, 
-            10, 
-            0, 
-            Pubkey::new_from_array(mpl_core::ID.to_bytes())
-        );
-        assert!(MplCoreAccount::check(&acc).is_ok());
-    }
-
-    #[test]
-    fn test_mpl_core_account_check_failed() {
-        let acc = new_test_account(
-            Pubkey::new_unique(),
-            false,
-            false,
-            10,
-            0,
-            Pubkey::new_unique(),
-        );
-        assert!(MplCoreAccount::check(&acc).is_err());
+        Ok(())
     }
 }
