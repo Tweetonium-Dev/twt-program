@@ -1,17 +1,23 @@
 use bytemuck::{Pod, Zeroable};
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 
-pub const MINTED_USER_SEED: &[u8; 11] = b"minted_user";
-
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 pub struct MintedUser {
+    /// The wallet that owns this mint record.
+    /// Must match the `payer` in `mint_and_vault_v1`.
     pub owner: Pubkey,
+
+    /// Boolean flag: `1` = already minted, `0` = not minted.
+    /// Set to `1` atomically during `mint_and_vault_v1`.
+    /// Checked before allowing mint.
     pub minted: u8,
 }
 
 impl MintedUser {
     pub const LEN: usize = size_of::<Pubkey>() + size_of::<bool>();
+
+    pub const SEED: &[u8; 11] = b"minted_user";
 
     pub fn new(owner: Pubkey, minted: bool) -> Self {
         Self {

@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{CONFIG_SEED, Config},
+    states::Config,
     utils::{
         AccountCheck, MintAccount, Pda, ProcessInstruction, SignerAccount, SystemAccount,
         TokenProgram, WritableAccount,
@@ -64,6 +64,7 @@ pub struct InitConfigV1InstructionData {
     pub price: u64,
     pub vesting_end_ts: i64,
     pub merkle_root: Pubkey,
+    pub protocol_fee_lamports: u64,
 }
 
 #[derive(Debug)]
@@ -111,7 +112,7 @@ impl<'a, 'info> ProcessInstruction for InitConfigV1<'a, 'info> {
             authority,
             config_pda,
             system_program,
-            &[CONFIG_SEED, authority.key.as_ref()],
+            &[Config::SEED, authority.key.as_ref()],
             Config::LEN,
             self.program_id,
             self.program_id,
@@ -130,6 +131,7 @@ impl<'a, 'info> ProcessInstruction for InitConfigV1<'a, 'info> {
             merkle_root: self.instruction_data.merkle_root,
             mint: *mint.key,
             mint_decimals: decimals,
+            protocol_fee_lamports: self.instruction_data.protocol_fee_lamports,
         };
 
         Config::init(&mut config_pda.data.borrow_mut()[..], &cfg)?;

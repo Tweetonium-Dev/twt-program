@@ -4,9 +4,11 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, Vault, VAULT_SEED},
+    states::{Config, Vault},
     utils::{
-        AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, ConfigAccount, MintAccount, ProcessInstruction, SignerAccount, TokenProgram, TransferArgs, VaultAccount, WritableAccount
+        AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, ConfigAccount,
+        MintAccount, ProcessInstruction, SignerAccount, TokenProgram, TransferArgs, VaultAccount,
+        WritableAccount,
     },
 };
 
@@ -76,7 +78,12 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
 
         SignerAccount::check(authority)?;
         WritableAccount::check(nft_token_account)?;
-        AssociatedTokenAccount::check(nft_token_account, authority.key, nft_asset.key, token_program.key)?;
+        AssociatedTokenAccount::check(
+            nft_token_account,
+            authority.key,
+            nft_asset.key,
+            token_program.key,
+        )?;
         WritableAccount::check(vault_pda)?;
         VaultAccount::check(vault_pda)?;
         WritableAccount::check(vault_ata)?;
@@ -137,7 +144,14 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
         let nft_asset = self.accounts.nft_asset;
         let token_program = self.accounts.token_program;
 
-        TokenProgram::burn_nft(token_program, nft_token_account, nft_asset, authority, config.mint_decimals, &[])?;
+        TokenProgram::burn_nft(
+            token_program,
+            nft_token_account,
+            nft_asset,
+            authority,
+            config.mint_decimals,
+            &[],
+        )?;
 
         Ok(())
     }
@@ -151,13 +165,13 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
         let token_program = self.accounts.token_program;
 
         let (expected_vault_auth, vault_bump) =
-            Pubkey::find_program_address(&[VAULT_SEED, config_pda.key.as_ref()], self.program_id);
+            Pubkey::find_program_address(&[Vault::SEED, config_pda.key.as_ref()], self.program_id);
         if expected_vault_auth != *vault_authority.key {
             msg!("Vault authority PDA mismatch");
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let signers_seeds: &[&[&[u8]]] = &[&[VAULT_SEED, config_pda.key.as_ref(), &[vault_bump]]];
+        let signers_seeds: &[&[&[u8]]] = &[&[Vault::SEED, config_pda.key.as_ref(), &[vault_bump]]];
 
         TokenProgram::transfer_signed(
             TransferArgs {

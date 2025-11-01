@@ -6,12 +6,9 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, MINTED_USER_SEED, MintedUser, VAULT_SEED, Vault},
+    states::{Config, MintedUser, Vault},
     utils::{
-        AccountCheck, AccountUninitializedCheck, AssociatedTokenAccount,
-        AssociatedTokenAccountCheck, ConfigAccount, MintAccount, MplCoreAccount, Pda,
-        ProcessInstruction, SignerAccount, SystemAccount, TokenProgram, TransferArgs,
-        WritableAccount, sha256_hash, verify_merkle_proof,
+        AccountCheck, AccountUninitializedCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, ConfigAccount, MintAccount, MplCoreAccount, Pda, ProcessInstruction, SignerAccount, SystemAccount, SystemProgram, TokenProgram, TransferArgs, WritableAccount
     },
 };
 
@@ -63,6 +60,10 @@ pub struct MintAndVaultV1Accounts<'a, 'info> {
     /// Must match `token_mint.owner`.
     pub token_program: &'a AccountInfo<'info>,
 
+    /// Protocol wallet — receives the configurable SOL protocol fee.
+    /// Must writable, not zero address, owned by system_program.
+    pub protocol_wallet: &'a AccountInfo<'info>,
+
     /// System program — for account allocation.
     pub system_program: &'a AccountInfo<'info>,
 
@@ -87,6 +88,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAndVaultV1Accounts<'a,
             nft_token_account,
             token_mint,
             token_program,
+            protocol_wallet,
             system_program,
             mpl_core,
         ] = accounts
@@ -113,6 +115,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAndVaultV1Accounts<'a,
             token_program.key,
         )?;
         MintAccount::check(token_mint)?;
+        WritableAccount::check(protocol_wallet)?;
         SystemAccount::check(system_program)?;
         MplCoreAccount::check(mpl_core)?;
 
@@ -128,6 +131,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAndVaultV1Accounts<'a,
             nft_token_account,
             token_mint,
             token_program,
+            protocol_wallet,
             system_program,
             mpl_core,
         })
@@ -136,7 +140,6 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAndVaultV1Accounts<'a,
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 pub struct MintAndVaultV1InstructionData {
-    pub merkle_proof: Vec<[u8; 32]>,
     pub name: String,
     pub uri: String,
 }
@@ -150,7 +153,6 @@ pub struct MintAndVaultV1<'a, 'info> {
 
 impl<'a, 'info> MintAndVaultV1<'a, 'info> {
     fn check_mint_eligibility(&self, config: &Config) -> ProgramResult {
-        let payer = self.accounts.payer;
         let authority = self.accounts.authority;
 
         if config.authority != *authority.key {
@@ -187,7 +189,7 @@ impl<'a, 'info> MintAndVaultV1<'a, 'info> {
             payer,
             minted_user_pda,
             system_program,
-            &[MINTED_USER_SEED, payer.key.as_ref()],
+            &[MintedUser::SEED, payer.key.as_ref()],
             MintedUser::LEN,
             self.program_id,
             self.program_id,
@@ -233,7 +235,7 @@ impl<'a, 'info> MintAndVaultV1<'a, 'info> {
             payer,
             vault_pda,
             system_program,
-            &[VAULT_SEED, config_pda.key.as_ref()],
+            &[Vault::SEED, config_pda.key.as_ref()],
             Vault::LEN,
             self.program_id,
             self.program_id,
@@ -248,6 +250,21 @@ impl<'a, 'info> MintAndVaultV1<'a, 'info> {
         config.increment_minted()?;
 
         Ok(())
+    }
+
+    fn pay_protocol_fee(&self, config: &Config) -> ProgramResult {
+        if config.protocol_fee_lamports == 0 { return Ok(()) }
+
+        let authority = self.accounts.authority;
+        let protocol_wallet = self.accounts.protocol_wallet;
+        let system_program = self.accounts.system_program;
+
+        SystemProgram::transfer(
+            authority,
+            protocol_wallet,
+            system_program,
+            config.protocol_fee_lamports
+        )
     }
 
     fn mint_nft(self) -> ProgramResult {
@@ -306,7 +323,6 @@ impl<'a, 'info> ProcessInstruction for MintAndVaultV1<'a, 'info> {
         let config = Config::load_mut(&mut config_data)?;
 
         self.check_mint_eligibility(config)?;
-
         self.init_minted_user()?;
 
         // Read minted user
@@ -318,7 +334,7 @@ impl<'a, 'info> ProcessInstruction for MintAndVaultV1<'a, 'info> {
         }
 
         self.transfer_to_vault(config, minted_user)?;
-
+        self.pay_protocol_fee(config)?;
         self.mint_nft()?;
 
         let price = config.price;

@@ -4,9 +4,9 @@ use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
 };
 
-use crate::utils::{
-    AccountCheck, MplCoreAccount, ProcessInstruction, SignerAccount, SystemAccount, WritableAccount,
-};
+use crate::{states::Config, utils::{
+    AccountCheck, ConfigAccount, MplCoreAccount, ProcessInstruction, SignerAccount, SystemAccount, SystemProgram, WritableAccount
+}};
 
 #[derive(Debug)]
 pub struct UpdateNftV1Accounts<'a, 'info> {
@@ -14,9 +14,17 @@ pub struct UpdateNftV1Accounts<'a, 'info> {
     /// Must be signer if required by MPL Core.
     pub authority: &'a AccountInfo<'info>,
 
+    /// PDA: `[program_id, "config"]` — stores global config.
+    /// Must be readable, owned by program.
+    pub config_pda: &'a AccountInfo<'info>,
+
     /// NFT asset (MPL Core) — the asset being updated.
     /// Must be mutable, owned by `mpl_core`.
     pub nft_asset: &'a AccountInfo<'info>,
+
+    /// Protocol wallet — receives the configurable SOL protocol fee.
+    /// Must writable, not zero address, owned by system_program.
+    pub protocol_wallet: &'a AccountInfo<'info>,
 
     /// System program — for potential realloc.
     pub system_program: &'a AccountInfo<'info>,
@@ -30,18 +38,31 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateNftV1Accounts<'a, 'i
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [authority, nft_asset, system_program, mpl_core] = accounts else {
+        let [
+            authority,
+            config_pda,
+            nft_asset,
+            protocol_wallet,
+            system_program,
+            mpl_core,
+        ] = accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         SignerAccount::check(authority)?;
+        WritableAccount::check(config_pda)?;
+        ConfigAccount::check(config_pda)?;
         WritableAccount::check(nft_asset)?;
+        WritableAccount::check(protocol_wallet)?;
         SystemAccount::check(system_program)?;
         MplCoreAccount::check(mpl_core)?;
 
         Ok(Self {
             authority,
+            config_pda,
             nft_asset,
+            protocol_wallet,
             system_program,
             mpl_core,
         })
@@ -93,6 +114,21 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
 
         Ok(())
     }
+
+    fn pay_protocol_fee(&self, config: &Config) -> ProgramResult {
+        if config.protocol_fee_lamports == 0 { return Ok(()) }
+
+        let authority = self.accounts.authority;
+        let protocol_wallet = self.accounts.protocol_wallet;
+        let system_program = self.accounts.system_program;
+
+        SystemProgram::transfer(
+            authority,
+            protocol_wallet,
+            system_program,
+            config.protocol_fee_lamports
+        )
+    }
 }
 
 impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], UpdateNftV1InstructionData)>
@@ -113,8 +149,12 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], UpdateNftV1InstructionData)>
 
 impl<'a, 'info> ProcessInstruction for UpdateNftV1<'a, 'info> {
     fn process(self) -> ProgramResult {
+        let config_data = self.accounts.config_pda.data.borrow_mut();
+        let config = Config::load(&config_data)?;
+
         self.check_ownership()?;
         self.update_nft()?;
+        self.pay_protocol_fee(config)?;
 
         msg!(
             "UpdateNft: updated NFT {} with name='{}', uri='{}'",
