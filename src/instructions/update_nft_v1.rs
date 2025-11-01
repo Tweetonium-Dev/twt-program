@@ -2,11 +2,16 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use mpl_core::{Asset, instructions::UpdateV1CpiBuilder};
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
+    pubkey::Pubkey,
 };
 
-use crate::{states::Config, utils::{
-    AccountCheck, ConfigAccount, MplCoreAccount, ProcessInstruction, SignerAccount, SystemAccount, SystemProgram, WritableAccount
-}};
+use crate::{
+    states::Config,
+    utils::{
+        AccountCheck, ConfigAccount, MplCoreAccount, Pda, ProcessInstruction, SignerAccount,
+        SystemAccount, SystemProgram, WritableAccount,
+    },
+};
 
 #[derive(Debug)]
 pub struct UpdateNftV1Accounts<'a, 'info> {
@@ -116,7 +121,9 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
     }
 
     fn pay_protocol_fee(&self, config: &Config) -> ProgramResult {
-        if config.protocol_fee_lamports == 0 { return Ok(()) }
+        if config.protocol_fee_lamports == 0 {
+            return Ok(());
+        }
 
         let authority = self.accounts.authority;
         let protocol_wallet = self.accounts.protocol_wallet;
@@ -126,20 +133,31 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
             authority,
             protocol_wallet,
             system_program,
-            config.protocol_fee_lamports
+            config.protocol_fee_lamports,
         )
     }
 }
 
-impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], UpdateNftV1InstructionData)>
-    for UpdateNftV1<'a, 'info>
+impl<'a, 'info>
+    TryFrom<(
+        &'a [AccountInfo<'info>],
+        UpdateNftV1InstructionData,
+        &'a Pubkey,
+    )> for UpdateNftV1<'a, 'info>
 {
     type Error = ProgramError;
 
     fn try_from(
-        (accounts, instruction_data): (&'a [AccountInfo<'info>], UpdateNftV1InstructionData),
+        (accounts, instruction_data, program_id): (
+            &'a [AccountInfo<'info>],
+            UpdateNftV1InstructionData,
+            &'a Pubkey,
+        ),
     ) -> Result<Self, Self::Error> {
         let accounts = UpdateNftV1Accounts::try_from(accounts)?;
+
+        Pda::validate(accounts.config_pda, &[Config::SEED], program_id)?;
+
         Ok(Self {
             accounts,
             instruction_data,

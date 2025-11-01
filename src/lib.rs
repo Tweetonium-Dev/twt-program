@@ -39,7 +39,7 @@ fn process_instruction(
         }
         TweetoniumInstruction::UpdateNftV1(data) => {
             msg!("Instruction: UpdateNft");
-            UpdateNftV1::try_from((accounts, data))?.process()
+            UpdateNftV1::try_from((accounts, data, program_id))?.process()
         }
         TweetoniumInstruction::BurnAndRefundV1 => {
             msg!("Instruction: BurnAndRefund");
@@ -47,7 +47,7 @@ fn process_instruction(
         }
         TweetoniumInstruction::ForceUnlockVestingV1 => {
             msg!("Instruction: ForceUnlockVesting");
-            ForceUnlockVestingV1::try_from(accounts)?.process()
+            ForceUnlockVestingV1::try_from((accounts, program_id))?.process()
         }
     }
 }

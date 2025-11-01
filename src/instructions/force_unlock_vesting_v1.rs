@@ -1,11 +1,11 @@
 use solana_program::{
     account_info::AccountInfo, clock::Clock, entrypoint::ProgramResult, msg,
-    program_error::ProgramError, sysvar::Sysvar,
+    program_error::ProgramError, pubkey::Pubkey, sysvar::Sysvar,
 };
 
 use crate::{
     states::Config,
-    utils::{AccountCheck, ConfigAccount, ProcessInstruction, SignerAccount, WritableAccount},
+    utils::{AccountCheck, ConfigAccount, Pda, ProcessInstruction, SignerAccount, WritableAccount},
 };
 
 #[derive(Debug)]
@@ -73,11 +73,18 @@ impl<'a, 'info> ForceUnlockVestingV1<'a, 'info> {
     }
 }
 
-impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for ForceUnlockVestingV1<'a, 'info> {
+impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)>
+    for ForceUnlockVestingV1<'a, 'info>
+{
     type Error = ProgramError;
 
-    fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
+    fn try_from(
+        (accounts, program_id): (&'a [AccountInfo<'info>], &'a Pubkey),
+    ) -> Result<Self, Self::Error> {
         let accounts = ForceUnlockVestingV1Accounts::try_from(accounts)?;
+
+        Pda::validate(accounts.config_pda, &[Config::SEED], program_id)?;
+
         Ok(Self { accounts })
     }
 }

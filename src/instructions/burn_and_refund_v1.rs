@@ -7,8 +7,8 @@ use crate::{
     states::{Config, Vault},
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, ConfigAccount,
-        MintAccount, ProcessInstruction, SignerAccount, TokenProgram, TransferArgs, VaultAccount,
-        WritableAccount,
+        MintAccount, Pda, ProcessInstruction, SignerAccount, TokenProgram, TransferArgs,
+        VaultAccount, WritableAccount,
     },
 };
 
@@ -26,6 +26,11 @@ pub struct BurnAndRefundV1Accounts<'a, 'info> {
     /// Must be valid MPL Core asset.
     pub nft_asset: &'a AccountInfo<'info>,
 
+    /// PDA: `[program_id, "vault_authority"]`.
+    /// Signs CPI to transfer from `vault_ata`.
+    /// Must be PDA, not required to sign.
+    pub vault_authority: &'a AccountInfo<'info>,
+
     /// PDA: `[program_id, "vault"]` — escrow state.
     /// Must be readable.
     pub vault_pda: &'a AccountInfo<'info>,
@@ -37,11 +42,6 @@ pub struct BurnAndRefundV1Accounts<'a, 'info> {
     /// User's ATA — receives refund.
     /// Must be writable, owned by `token_program`.
     pub payer_ata: &'a AccountInfo<'info>,
-
-    /// Vault authority PDA: `[program_id, "vault_authority"]`.
-    /// Signs CPI to transfer from `vault_ata`.
-    /// Must be PDA, not required to sign.
-    pub vault_authority: &'a AccountInfo<'info>,
 
     /// PDA: `[program_id, "config"]` — for price/refund logic.
     /// Must be readable.
@@ -64,10 +64,10 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
             authority,
             nft_token_account,
             nft_asset,
+            vault_authority,
             vault_pda,
             vault_ata,
             payer_ata,
-            vault_authority,
             config_pda,
             token_mint,
             token_program,
@@ -98,10 +98,10 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
             authority,
             nft_token_account,
             nft_asset,
+            vault_authority,
             vault_pda,
             vault_ata,
             payer_ata,
-            vault_authority,
             config_pda,
             token_mint,
             token_program,
@@ -112,7 +112,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
 #[derive(Debug)]
 pub struct BurnAndRefundV1<'a, 'info> {
     pub accounts: BurnAndRefundV1Accounts<'a, 'info>,
-    pub program_id: &'a Pubkey,
+    pub vault_bump: u8,
 }
 
 impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
@@ -121,7 +121,7 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
 
         let clock = Clock::get()?;
         if clock.unix_timestamp < config.vesting_end_ts {
-            msg!("Vesting no finished");
+            msg!("Vesting not finished");
             return Err(ProgramError::Custom(4));
         }
 
@@ -157,21 +157,15 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
     }
 
     fn refund_token(&self, config: &Config, vault: &mut Vault) -> ProgramResult {
+        let authority = self.accounts.authority;
         let vault_ata = self.accounts.vault_ata;
         let payer_ata = self.accounts.payer_ata;
         let vault_authority = self.accounts.vault_authority;
-        let config_pda = self.accounts.config_pda;
         let token_mint = self.accounts.token_mint;
         let token_program = self.accounts.token_program;
 
-        let (expected_vault_auth, vault_bump) =
-            Pubkey::find_program_address(&[Vault::SEED, config_pda.key.as_ref()], self.program_id);
-        if expected_vault_auth != *vault_authority.key {
-            msg!("Vault authority PDA mismatch");
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        let signers_seeds: &[&[&[u8]]] = &[&[Vault::SEED, config_pda.key.as_ref(), &[vault_bump]]];
+        let signers_seeds: &[&[&[u8]]] =
+            &[&[Vault::SEED, authority.key.as_ref(), &[self.vault_bump]]];
 
         TokenProgram::transfer_signed(
             TransferArgs {
@@ -201,9 +195,19 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)> for BurnAndRefun
     ) -> Result<Self, Self::Error> {
         let accounts = BurnAndRefundV1Accounts::try_from(accounts)?;
 
+        Pda::validate(accounts.config_pda, &[Config::SEED], program_id)?;
+
+        let (_, bump) = Pda::validate(
+            accounts.vault_pda,
+            &[Vault::SEED, accounts.authority.key.as_ref()],
+            program_id,
+        )?;
+
+        Pda::validate(accounts.config_pda, &[Config::SEED], program_id)?;
+
         Ok(Self {
             accounts,
-            program_id,
+            vault_bump: bump,
         })
     }
 }

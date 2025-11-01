@@ -5,9 +5,10 @@ use solana_program::{
 use solana_sdk_ids::system_program;
 
 use crate::{
-    states::Config,
+    states::{Config, Vault},
     utils::{
-        ASSOCIATED_TOKEN_PROGRAM_ID, MINT_2022_MIN_LEN, MINT_LEN, TOKEN_2022_PROGRAM_ID, TOKEN_ACCOUNT_2022_MIN_LEN, TOKEN_ACCOUNT_LEN, TOKEN_PROGRAM_ID
+        AssociatedTokenProgram, MINT_2022_MIN_LEN, MINT_LEN, TOKEN_2022_PROGRAM_ID,
+        TOKEN_ACCOUNT_2022_MIN_LEN, TOKEN_ACCOUNT_LEN, TOKEN_PROGRAM_ID,
     },
 };
 
@@ -21,10 +22,10 @@ pub trait AccountUninitializedCheck {
 
 pub trait AssociatedTokenAccountCheck {
     fn check<'info>(
-        account: &AccountInfo<'info>, 
-        wallet: &Pubkey, 
-        mint: &Pubkey, 
-        token_program_id: &Pubkey
+        account: &AccountInfo<'info>,
+        wallet: &Pubkey,
+        mint: &Pubkey,
+        token_program_id: &Pubkey,
     ) -> ProgramResult;
 }
 
@@ -81,10 +82,30 @@ pub struct MplCoreAccount;
 
 impl AccountCheck for MplCoreAccount {
     fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult {
-        let account = Pubkey::new_from_array(account.owner.to_bytes());
-        let mpl_core = Pubkey::new_from_array(mpl_core::ID.to_bytes());
-        if account != mpl_core {
+        if *account.owner != mpl_core::ID {
             return Err(ProgramError::InvalidAccountOwner);
+        }
+
+        Ok(())
+    }
+}
+
+pub struct MplCoreAsset;
+
+impl AccountCheck for MplCoreAsset {
+    fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult {
+        if *account.owner != mpl_core::ID {
+            return Err(ProgramError::InvalidAccountOwner);
+        }
+
+        Ok(())
+    }
+}
+
+impl AccountUninitializedCheck for MplCoreAsset {
+    fn check_uninitialized<'info>(account: &AccountInfo<'info>) -> ProgramResult {
+        if !account.data_is_empty() {
+            return Err(ProgramError::AccountAlreadyInitialized);
         }
 
         Ok(())
@@ -175,7 +196,7 @@ impl AccountCheck for VaultAccount {
             return Err(ProgramError::InvalidAccountOwner);
         }
 
-        if account.data_len() != Config::LEN {
+        if account.data_len() != Vault::LEN {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -197,27 +218,13 @@ pub struct AssociatedTokenAccount;
 
 impl AssociatedTokenAccountCheck for AssociatedTokenAccount {
     fn check<'info>(
-        account: &AccountInfo<'info>, 
-        wallet: &Pubkey, 
-        mint: &Pubkey, 
-        token_program_id: &Pubkey
+        account: &AccountInfo<'info>,
+        wallet: &Pubkey,
+        mint: &Pubkey,
+        token_program_id: &Pubkey,
     ) -> ProgramResult {
         TokenAccount::check(account)?;
-
-        let expected_ata = Pubkey::find_program_address(
-            &[
-                wallet.to_bytes().as_ref(),
-                token_program_id.to_bytes().as_ref(),
-                mint.to_bytes().as_ref(),
-            ],
-            &ASSOCIATED_TOKEN_PROGRAM_ID,
-        )
-        .0;
-
-        if account.key != &expected_ata {
-            return Err(ProgramError::InvalidSeeds);
-        }
-
+        AssociatedTokenProgram::check(account, wallet, mint, token_program_id)?;
         Ok(())
     }
 }

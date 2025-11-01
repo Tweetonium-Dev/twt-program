@@ -23,11 +23,7 @@ impl<'a, 'info> Pda<'a, 'info> {
         owner: &'a Pubkey,
         program_id: &'a Pubkey,
     ) -> Result<Self, ProgramError> {
-        let (derived_pda, bump) = Pubkey::find_program_address(seeds, program_id);
-        if derived_pda != *pda.key {
-            msg!("Invalid PDA: expected {}, got {}", derived_pda, pda.key);
-            return Err(ProgramError::InvalidSeeds);
-        }
+        let (_pda, bump) = Self::validate(pda, seeds, program_id)?;
 
         Ok(Self {
             payer,
@@ -40,6 +36,19 @@ impl<'a, 'info> Pda<'a, 'info> {
         })
     }
 
+    pub fn validate(
+        pda: &'a AccountInfo<'info>,
+        seeds: &'a [&'a [u8]],
+        program_id: &'a Pubkey,
+    ) -> Result<(Pubkey, u8), ProgramError> {
+        let (derived_pda, bump) = Pubkey::find_program_address(seeds, program_id);
+        if derived_pda != *pda.key {
+            msg!("Invalid PDA: expected {}, got {}", derived_pda, pda.key);
+            return Err(ProgramError::InvalidSeeds);
+        }
+        Ok((derived_pda, bump))
+    }
+
     pub fn init(&self) -> Result<u8, ProgramError> {
         let rent = Rent::get()?;
         let lamports = rent.minimum_balance(self.space);
@@ -50,14 +59,16 @@ impl<'a, 'info> Pda<'a, 'info> {
         signer_seed_vec.push(bump_slice);
         let signer_seeds: &[&[&[u8]]] = &[signer_seed_vec.as_slice()];
 
+        let ix = system_instruction::create_account(
+            self.payer.key,
+            self.pda.key,
+            lamports,
+            self.space as u64,
+            self.owner,
+        );
+
         invoke_signed(
-            &system_instruction::create_account(
-                self.payer.key,
-                self.pda.key,
-                lamports,
-                self.space as u64,
-                self.owner,
-            ),
+            &ix,
             &[
                 self.payer.clone(),
                 self.pda.clone(),

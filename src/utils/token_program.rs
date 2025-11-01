@@ -10,7 +10,6 @@ use spl_token::instruction::{burn_checked, transfer, transfer_checked};
 
 pub const TOKEN_PROGRAM_ID: Pubkey = spl_token::ID;
 pub const TOKEN_2022_PROGRAM_ID: Pubkey = pubkey!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
-pub const ASSOCIATED_TOKEN_PROGRAM_ID: Pubkey = pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
 pub const MINT_LEN: usize = 82;
 pub const MINT_2022_MIN_LEN: usize = 90;

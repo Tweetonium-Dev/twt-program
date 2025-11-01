@@ -53,7 +53,6 @@ impl Config {
         + size_of::<u64>()
         + size_of::<i64>()
         + size_of::<Pubkey>()
-        + size_of::<Pubkey>()
         + size_of::<u8>()
         + size_of::<u64>();
 

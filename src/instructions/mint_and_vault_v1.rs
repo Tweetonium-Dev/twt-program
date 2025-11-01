@@ -6,18 +6,17 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, MintedUser, Vault},
+    states::{Config, MintedUser, NftAuthority, Vault},
     utils::{
-        AccountCheck, AccountUninitializedCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, ConfigAccount, MintAccount, MplCoreAccount, Pda, ProcessInstruction, SignerAccount, SystemAccount, SystemProgram, TokenProgram, TransferArgs, WritableAccount
+        AccountCheck, AccountUninitializedCheck, AssociatedTokenAccount,
+        AssociatedTokenAccountCheck, AssociatedTokenProgram, ConfigAccount, MintAccount,
+        MplCoreAccount, MplCoreAsset, Pda, ProcessInstruction, SignerAccount, SystemAccount,
+        SystemProgram, TokenProgram, TransferArgs, WritableAccount,
     },
 };
 
 #[derive(Debug)]
 pub struct MintAndVaultV1Accounts<'a, 'info> {
-    /// Config authority — allowed to mint (checked via `Config::authority`).
-    /// Not required to sign unless enforced by config.
-    pub authority: &'a AccountInfo<'info>,
-
     /// User paying the mint price in 'token_mint' and solana.
     /// Must be signer and owner of `payer_ata`.
     pub payer: &'a AccountInfo<'info>,
@@ -43,6 +42,11 @@ pub struct MintAndVaultV1Accounts<'a, 'info> {
     /// Prevents double-minting.
     /// Must be uninitialized or checked for prior mint.
     pub minted_user_pda: &'a AccountInfo<'info>,
+
+    /// PDA: `[program_id, "nft_authority"]`
+    /// Controls: update/burn all NFTs.
+    /// Only program can sign
+    pub nft_authority: &'a AccountInfo<'info>,
 
     /// NFT asset (MPL Core) — the NFT being minted.
     /// Must be uninitialized, owned by `mpl_core`.
@@ -77,13 +81,13 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAndVaultV1Accounts<'a,
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
         let [
-            authority,
             payer,
             config_pda,
             vault_pda,
             vault_ata,
             payer_ata,
             minted_user_pda,
+            nft_authority,
             nft_asset,
             nft_token_account,
             token_mint,
@@ -106,6 +110,8 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAndVaultV1Accounts<'a,
         AssociatedTokenAccount::check(payer_ata, payer.key, token_mint.key, token_program.key)?;
         WritableAccount::check(minted_user_pda)?;
         WritableAccount::check(nft_asset)?;
+        MplCoreAsset::check(nft_asset)?;
+        MplCoreAsset::check_uninitialized(nft_asset)?;
         WritableAccount::check_uninitialized(nft_asset)?;
         WritableAccount::check(nft_token_account)?;
         AssociatedTokenAccount::check(
@@ -120,13 +126,13 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAndVaultV1Accounts<'a,
         MplCoreAccount::check(mpl_core)?;
 
         Ok(Self {
-            authority,
             payer,
             payer_ata,
             vault_ata,
             config_pda,
             vault_pda,
             minted_user_pda,
+            nft_authority,
             nft_asset,
             nft_token_account,
             token_mint,
@@ -153,13 +159,6 @@ pub struct MintAndVaultV1<'a, 'info> {
 
 impl<'a, 'info> MintAndVaultV1<'a, 'info> {
     fn check_mint_eligibility(&self, config: &Config) -> ProgramResult {
-        let authority = self.accounts.authority;
-
-        if config.authority != *authority.key {
-            msg!("Authority account mismatch with config");
-            return Err(ProgramError::InvalidAccountData);
-        }
-
         if config.supply_minted >= config.max_supply {
             msg!("All nft are minted");
             return Err(ProgramError::Custom(0));
@@ -204,7 +203,6 @@ impl<'a, 'info> MintAndVaultV1<'a, 'info> {
         let payer = self.accounts.payer;
         let payer_ata = self.accounts.payer_ata;
         let vault_ata = self.accounts.vault_ata;
-        let config_pda = self.accounts.config_pda;
         let vault_pda = self.accounts.vault_pda;
         let nft_mint = self.accounts.nft_asset;
         let token_mint = self.accounts.token_mint;
@@ -212,6 +210,17 @@ impl<'a, 'info> MintAndVaultV1<'a, 'info> {
         let system_program = self.accounts.system_program;
 
         let price = config.price;
+
+        if vault_ata.lamports() == 0 {
+            AssociatedTokenProgram::init(
+                payer,
+                vault_pda,
+                token_mint,
+                token_program,
+                system_program,
+                vault_ata,
+            )?;
+        }
 
         TokenProgram::transfer(TransferArgs {
             source: payer_ata,
@@ -228,7 +237,7 @@ impl<'a, 'info> MintAndVaultV1<'a, 'info> {
             payer,
             vault_pda,
             system_program,
-            &[Vault::SEED, config_pda.key.as_ref()],
+            &[Vault::SEED, payer.key.as_ref()],
             Vault::LEN,
             self.program_id,
             self.program_id,
@@ -246,23 +255,25 @@ impl<'a, 'info> MintAndVaultV1<'a, 'info> {
     }
 
     fn pay_protocol_fee(&self, config: &Config) -> ProgramResult {
-        if config.protocol_fee_lamports == 0 { return Ok(()) }
+        if config.protocol_fee_lamports == 0 {
+            return Ok(());
+        }
 
-        let authority = self.accounts.authority;
+        let payer = self.accounts.payer;
         let protocol_wallet = self.accounts.protocol_wallet;
         let system_program = self.accounts.system_program;
 
         SystemProgram::transfer(
-            authority,
+            payer,
             protocol_wallet,
             system_program,
-            config.protocol_fee_lamports
+            config.protocol_fee_lamports,
         )
     }
 
     fn mint_nft(self) -> ProgramResult {
         let payer = self.accounts.payer;
-        let authority = self.accounts.authority;
+        let nft_authority = self.accounts.nft_authority;
         let nft_asset = self.accounts.nft_asset;
         let nft_token_account = self.accounts.nft_token_account;
         let system_program = self.accounts.system_program;
@@ -271,10 +282,10 @@ impl<'a, 'info> MintAndVaultV1<'a, 'info> {
         CreateV1CpiBuilder::new(mpl_core)
             .asset(nft_asset)
             .collection(None)
-            .authority(Some(authority))
+            .authority(Some(nft_authority))
             .payer(payer)
             .owner(Some(nft_token_account))
-            .update_authority(Some(authority))
+            .update_authority(Some(nft_authority))
             .system_program(system_program)
             .name(self.instruction_data.name)
             .uri(self.instruction_data.uri)
@@ -301,6 +312,10 @@ impl<'a, 'info>
         ),
     ) -> Result<Self, Self::Error> {
         let accounts = MintAndVaultV1Accounts::try_from(accounts)?;
+
+        Pda::validate(accounts.config_pda, &[Config::SEED], program_id)?;
+
+        Pda::validate(accounts.nft_authority, &[NftAuthority::SEED], program_id)?;
 
         Ok(Self {
             accounts,

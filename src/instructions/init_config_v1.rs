@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::Config,
+    states::{Config, VaultAuthority},
     utils::{
         AccountCheck, MintAccount, Pda, ProcessInstruction, SignerAccount, SystemAccount,
         TokenProgram, WritableAccount,
@@ -26,6 +26,11 @@ pub struct InitConfigV1Accounts<'a, 'info> {
     /// Must be valid mint (82 or 90+ bytes), owned by SPL Token or Token-2022.
     pub mint: &'a AccountInfo<'info>,
 
+    /// PDA: `[program_id, "vault_authority"]`.
+    /// Signs CPI to transfer from `vault_ata`.
+    /// Must be PDA, not required to sign.
+    pub vault_authority: &'a AccountInfo<'info>,
+
     /// SPL Token Program (legacy) or Token-2022 Program.
     /// Must match the mint's owner.
     pub token_program: &'a AccountInfo<'info>,
@@ -38,19 +43,29 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [authority, config_pda, mint, token_program, system_program] = accounts else {
+        let [
+            authority,
+            config_pda,
+            mint,
+            vault_authority,
+            token_program,
+            system_program,
+        ] = accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         SignerAccount::check(authority)?;
         WritableAccount::check(config_pda)?;
         MintAccount::check(mint)?;
+        WritableAccount::check(vault_authority)?;
         SystemAccount::check(system_program)?;
 
         Ok(Self {
             authority,
             config_pda,
             mint,
+            vault_authority,
             token_program,
             system_program,
         })
@@ -71,6 +86,64 @@ pub struct InitConfigV1<'a, 'info> {
     pub accounts: InitConfigV1Accounts<'a, 'info>,
     pub instruction_data: InitConfigV1InstructionData,
     pub program_id: &'a Pubkey,
+}
+
+impl<'a, 'info> InitConfigV1<'a, 'info> {
+    fn init_config(&self) -> ProgramResult {
+        let authority = self.accounts.authority;
+        let config_pda = self.accounts.config_pda;
+        let mint = self.accounts.mint;
+        let token_program = self.accounts.token_program;
+        let system_program = self.accounts.system_program;
+
+        Pda::new(
+            authority,
+            config_pda,
+            system_program,
+            &[Config::SEED],
+            Config::LEN,
+            self.program_id,
+            self.program_id,
+        )?
+        .init_if_needed()?;
+
+        let decimals = TokenProgram::get_decimal(mint, token_program)?;
+
+        let cfg = Config {
+            authority: *authority.key,
+            max_supply: self.instruction_data.max_supply,
+            released: self.instruction_data.released,
+            price: self.instruction_data.price,
+            supply_minted: 0,
+            vesting_end_ts: self.instruction_data.vesting_end_ts,
+            mint: *mint.key,
+            mint_decimals: decimals,
+            protocol_fee_lamports: self.instruction_data.protocol_fee_lamports,
+        };
+
+        Config::init(&mut config_pda.data.borrow_mut()[..], &cfg)?;
+
+        Ok(())
+    }
+
+    fn ini_vault_authority(&self) -> ProgramResult {
+        let authority = self.accounts.authority;
+        let vault_authority = self.accounts.vault_authority;
+        let system_program = self.accounts.system_program;
+
+        Pda::new(
+            authority,
+            vault_authority,
+            system_program,
+            &[VaultAuthority::SEED],
+            0,
+            self.program_id,
+            self.program_id,
+        )?
+        .init_if_needed()?;
+
+        Ok(())
+    }
 }
 
 impl<'a, 'info>
@@ -101,39 +174,8 @@ impl<'a, 'info>
 
 impl<'a, 'info> ProcessInstruction for InitConfigV1<'a, 'info> {
     fn process(self) -> ProgramResult {
-        let authority = self.accounts.authority;
-        let config_pda = self.accounts.config_pda;
-        let mint = self.accounts.mint;
-        let token_program = self.accounts.token_program;
-        let system_program = self.accounts.system_program;
-
-        Pda::new(
-            authority,
-            config_pda,
-            system_program,
-            &[Config::SEED, authority.key.as_ref()],
-            Config::LEN,
-            self.program_id,
-            self.program_id,
-        )?
-        .init_if_needed()?;
-
-        let decimals = TokenProgram::get_decimal(mint, token_program)?;
-
-        let cfg = Config {
-            authority: *authority.key,
-            max_supply: self.instruction_data.max_supply,
-            released: self.instruction_data.released,
-            price: self.instruction_data.price,
-            supply_minted: 0,
-            vesting_end_ts: self.instruction_data.vesting_end_ts,
-            mint: *mint.key,
-            mint_decimals: decimals,
-            protocol_fee_lamports: self.instruction_data.protocol_fee_lamports,
-        };
-
-        Config::init(&mut config_pda.data.borrow_mut()[..], &cfg)?;
-
+        self.init_config()?;
+        self.ini_vault_authority()?;
         Ok(())
     }
 }
