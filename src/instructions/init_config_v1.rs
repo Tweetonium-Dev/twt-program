@@ -63,7 +63,6 @@ pub struct InitConfigV1InstructionData {
     pub released: u64,
     pub price: u64,
     pub vesting_end_ts: i64,
-    pub merkle_root: Pubkey,
     pub protocol_fee_lamports: u64,
 }
 
@@ -128,7 +127,6 @@ impl<'a, 'info> ProcessInstruction for InitConfigV1<'a, 'info> {
             price: self.instruction_data.price,
             supply_minted: 0,
             vesting_end_ts: self.instruction_data.vesting_end_ts,
-            merkle_root: self.instruction_data.merkle_root,
             mint: *mint.key,
             mint_decimals: decimals,
             protocol_fee_lamports: self.instruction_data.protocol_fee_lamports,

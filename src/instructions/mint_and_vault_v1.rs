@@ -161,20 +161,13 @@ impl<'a, 'info> MintAndVaultV1<'a, 'info> {
         }
 
         if config.supply_minted >= config.max_supply {
-            msg!("Sold out");
+            msg!("All nft are minted");
             return Err(ProgramError::Custom(0));
         }
 
-        if config.supply_minted < config.released {
-            let leaf = sha256_hash(&payer.key.to_bytes());
-            if !verify_merkle_proof(
-                leaf,
-                &self.instruction_data.merkle_proof,
-                config.merkle_root.to_bytes(),
-            ) {
-                msg!("Not whitelisted");
-                return Err(ProgramError::Custom(1));
-            }
+        if config.supply_minted <= config.released {
+            msg!("Sold out");
+            return Err(ProgramError::Custom(1));
         }
 
         Ok(())
