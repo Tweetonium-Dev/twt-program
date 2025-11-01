@@ -6,7 +6,8 @@ use solana_program::{
 
 use crate::{
     instructions::{
-        BurnAndRefundV1, InitConfigV1, MintAndVaultV1, TweetoniumInstruction, UpdateNftV1,
+        BurnAndRefundV1, ForceUnlockVestingV1, InitConfigV1, MintAndVaultV1, TweetoniumInstruction,
+        UpdateNftV1,
     },
     utils::ProcessInstruction,
 };
@@ -43,6 +44,10 @@ fn process_instruction(
         TweetoniumInstruction::BurnAndRefundV1 => {
             msg!("Instruction: BurnAndRefund");
             BurnAndRefundV1::try_from((accounts, program_id))?.process()
+        }
+        TweetoniumInstruction::ForceUnlockVestingV1 => {
+            msg!("Instruction: ForceUnlockVesting");
+            ForceUnlockVestingV1::try_from(accounts)?.process()
         }
     }
 }
