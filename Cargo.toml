@@ -3,7 +3,7 @@ cargo-features = ["edition2024"]
 [package]
 name = "tweetonium"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -24,3 +24,4 @@ spl-token-interface = "=2.0.0"
 spl-token = { version = "=6.0.0", features = ["no-entrypoint"] }
 
 mpl-core = "=0.10.1"
+shank = "0.4.5"
