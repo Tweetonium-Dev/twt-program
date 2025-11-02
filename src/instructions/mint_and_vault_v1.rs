@@ -101,27 +101,31 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAndVaultV1Accounts<'a,
         };
 
         SignerAccount::check(payer)?;
+
         WritableAccount::check(config_pda)?;
-        ConfigAccount::check(config_pda)?;
         WritableAccount::check(vault_pda)?;
         WritableAccount::check(vault_ata)?;
-        AssociatedTokenAccount::check(vault_ata, vault_pda.key, token_mint.key, token_program.key)?;
         WritableAccount::check(payer_ata)?;
-        AssociatedTokenAccount::check(payer_ata, payer.key, token_mint.key, token_program.key)?;
         WritableAccount::check(minted_user_pda)?;
         WritableAccount::check(nft_asset)?;
-        MplCoreAsset::check(nft_asset)?;
-        MplCoreAsset::check_uninitialized(nft_asset)?;
         WritableAccount::check_uninitialized(nft_asset)?;
         WritableAccount::check(nft_token_account)?;
+        WritableAccount::check(protocol_wallet)?;
+
+        AssociatedTokenAccount::check(vault_ata, vault_pda.key, token_mint.key, token_program.key)?;
+        AssociatedTokenAccount::check(payer_ata, payer.key, token_mint.key, token_program.key)?;
         AssociatedTokenAccount::check(
             nft_token_account,
             payer.key,
             nft_asset.key,
             token_program.key,
         )?;
+
+        MplCoreAsset::check(nft_asset)?;
+        MplCoreAsset::check_uninitialized(nft_asset)?;
+
+        ConfigAccount::check(config_pda)?;
         MintAccount::check(token_mint)?;
-        WritableAccount::check(protocol_wallet)?;
         SystemAccount::check(system_program)?;
         MplCoreAccount::check(mpl_core)?;
 

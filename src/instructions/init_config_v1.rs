@@ -56,9 +56,11 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
         };
 
         SignerAccount::check(authority)?;
+
         WritableAccount::check(config_pda)?;
-        MintAccount::check(mint)?;
         WritableAccount::check(vault_authority)?;
+
+        MintAccount::check(mint)?;
         SystemAccount::check(system_program)?;
 
         Ok(Self {

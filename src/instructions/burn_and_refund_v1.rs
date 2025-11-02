@@ -77,20 +77,23 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
         };
 
         SignerAccount::check(authority)?;
+
         WritableAccount::check(nft_token_account)?;
+        WritableAccount::check(vault_pda)?;
+        WritableAccount::check(vault_ata)?;
+        WritableAccount::check(payer_ata)?;
+        WritableAccount::check(config_pda)?;
+
         AssociatedTokenAccount::check(
             nft_token_account,
             authority.key,
             nft_asset.key,
             token_program.key,
         )?;
-        WritableAccount::check(vault_pda)?;
-        VaultAccount::check(vault_pda)?;
-        WritableAccount::check(vault_ata)?;
         AssociatedTokenAccount::check(vault_ata, vault_pda.key, token_mint.key, token_program.key)?;
-        WritableAccount::check(payer_ata)?;
         AssociatedTokenAccount::check(payer_ata, authority.key, token_mint.key, token_program.key)?;
-        WritableAccount::check(config_pda)?;
+
+        VaultAccount::check(vault_pda)?;
         ConfigAccount::check(config_pda)?;
         MintAccount::check(token_mint)?;
 

@@ -56,10 +56,12 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateNftV1Accounts<'a, 'i
         };
 
         SignerAccount::check(authority)?;
+
         WritableAccount::check(config_pda)?;
-        ConfigAccount::check(config_pda)?;
         WritableAccount::check(nft_asset)?;
         WritableAccount::check(protocol_wallet)?;
+
+        ConfigAccount::check(config_pda)?;
         SystemAccount::check(system_program)?;
         MplCoreAccount::check(mpl_core)?;
 
