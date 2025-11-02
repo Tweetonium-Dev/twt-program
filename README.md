@@ -1,4 +1,4 @@
-# Tweetonium – Solana NFT Mint & Refund Program
+# Tweetonium – Solana Upgradable NFT Mint and Burn Program
 
 [![Solana](https://img.shields.io/badge/Solana-14F195?logo=solana&logoColor=white)](https://solana.com)
 [![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
@@ -123,4 +123,5 @@ make idl                            # Generate IDL
 ## License
 
 MIT © 2025
+
 Built for Solana. Powered by Rust. Secured by PDAs.
