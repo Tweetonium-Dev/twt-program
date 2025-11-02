@@ -14,8 +14,6 @@
 
 Built using **MPL Core** and **Anchor-free** Rust with **Shank IDL generation**.
 
----
-
 ## Features
 
 | Feature                 | Description                                                                  |
@@ -28,15 +26,11 @@ Built using **MPL Core** and **Anchor-free** Rust with **Shank IDL generation**.
 | **Per-user Mint Guard** | One mint per wallet                                                          |
 | **Upgradeable**         | Full upgrade authority control                                               |
 
----
-
 ## Program ID
 
 ```text
 8WNZn3jMFzHbPJ3mfahUD894hmTJvgn2T3VJncVSe8kA
 ```
-
----
 
 ## Instructions
 
@@ -47,8 +41,6 @@ Built using **MPL Core** and **Anchor-free** Rust with **Shank IDL generation**.
 | `UpdateNftV1`            | Update NFT metadata (owner only) |
 | `BurnAndRefundV1`        | Burn NFT → Get refund            |
 | `ForceUnlockVestingV1`   | Admin: unlock vesting early      |
-
----
 
 ## Account Structure
 
@@ -61,8 +53,6 @@ Built using **MPL Core** and **Anchor-free** Rust with **Shank IDL generation**.
 | `["minted", user_pubkey]` | Mint guard                       |
 | `["vault_authority"]`     | Signs token transfers from vault |
 | `["nft_authority"]`       | MPL Core update/burn authority   |
-
----
 
 ## Setup & Development
 
@@ -81,6 +71,8 @@ make build
 
 ### Deploy
 
+`AUTH`: Wallet that will pay and own tweetonium program
+
 ```bash
 make deploy AUTH=~/.config/solana/id.json
 ```
@@ -93,8 +85,6 @@ make idl
 
 > **IDL output**: ./idl/tweetonium.json
 
----
-
 ## Makefile Commands
 
 ```bash
@@ -106,8 +96,6 @@ make verify                         # Show program info
 make idl                            # Generate IDL
 ```
 
----
-
 ## Security & Audits
 
 - **No reentrancy**: All state checks before external calls
@@ -118,16 +106,12 @@ make idl                            # Generate IDL
 
 > Ready for audit.
 
----
-
 ## Use Cases
 
 - **Token-gated NFT drops**
 - **Refundable collectibles**
 - **Time-locked airdrops**
 - **Burn-to-earn mechanics**
-
----
 
 ## Contributing
 
@@ -136,14 +120,7 @@ make idl                            # Generate IDL
 3. Write tests (TBD)
 4. Submit PR
 
----
-
 ## License
 
 MIT © 2025
-
----
-
 Built for Solana. Powered by Rust. Secured by PDAs.
-
----
