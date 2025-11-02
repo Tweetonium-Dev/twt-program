@@ -24,7 +24,7 @@ pub struct InitConfigV1Accounts<'a, 'info> {
 
     /// Token mint (fungible token used for minting/refunding e.g. ZDLT).
     /// Must be valid mint (82 or 90+ bytes), owned by SPL Token or Token-2022.
-    pub mint: &'a AccountInfo<'info>,
+    pub token_mint: &'a AccountInfo<'info>,
 
     /// PDA: `[program_id, "vault_authority"]`.
     /// Signs CPI to transfer from `vault_ata`.
@@ -46,7 +46,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
         let [
             authority,
             config_pda,
-            mint,
+            token_mint,
             vault_authority,
             token_program,
             system_program,
@@ -60,13 +60,13 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
         WritableAccount::check(config_pda)?;
         WritableAccount::check(vault_authority)?;
 
-        MintAccount::check(mint)?;
+        MintAccount::check(token_mint)?;
         SystemAccount::check(system_program)?;
 
         Ok(Self {
             authority,
             config_pda,
-            mint,
+            token_mint,
             vault_authority,
             token_program,
             system_program,
@@ -94,7 +94,7 @@ impl<'a, 'info> InitConfigV1<'a, 'info> {
     fn init_config(&self) -> ProgramResult {
         let authority = self.accounts.authority;
         let config_pda = self.accounts.config_pda;
-        let mint = self.accounts.mint;
+        let mint = self.accounts.token_mint;
         let token_program = self.accounts.token_program;
         let system_program = self.accounts.system_program;
 
