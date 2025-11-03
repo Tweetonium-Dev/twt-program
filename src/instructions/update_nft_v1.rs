@@ -1,15 +1,15 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use mpl_core::{Asset, instructions::UpdateV1CpiBuilder};
+use mpl_core::{instructions::UpdateV1CpiBuilder, Asset};
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
     pubkey::Pubkey,
 };
 
 use crate::{
-    states::Config,
+    states::{Config, NftAuthority},
     utils::{
-        AccountCheck, ConfigAccount, MplCoreAccount, Pda, ProcessInstruction, SignerAccount,
-        SystemAccount, SystemProgram, WritableAccount,
+        AccountCheck, ConfigAccount, MintAccount, MplCoreAccount, Pda, ProcessInstruction,
+        SignerAccount, SystemProgram, WritableAccount,
     },
 };
 
@@ -17,11 +17,20 @@ use crate::{
 pub struct UpdateNftV1Accounts<'a, 'info> {
     /// Authority allowed to update the NFT (e.g. update authority).
     /// Must be signer if required by MPL Core.
-    pub authority: &'a AccountInfo<'info>,
+    pub payer: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, "config"]` — stores global config.
+    /// PDA: `[program_id, token_mint, "config"]` — stores global config.
     /// Must be readable, owned by program.
     pub config_pda: &'a AccountInfo<'info>,
+
+    /// Token mint (fungible token used for minting/refunding e.g. ZDLT).
+    /// Must be valid mint (82 or 90+ bytes), owned by SPL Token or Token-2022.
+    pub token_mint: &'a AccountInfo<'info>,
+
+    /// PDA: `[program_id, "nft_authority"]`
+    /// Controls: update/burn all NFTs.
+    /// Only program can sign
+    pub nft_authority: &'a AccountInfo<'info>,
 
     /// NFT asset (MPL Core) — the asset being updated.
     /// Must be mutable, owned by `mpl_core`.
@@ -43,31 +52,29 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateNftV1Accounts<'a, 'i
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [
-            authority,
-            config_pda,
-            nft_asset,
-            protocol_wallet,
-            system_program,
-            mpl_core,
-        ] = accounts
+        let [payer, config_pda, token_mint, nft_authority, nft_asset, protocol_wallet, system_program, mpl_core] =
+            accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        SignerAccount::check(authority)?;
+        SignerAccount::check(payer)?;
 
         WritableAccount::check(config_pda)?;
         WritableAccount::check(nft_asset)?;
+        WritableAccount::check(nft_authority)?;
         WritableAccount::check(protocol_wallet)?;
 
         ConfigAccount::check(config_pda)?;
-        SystemAccount::check(system_program)?;
+        MintAccount::check(token_mint)?;
+        SystemProgram::check(system_program)?;
         MplCoreAccount::check(mpl_core)?;
 
         Ok(Self {
-            authority,
+            payer,
             config_pda,
+            token_mint,
+            nft_authority,
             nft_asset,
             protocol_wallet,
             system_program,
@@ -86,18 +93,19 @@ pub struct UpdateNftV1InstructionData {
 pub struct UpdateNftV1<'a, 'info> {
     pub accounts: UpdateNftV1Accounts<'a, 'info>,
     pub instruction_data: UpdateNftV1InstructionData,
+    pub nft_authority_bump: u8,
 }
 
 impl<'a, 'info> UpdateNftV1<'a, 'info> {
     fn check_ownership(&self) -> ProgramResult {
-        let authority = self.accounts.authority;
+        let payer = self.accounts.payer;
         let nft_asset = self.accounts.nft_asset;
 
         let asset_data = &nft_asset.data.borrow();
         let asset =
             Asset::deserialize(&asset_data[..]).map_err(|_| ProgramError::InvalidAccountData)?;
 
-        if asset.base.owner != *authority.key {
+        if asset.base.owner != *payer.key {
             msg!("Signer is not the NFT owner");
             return Err(ProgramError::InvalidAccountData);
         }
@@ -106,18 +114,20 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
     }
 
     fn update_nft(&self) -> ProgramResult {
-        let authority = self.accounts.authority;
+        let payer = self.accounts.payer;
+        let nft_authority = self.accounts.nft_authority;
         let nft_asset = self.accounts.nft_asset;
         let system_program = self.accounts.system_program;
         let mpl_core = self.accounts.mpl_core;
 
         UpdateV1CpiBuilder::new(mpl_core)
             .asset(nft_asset)
-            .authority(Some(authority))
+            .payer(payer)
+            .authority(Some(nft_authority))
             .system_program(system_program)
             .new_name(self.instruction_data.name.to_string())
             .new_uri(self.instruction_data.uri.to_string())
-            .invoke()?;
+            .invoke_signed(&[&[NftAuthority::SEED, &[self.nft_authority_bump]]])?;
 
         Ok(())
     }
@@ -127,12 +137,12 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
             return Ok(());
         }
 
-        let authority = self.accounts.authority;
+        let payer = self.accounts.payer;
         let protocol_wallet = self.accounts.protocol_wallet;
         let system_program = self.accounts.system_program;
 
         SystemProgram::transfer(
-            authority,
+            payer,
             protocol_wallet,
             system_program,
             config.protocol_fee_lamports,
@@ -158,11 +168,18 @@ impl<'a, 'info>
     ) -> Result<Self, Self::Error> {
         let accounts = UpdateNftV1Accounts::try_from(accounts)?;
 
-        Pda::validate(accounts.config_pda, &[Config::SEED], program_id)?;
+        Pda::validate(
+            accounts.config_pda,
+            &[Config::SEED, accounts.token_mint.key.as_ref()],
+            program_id,
+        )?;
+        let (_, nft_authority_bump) =
+            Pda::validate(accounts.nft_authority, &[NftAuthority::SEED], program_id)?;
 
         Ok(Self {
             accounts,
             instruction_data,
+            nft_authority_bump,
         })
     }
 }
