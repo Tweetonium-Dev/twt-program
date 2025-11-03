@@ -42,7 +42,7 @@ Built using **MPL Core** and **Anchor-free** Rust with **Shank IDL generation**.
 | `MintAndVaultV1`         | Pay → Mint NFT → Lock tokens     |
 | `UpdateNftV1`            | Update NFT metadata (owner only) |
 | `BurnAndRefundV1`        | Burn NFT → Get refund            |
-| `ForceUnlockVestingV1`   | Admin: unlock vesting early      |
+| `ForceUnlockVestingV1`   | Admin: unlock vesting on demand  |
 
 ## Account Structure
 
