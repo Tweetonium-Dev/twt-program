@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{msg, program_error::ProgramError, pubkey::Pubkey};
 
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
@@ -46,25 +46,19 @@ pub struct Config {
 }
 
 impl Config {
-    pub const LEN: usize = size_of::<Pubkey>()
-        + size_of::<u64>()
-        + size_of::<u64>()
-        + size_of::<u64>()
-        + size_of::<u64>()
-        + size_of::<i64>()
-        + size_of::<Pubkey>()
-        + size_of::<u8>()
-        + size_of::<u64>();
+    pub const LEN: usize = size_of::<Self>();
 
     pub const SEED: &[u8; 6] = b"config";
 
     #[inline(always)]
     pub fn load(data: &[u8]) -> Result<&Self, ProgramError> {
         if data.len() < Self::LEN {
+            msg!("Load config account data length wrong");
             return Err(ProgramError::InvalidAccountData);
         }
 
         let config: &Self = bytemuck::try_from_bytes(&data[..Self::LEN])
+            .inspect_err(|_| msg!("Invalid loaded config data"))
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         Ok(config)
@@ -73,10 +67,12 @@ impl Config {
     #[inline(always)]
     pub fn load_mut(data: &mut [u8]) -> Result<&mut Self, ProgramError> {
         if data.len() < Self::LEN {
+            msg!("Load mut config account data length wrong");
             return Err(ProgramError::InvalidAccountData);
         }
 
         let config: &mut Self = bytemuck::try_from_bytes_mut(&mut data[..Self::LEN])
+            .inspect_err(|_| msg!("Invalid loaded mutable config data"))
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         Ok(config)
@@ -85,9 +81,11 @@ impl Config {
     #[inline(always)]
     pub fn init(data: &mut [u8], cfg: &Self) -> Result<(), ProgramError> {
         if data.len() < Self::LEN {
+            msg!("Init config account data length wrong");
             return Err(ProgramError::InvalidAccountData);
         }
-        data.copy_from_slice(bytemuck::bytes_of(cfg));
+        let src = bytemuck::bytes_of(cfg);
+        data[..Self::LEN].copy_from_slice(src);
         Ok(())
     }
 
@@ -96,6 +94,7 @@ impl Config {
         self.supply_minted = self
             .supply_minted
             .checked_add(1)
+            .inspect(|_| msg!("Unable to increment config.minted"))
             .ok_or(ProgramError::InvalidInstructionData)?;
         Ok(())
     }

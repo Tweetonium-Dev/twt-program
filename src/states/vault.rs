@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{msg, program_error::ProgramError, pubkey::Pubkey};
 
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
@@ -26,12 +26,7 @@ pub struct Vault {
 }
 
 impl Vault {
-    pub const LEN: usize = size_of::<Pubkey>()
-        + size_of::<Pubkey>()
-        + size_of::<u64>()
-        + size_of::<u64>()
-        + size_of::<bool>()
-        + size_of::<[u8; 1]>();
+    pub const LEN: usize = size_of::<Self>();
 
     pub const SEED: &[u8; 5] = b"vault";
 
@@ -46,20 +41,22 @@ impl Vault {
     }
 
     #[inline(always)]
-    pub fn load_mut(data: &mut [u8]) -> Result<&mut Self, ProgramError> {
+    pub fn load(data: &[u8]) -> Result<&Self, ProgramError> {
         if data.len() < Self::LEN {
+            msg!("Load vault account data length wrong");
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let minted: &mut Self = bytemuck::try_from_bytes_mut(&mut data[..Self::LEN])
+        let config: &Self = bytemuck::try_from_bytes(&data[..Self::LEN])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        Ok(minted)
+        Ok(config)
     }
 
     #[inline(always)]
     pub fn init(data: &mut [u8], cfg: &Self) -> Result<(), ProgramError> {
         if data.len() < Self::LEN {
+            msg!("Init vault account data length wrong");
             return Err(ProgramError::InvalidAccountData);
         }
         data.copy_from_slice(bytemuck::bytes_of(cfg));
@@ -69,10 +66,5 @@ impl Vault {
     #[inline(always)]
     pub fn is_unlocked(&self) -> bool {
         self.is_unlocked == 1
-    }
-
-    #[inline(always)]
-    pub fn set_unlocked(&mut self, is_unlocked: bool) {
-        self.is_unlocked = if is_unlocked { 1 } else { 0 };
     }
 }

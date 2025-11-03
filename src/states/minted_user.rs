@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{msg, program_error::ProgramError, pubkey::Pubkey};
 
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
@@ -15,7 +15,7 @@ pub struct MintedUser {
 }
 
 impl MintedUser {
-    pub const LEN: usize = size_of::<Pubkey>() + size_of::<bool>();
+    pub const LEN: usize = size_of::<Self>();
 
     pub const SEED: &[u8; 11] = b"minted_user";
 
@@ -29,6 +29,7 @@ impl MintedUser {
     #[inline(always)]
     pub fn load_mut(data: &mut [u8]) -> Result<&mut Self, ProgramError> {
         if data.len() < Self::LEN {
+            msg!("Load mut minted user account data length wrong");
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -39,6 +40,7 @@ impl MintedUser {
     #[inline(always)]
     pub fn init(data: &mut [u8], minted_user: &Self) -> Result<(), ProgramError> {
         if data.len() < Self::LEN {
+            msg!("Init minted user account data length wrong");
             return Err(ProgramError::InvalidAccountData);
         }
         data.copy_from_slice(bytemuck::bytes_of(minted_user));
