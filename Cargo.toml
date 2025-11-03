@@ -24,4 +24,4 @@ spl-token-interface = "=2.0.0"
 spl-token = { version = "=6.0.0", features = ["no-entrypoint"] }
 
 mpl-core = "=0.10.1"
-shank = "0.4.5"
+shank = "=0.4.5"
