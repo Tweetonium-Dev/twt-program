@@ -16,7 +16,7 @@ mod instructions;
 mod states;
 mod utils;
 
-declare_id!("8WNZn3jMFzHbPJ3mfahUD894hmTJvgn2T3VJncVSe8kA");
+declare_id!("8Unce9YGKmoB3cRemsTd6Mn5TeadcmdXe6hrscuvHd6r");
 
 entrypoint!(process_instruction);
 
