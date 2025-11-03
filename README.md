@@ -21,15 +21,17 @@ Built using **MPL Core** and **Anchor-free** Rust with **Shank IDL generation**.
 | **Mint & Escrow**       | Pay in fungible tokens → Mint MPL Core NFT → Tokens locked in per-user vault |
 | **Vesting Lock**        | Refund only after `vesting_end_ts`                                           |
 | **Burn & Refund**       | Burn NFT → Instantly receive escrowed tokens                                 |
-| **Force Unlock**        | Admin can unlock vesting early                                               |
+| **Force Unlock**        | Admin can unlock vesting early (Price based vesting)                         |
 | **Update NFT**          | NFT owner can update name/URI (with optional SOL fee)                        |
 | **Per-user Mint Guard** | One mint per wallet                                                          |
-| **Upgradeable**         | Full upgrade authority control                                               |
+| **Upgrade Authority**   | Full authority control to upgrade NFT                                        |
+| **Royalty**             | Force royalty on resale market                                               |
+| **Multi Vault**         | Store vesting token to multiple vaults                                       |
 
 ## Program ID
 
 ```text
-8WNZn3jMFzHbPJ3mfahUD894hmTJvgn2T3VJncVSe8kA
+8Unce9YGKmoB3cRemsTd6Mn5TeadcmdXe6hrscuvHd6r
 ```
 
 ## Instructions
