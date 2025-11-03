@@ -5,7 +5,10 @@ use solana_program::{
 
 use crate::{
     states::Config,
-    utils::{AccountCheck, ConfigAccount, Pda, ProcessInstruction, SignerAccount, WritableAccount},
+    utils::{
+        AccountCheck, ConfigAccount, MintAccount, Pda, ProcessInstruction, SignerAccount,
+        WritableAccount,
+    },
 };
 
 #[derive(Debug)]
@@ -14,26 +17,34 @@ pub struct ForceUnlockVestingV1Accounts<'a, 'info> {
     /// Must match `config.authority`.
     pub authority: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, "config"]` — stores global config.
+    /// PDA: `[program_id, token_mint, "config"]` — stores global config.
     /// Must be writable.
     pub config_pda: &'a AccountInfo<'info>,
+
+    /// Token mint (fungible token used for minting/refunding e.g. ZDLT).
+    /// Must be valid mint (82 or 90+ bytes), owned by SPL Token or Token-2022.
+    pub token_mint: &'a AccountInfo<'info>,
 }
 
 impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for ForceUnlockVestingV1Accounts<'a, 'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [authority, config_pda] = accounts else {
+        let [authority, config_pda, token_mint] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         SignerAccount::check(authority)?;
+
         WritableAccount::check(config_pda)?;
+
+        MintAccount::check(token_mint)?;
         ConfigAccount::check(config_pda)?;
 
         Ok(Self {
             authority,
             config_pda,
+            token_mint,
         })
     }
 }
@@ -83,7 +94,11 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)>
     ) -> Result<Self, Self::Error> {
         let accounts = ForceUnlockVestingV1Accounts::try_from(accounts)?;
 
-        Pda::validate(accounts.config_pda, &[Config::SEED], program_id)?;
+        Pda::validate(
+            accounts.config_pda,
+            &[Config::SEED, accounts.token_mint.key.as_ref()],
+            program_id,
+        )?;
 
         Ok(Self { accounts })
     }
