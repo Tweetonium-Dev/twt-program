@@ -1,6 +1,12 @@
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, program::invoke,
-    program_error::ProgramError, pubkey, pubkey::Pubkey,
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    instruction::{AccountMeta, Instruction},
+    msg,
+    program::invoke,
+    program_error::ProgramError,
+    pubkey,
+    pubkey::Pubkey,
 };
 use spl_token::instruction::initialize_account3;
 
@@ -19,6 +25,7 @@ impl AssociatedTokenProgram {
         wallet: &AccountInfo<'info>,
         mint: &AccountInfo<'info>,
         token_program: &AccountInfo<'info>,
+        associated_token_program: &AccountInfo<'info>,
         system_program: &AccountInfo<'info>,
         ata: &AccountInfo<'info>,
     ) -> ProgramResult {
@@ -28,44 +35,41 @@ impl AssociatedTokenProgram {
             mint.key.as_ref(),
         ];
 
-        match TokenProgram::detect_token_program(token_program)? {
+        Pda::validate(ata, seeds, &ASSOCIATED_TOKEN_PROGRAM_ID)?;
+
+        let ix = match TokenProgram::detect_token_program(token_program)? {
             TokenProgram::Token => {
-                Pda::new(
-                    payer,
-                    ata,
-                    system_program,
-                    seeds,
-                    TOKEN_ACCOUNT_LEN,
-                    token_program.key,
-                    &ASSOCIATED_TOKEN_PROGRAM_ID,
-                )?
-                .init_if_needed()?;
-
-                let ix = initialize_account3(token_program.key, ata.key, mint.key, wallet.key)?;
-
-                invoke(
-                    &ix,
-                    &[
-                        ata.clone(),
-                        mint.clone(),
-                        wallet.clone(),
-                        token_program.clone(),
-                    ],
-                )?;
+                initialize_account3(token_program.key, ata.key, mint.key, wallet.key)?
             }
             TokenProgram::Token2022 => {
-                Pda::new(
-                    payer,
-                    ata,
-                    system_program,
-                    seeds,
-                    TOKEN_ACCOUNT_2022_MIN_LEN,
-                    token_program.key,
-                    &ASSOCIATED_TOKEN_PROGRAM_ID,
-                )?
-                .init_if_needed()?;
+                Instruction {
+                    program_id: ASSOCIATED_TOKEN_PROGRAM_ID,
+                    accounts: vec![
+                        AccountMeta::new(*payer.key, payer.is_signer),
+                        AccountMeta::new(*ata.key, false),
+                        AccountMeta::new_readonly(*wallet.key, false),
+                        AccountMeta::new_readonly(*mint.key, false),
+                        AccountMeta::new_readonly(*system_program.key, false),
+                        AccountMeta::new_readonly(*token_program.key, false),
+                        // AccountMeta::new_readonly(sysvar::rent::id(), false),
+                    ],
+                    data: vec![0],
+                }
             }
-        }
+        };
+
+        invoke(
+            &ix,
+            &[
+                payer.clone(),
+                ata.clone(),
+                wallet.clone(),
+                mint.clone(),
+                system_program.clone(),
+                token_program.clone(),
+                associated_token_program.clone(),
+            ],
+        )?;
 
         Ok(())
     }
@@ -82,10 +86,12 @@ impl AssociatedTokenProgram {
         );
 
         if ata.key != &expected_ata {
+            msg!("Invalid ATA seeds {}", ata.key);
             return Err(ProgramError::InvalidSeeds);
         }
 
         if ata.owner != token_program {
+            msg!("Invalid ATA account {}", ata.key);
             return Err(ProgramError::InvalidAccountOwner);
         }
 
@@ -96,6 +102,7 @@ impl AssociatedTokenProgram {
         };
 
         if !expected_len.contains(&ata.data_len()) {
+            msg!("Invalid ATA data {}", ata.key);
             return Err(ProgramError::InvalidAccountData);
         }
 
