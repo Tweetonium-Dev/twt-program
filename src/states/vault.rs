@@ -1,70 +1,113 @@
-use bytemuck::{Pod, Zeroable};
-use solana_program::{msg, program_error::ProgramError, pubkey::Pubkey};
+use core::mem::transmute;
+use solana_program::{entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
 
-#[repr(C, packed)]
-#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+use crate::utils::{AccountCheck, InitPdaArgs, Pda, UninitializedAccount};
+
+/// Represents the escrow state for a minted NFT and its associated SPL tokens.
+///
+/// A vault is created for every minted NFT, holding the user's escrowed ZDLT tokens
+/// until the vesting period ends. Once unlocked, the user can burn their NFT
+/// and reclaim the escrowed tokens.
+///
+/// PDA seed: `[program_id, config_pda, payer, "vault"]`
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
 pub struct Vault {
-    /// The user who paid for and owns the escrowed tokens.
-    /// Must match `payer` in `mint_and_vault_v1`.
+    /// The wallet that owns this vault and its escrowed tokens.
+    /// Must match the `payer` in the `mint_and_vault_v1` instruction.
     pub owner: Pubkey,
 
-    /// The MPL Core NFT asset (mint) associated with this escrow.
-    /// Used to match NFT on burn.
+    /// The MPL Core NFT asset (mint) that corresponds to this vault.
+    /// Used to verify the correct NFT is being burned during `burn_and_refund_v1`.
     pub nft: Pubkey,
 
-    /// Amount of ZDLT tokens escrowed (raw, matches `config.price`).
-    /// Returned to `owner` on successful burn + vesting.
+    /// The total amount of ZDLT tokens escrowed for this NFT (raw units).
+    ///
+    /// Matches the `config.escrow_amount` at mint time.
+    /// These tokens are locked until vesting unlocks, then refunded to `owner`
+    /// when the NFT is burned.
     pub amount: u64,
 
-    /// Boolean flag: `1` = tokens withdrawn, `0` = still locked.
-    /// Set in `burn_and_refund_v1` after transfer.
+    /// Flag indicating whether the escrowed tokens have been released.
+    ///
+    /// - `0` = tokens still locked (default)
+    /// - `1` = tokens have been withdrawn
+    ///
+    /// Set to `1` atomically in `burn_and_refund_v1` after the refund transfer.
     pub is_unlocked: u8,
 
-    /// PDA bump seed for `["vault", config_pda]`.
-    /// Stored for replay safety and future use.
+    /// The bump seed used when deriving the vault PDA (`["vault", config_pda]`).
+    ///
+    /// Stored for replay protection and deterministic PDA re-derivation.
     pub bump: [u8; 1],
 }
 
 impl Vault {
     pub const LEN: usize = size_of::<Self>();
-
     pub const SEED: &[u8; 5] = b"vault";
+}
 
-    pub fn new(owner: Pubkey, nft: Pubkey, amount: u64, is_unlocked: bool, bump: [u8; 1]) -> Self {
-        Self {
-            owner,
-            nft,
-            amount,
-            is_unlocked: if is_unlocked { 1 } else { 0 },
-            bump,
-        }
-    }
-
+impl Vault {
     #[inline(always)]
-    pub fn load(data: &[u8]) -> Result<&Self, ProgramError> {
-        if data.len() < Self::LEN {
-            msg!("Load vault account data length wrong");
-            return Err(ProgramError::InvalidAccountData);
-        }
+    pub fn init<'a, 'info>(
+        bytes: &mut [u8],
+        pda_args: InitPdaArgs<'a, 'info>,
+        args: InitVaultArgs,
+    ) -> ProgramResult {
+        let bump = Pda::new(pda_args)?.init()?;
 
-        let config: &Self = bytemuck::try_from_bytes(&data[..Self::LEN])
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+        let vault = Self::load_mut(bytes)?;
+        vault.owner = args.owner;
+        vault.nft = args.nft;
+        vault.amount = args.amount;
+        vault.is_unlocked = if args.is_unlocked { 1 } else { 0 };
+        vault.bump = [bump];
 
-        Ok(config)
-    }
-
-    #[inline(always)]
-    pub fn init(data: &mut [u8], cfg: &Self) -> Result<(), ProgramError> {
-        if data.len() < Self::LEN {
-            msg!("Init vault account data length wrong");
-            return Err(ProgramError::InvalidAccountData);
-        }
-        data.copy_from_slice(bytemuck::bytes_of(cfg));
         Ok(())
+    }
+
+    #[inline(always)]
+    pub fn init_if_needed<'a, 'info>(
+        bytes: &mut [u8],
+        pda_args: InitPdaArgs<'a, 'info>,
+        args: InitVaultArgs,
+    ) -> ProgramResult {
+        if UninitializedAccount::check(pda_args.pda).is_ok() {
+            Self::init(bytes, pda_args, args)?;
+        }
+
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub fn load_mut(bytes: &mut [u8]) -> Result<&mut Self, ProgramError> {
+        if bytes.len() != Self::LEN {
+            msg!("Load mut vault with wrong bytes length");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        Ok(unsafe { &mut *transmute::<*mut u8, *mut Self>(bytes.as_mut_ptr()) })
+    }
+
+    #[inline(always)]
+    pub fn load(bytes: &[u8]) -> Result<&Self, ProgramError> {
+        if bytes.len() != Self::LEN {
+            msg!("Load vault with wrong bytes length");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        Ok(unsafe { &*transmute::<*const u8, *const Self>(bytes.as_ptr()) })
     }
 
     #[inline(always)]
     pub fn is_unlocked(&self) -> bool {
         self.is_unlocked == 1
     }
+}
+
+pub struct InitVaultArgs {
+    pub owner: Pubkey,
+    pub nft: Pubkey,
+    pub amount: u64,
+    pub is_unlocked: bool,
 }
