@@ -45,6 +45,10 @@ fn process_instruction(
             msg!("Instruction: MintVip");
             MintVipV1::try_from((accounts, data, program_id))?.process()
         }
+        TweetoniumInstruction::InitTraitV1(data) => {
+            msg!("Instruction: InitTrait");
+            InitTraitV1::try_from((accounts, data, program_id))?.process()
+        }
         }
         TweetoniumInstruction::UpdateNftV1(data) => {
             msg!("Instruction: UpdateNft");
