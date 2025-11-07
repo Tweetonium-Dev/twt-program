@@ -5,11 +5,9 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, Vault},
+    states::{Config, Vault, VestingMode},
     utils::{
-        AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, ConfigAccount,
-        MintAccount, MplCoreAccount, Pda, ProcessInstruction, SignerAccount, SystemProgram,
-        TokenProgram, TransferArgs, VaultAccount, WritableAccount,
+        AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, ConfigAccount, MintAccount, MplCoreProgram, Pda, ProcessInstruction, SignerAccount, SystemProgram, TokenProgram, TokenTransferArgs, VaultAccount, WritableAccount
     },
 };
 
@@ -18,6 +16,12 @@ pub struct BurnAndRefundV1Accounts<'a, 'info> {
     /// NFT owner — must sign to burn.
     /// Must be owner of `nft_token_account`.
     pub payer: &'a AccountInfo<'info>,
+
+    /// MPL Core Collection account that groups NFTs under this project.
+    /// Must be initialized before config creation via `CreateV1CpiBuilder`.
+    /// Used as part of the config PDA seeds: `[program_id, token_mint, collection.key.as_ref()]`.
+    /// Determines the project scope for mint rules, royalties, and limits.
+    pub nft_collection: &'a AccountInfo<'info>,
 
     /// NFT asset — must be burned.
     /// Must be valid MPL Core asset.
@@ -59,7 +63,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [payer, nft_asset, vault_pda, vault_ata, payer_ata, config_pda, token_mint, token_program, system_program, mpl_core] =
+        let [payer, nft_collection, nft_asset, vault_pda, vault_ata, payer_ata, config_pda, token_mint, token_program, system_program, mpl_core] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -67,22 +71,24 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
 
         SignerAccount::check(payer)?;
 
+        WritableAccount::check(nft_collection)?;
         WritableAccount::check(vault_pda)?;
         WritableAccount::check(vault_ata)?;
         WritableAccount::check(payer_ata)?;
         WritableAccount::check(config_pda)?;
 
-        AssociatedTokenAccount::check(vault_ata, vault_pda.key, token_mint.key, token_program.key)?;
-        AssociatedTokenAccount::check(payer_ata, payer.key, token_mint.key, token_program.key)?;
-
         VaultAccount::check(vault_pda)?;
         ConfigAccount::check(config_pda)?;
         MintAccount::check(token_mint)?;
         SystemProgram::check(system_program)?;
-        MplCoreAccount::check(mpl_core)?;
+        MplCoreProgram::check(mpl_core)?;
+
+        AssociatedTokenAccount::check(vault_ata, vault_pda.key, token_mint.key, token_program.key)?;
+        AssociatedTokenAccount::check(payer_ata, payer.key, token_mint.key, token_program.key)?;
 
         Ok(Self {
             payer,
+            nft_collection,
             nft_asset,
             vault_pda,
             vault_ata,
@@ -104,64 +110,68 @@ pub struct BurnAndRefundV1<'a, 'info> {
 
 impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
     fn check_vesting(&self, config: &Config, vault: &Vault) -> ProgramResult {
-        let payer = self.accounts.payer;
-
         let clock = Clock::get()?;
-        if clock.unix_timestamp < config.vesting_end_ts {
-            msg!("Vesting not finished");
-            return Err(ProgramError::Custom(4));
+
+        if vault.owner != *self.accounts.payer.key {
+            msg!("Unauthorized: vault owner does not match payer.");
+            return Err(ProgramError::IllegalOwner);
         }
 
         if vault.is_unlocked() {
-            msg!("Vault already refunded");
-            return Err(ProgramError::Custom(5));
+            msg!("Vault has already been refunded or unlocked.");
+            return Err(ProgramError::InvalidAccountData);
         }
 
-        if vault.owner != *payer.key {
-            msg!("Vault owner mismatch");
-            return Err(ProgramError::Custom(6));
+        if clock.unix_timestamp < config.vesting_unlock_ts {
+            msg!("Unauthorized: vault owner does not match payer.");
+            return Err(ProgramError::IllegalOwner);
         }
 
-        Ok(())
+        match config.vesting_mode {
+            VestingMode::None => Ok(()),
+            VestingMode::Permanent => {
+                msg!("This vault is permanently locked — burn and refund not allowed.");
+                Err(ProgramError::Immutable)
+            }
+            VestingMode::TimeStamp => {
+                if clock.unix_timestamp < config.vesting_unlock_ts {
+                    msg!(
+                        "Vesting not yet complete: current ts={} < unlock ts={}",
+                        clock.unix_timestamp,
+                        config.vesting_unlock_ts
+                    );
+                    return Err(ProgramError::Custom(4));
+                }
+                Ok(())
+            }
+        }
     }
 
     fn burn_nft(&self) -> ProgramResult {
-        let payer = self.accounts.payer;
-        let nft_asset = self.accounts.nft_asset;
-        let system_program = self.accounts.system_program;
-        let mpl_core = self.accounts.mpl_core;
-
-        msg!("Burn NFT");
-
-        BurnV1CpiBuilder::new(mpl_core)
-            .asset(nft_asset)
-            .payer(payer)
-            .authority(Some(payer))
-            .system_program(Some(system_program))
-            .invoke()?;
-
-        msg!("Burn NFT successfully");
-
-        Ok(())
+        BurnV1CpiBuilder::new(self.accounts.mpl_core)
+            .asset(self.accounts.nft_asset)
+            .payer(self.accounts.payer)
+            .authority(Some(self.accounts.payer))
+            .system_program(Some(self.accounts.system_program))
+            .invoke()
     }
 
     fn refund_token(&self, config: &Config, balance: u64) -> ProgramResult {
-        let payer = self.accounts.payer;
-        let vault_pda = self.accounts.vault_pda;
-        let vault_ata = self.accounts.vault_ata;
-        let payer_ata = self.accounts.payer_ata;
-        let token_mint = self.accounts.token_mint;
-        let token_program = self.accounts.token_program;
-
-        let signers_seeds: &[&[&[u8]]] = &[&[Vault::SEED, payer.key.as_ref(), &[self.vault_bump]]];
+        let signers_seeds: &[&[&[u8]]] = &[&[
+            Vault::SEED,
+            self.accounts.nft_collection.key.as_ref(),
+            self.accounts.token_mint.key.as_ref(),
+            self.accounts.payer.key.as_ref(),
+            &[self.vault_bump],
+        ]];
 
         TokenProgram::transfer_signed(
-            TransferArgs {
-                source: vault_ata,
-                destination: payer_ata,
-                authority: vault_pda,
-                mint: token_mint,
-                token_program,
+            TokenTransferArgs {
+                source: self.accounts.vault_ata,
+                destination: self.accounts.payer_ata,
+                authority: self.accounts.vault_pda,
+                mint: self.accounts.token_mint,
+                token_program: self.accounts.token_program,
                 signer_pubkeys: &[],
                 amount: balance,
                 decimals: config.mint_decimals,
@@ -173,16 +183,23 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
     }
 
     fn close_vault(&self) -> ProgramResult {
-        let payer = self.accounts.payer;
-        let vault_pda = self.accounts.vault_pda;
-        let vault_ata = self.accounts.vault_ata;
-        let token_program = self.accounts.token_program;
+        let vault_seeds: &[&[u8]] = &[
+            Vault::SEED,
+            self.accounts.nft_collection.key.as_ref(),
+            self.accounts.token_mint.key.as_ref(),
+            self.accounts.payer.key.as_ref(),
+            &[self.vault_bump],
+        ];
 
-        let vault_seeds: &[&[u8]] = &[Vault::SEED, payer.key.as_ref(), &[self.vault_bump]];
+        SystemProgram::close_ata(
+            self.accounts.vault_ata,
+            self.accounts.payer,
+            self.accounts.vault_pda,
+            self.accounts.token_program,
+            vault_seeds,
+        )?;
 
-        SystemProgram::close_ata(vault_ata, payer, vault_pda, token_program, vault_seeds)?;
-
-        SystemProgram::close_account_pda(vault_pda, payer)?;
+        SystemProgram::close_account_pda(self.accounts.vault_pda, self.accounts.payer)?;
 
         Ok(())
     }
@@ -198,13 +215,22 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)> for BurnAndRefun
 
         Pda::validate(
             accounts.config_pda,
-            &[Config::SEED, accounts.token_mint.key.as_ref()],
+            &[
+                Config::SEED,
+                accounts.nft_collection.key.as_ref(),
+                accounts.token_mint.key.as_ref(),
+            ],
             program_id,
         )?;
 
         let (_, vault_bump) = Pda::validate(
             accounts.vault_pda,
-            &[Vault::SEED, accounts.payer.key.as_ref()],
+            &[
+                Vault::SEED,
+                accounts.nft_collection.key.as_ref(),
+                accounts.token_mint.key.as_ref(),
+                accounts.payer.key.as_ref(),
+            ],
             program_id,
         )?;
 
@@ -217,19 +243,14 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)> for BurnAndRefun
 
 impl<'a, 'info> ProcessInstruction for BurnAndRefundV1<'a, 'info> {
     fn process(self) -> ProgramResult {
-        let config_data = self.accounts.config_pda.data.borrow();
-        let config = Config::load(&config_data)?;
+        let config_data = self.accounts.config_pda.try_borrow_data()?;
+        let config = Config::load(config_data.as_ref())?;
 
         let amount = {
-            let vault_data = self.accounts.vault_pda.data.borrow();
-            let vault = Vault::load(&vault_data)?;
-
-            let amount = vault.amount;
-            // let balance = TokenProgram::get_balance(self.accounts.vault_ata, self.accounts.token_program)?;
-
+            let vault_data = self.accounts.vault_pda.try_borrow_data()?;
+            let vault = Vault::load(vault_data.as_ref())?;
             self.check_vesting(config, vault)?;
-
-            amount
+            vault.amount
         };
 
         self.burn_nft()?;
