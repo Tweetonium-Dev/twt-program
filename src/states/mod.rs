@@ -1,12 +1,12 @@
 mod authorities;
 mod config;
-mod minted_user;
+mod user_minted;
 mod vault;
 mod vesting;
 
 pub use authorities::*;
 pub use config::*;
-pub use minted_user::*;
+pub use user_minted::*;
 pub use vault::*;
 pub use vesting::*;
 
