@@ -5,10 +5,11 @@ use solana_program::{
 };
 
 use crate::{
-    states::Config,
+    states::{Config, InitConfigArgs, VestingMode, MAX_REVENUE_WALLETS, MAX_ROYALTY_RECIPIENTS},
     utils::{
-        AccountCheck, MintAccount, Pda, ProcessInstruction, SignerAccount, SystemProgram,
-        TokenProgram, WritableAccount,
+        AccountCheck, InitMplCoreCollectionArgs, InitPdaArgs, MintAccount, MplCoreProgram,
+        ProcessInstruction, SignerAccount, SystemProgram, TokenProgram, UninitializedAccount,
+        WritableAccount,
     },
 };
 
@@ -16,9 +17,14 @@ use crate::{
 pub struct InitConfigV1Accounts<'a, 'info> {
     /// Authority that will control config updates (e.g. admin wallet).
     /// Must be a signer.
-    pub authority: &'a AccountInfo<'info>,
+    pub admin: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, token_mint, "config"]` — stores `Config` struct.
+    /// MPL Core Collection account that groups NFTs under this project.
+    /// Must be signer and initialized before nft creation via `CreateV1CpiBuilder`.
+    /// Determines the project scope for mint rules, royalties, and limits.
+    pub nft_collection: &'a AccountInfo<'info>,
+
+    /// PDA: `[program_id, token_mint, nft_collection, "config"]` — stores `Config` struct.
     /// Must be uninitialized, writable, owned by this program.
     pub config_pda: &'a AccountInfo<'info>,
 
@@ -32,29 +38,43 @@ pub struct InitConfigV1Accounts<'a, 'info> {
 
     /// System program — required for PDA creation and rent.
     pub system_program: &'a AccountInfo<'info>,
+
+    /// Metaplex Core program — for NFT minting.
+    /// Must be the official MPL Core program.
+    pub mpl_core: &'a AccountInfo<'info>,
 }
 
 impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, 'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [authority, config_pda, token_mint, token_program, system_program] = accounts else {
+        let [admin, nft_collection, config_pda, token_mint, token_program, system_program, mpl_core] =
+            accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        SignerAccount::check(authority)?;
+        SignerAccount::check(admin)?;
+        SignerAccount::check(nft_collection)?;
 
         WritableAccount::check(config_pda)?;
 
+        UninitializedAccount::check(nft_collection)?;
+        // FIXME: Uncomment this on mainnet
+        // UninitializedAccount::check(config_pda)?;
+
         MintAccount::check(token_mint)?;
         SystemProgram::check(system_program)?;
+        MplCoreProgram::check(mpl_core)?;
 
         Ok(Self {
-            authority,
+            admin,
+            nft_collection,
             config_pda,
             token_mint,
             token_program,
             system_program,
+            mpl_core,
         })
     }
 }
@@ -63,9 +83,21 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
 pub struct InitConfigV1InstructionData {
     pub max_supply: u64,
     pub released: u64,
-    pub price: u64,
-    pub vesting_end_ts: i64,
-    pub protocol_fee_lamports: u64,
+    pub max_mint_per_user: u64,
+    pub max_mint_per_vip_user: u64,
+    pub vesting_mode: VestingMode,
+    pub vesting_unlock_ts: i64,
+    pub mint_fee_lamports: u64,
+    pub mint_price_total: u64,
+    pub escrow_amount: u64,
+    pub num_revenue_wallets: u8,
+    pub revenue_wallets: [Pubkey; MAX_REVENUE_WALLETS],
+    pub revenue_shares: [u64; MAX_REVENUE_WALLETS],
+    pub num_royalty_recipients: u8,
+    pub royalty_recipients: [Pubkey; MAX_ROYALTY_RECIPIENTS],
+    pub royalty_shares_bps: [u16; MAX_ROYALTY_RECIPIENTS],
+    pub collection_name: String,
+    pub collection_uri: String,
 }
 
 #[derive(Debug)]
@@ -76,46 +108,76 @@ pub struct InitConfigV1<'a, 'info> {
 }
 
 impl<'a, 'info> InitConfigV1<'a, 'info> {
+    fn check_config_data(&self) -> ProgramResult {
+        Config::check_revenue_wallets(
+            self.instruction_data.mint_price_total,
+            self.instruction_data.escrow_amount,
+            self.instruction_data.num_revenue_wallets,
+            self.instruction_data.revenue_shares,
+        )?;
+        Config::check_nft_royalties(
+            self.instruction_data.num_royalty_recipients,
+            self.instruction_data.royalty_shares_bps,
+        )
+    }
+
     fn init_config(&self) -> ProgramResult {
-        let authority = self.accounts.authority;
-        let config_pda = self.accounts.config_pda;
-        let token_mint = self.accounts.token_mint;
-        let token_program = self.accounts.token_program;
-        let system_program = self.accounts.system_program;
+        let mut config_data = self.accounts.config_pda.try_borrow_mut_data()?;
+        let seeds: &[&[u8]] = &[
+            Config::SEED,
+            self.accounts.nft_collection.key.as_ref(),
+            self.accounts.token_mint.key.as_ref(),
+        ];
+        let decimals =
+            TokenProgram::get_decimal(self.accounts.token_mint, self.accounts.token_program)?;
 
-        Pda::new(
-            authority,
-            config_pda,
-            system_program,
-            &[Config::SEED, token_mint.key.as_ref()],
-            Config::LEN,
-            self.program_id,
-            self.program_id,
-        )?
-        .init()?; // FIXME: Make this init_if_needed() at production.
+        // FIXME: Make this Config::init_if_needed() at mainnet.
+        Config::init(
+            &mut config_data,
+            InitPdaArgs {
+                payer: self.accounts.admin,
+                pda: self.accounts.config_pda,
+                system_program: self.accounts.system_program,
+                seeds,
+                space: Config::LEN,
+                program_id: self.program_id,
+            },
+            InitConfigArgs {
+                admin: *self.accounts.admin.key,
+                mint: *self.accounts.token_mint.key,
+                max_supply: self.instruction_data.max_supply,
+                released: self.instruction_data.released,
+                max_mint_per_user: self.instruction_data.max_mint_per_user,
+                max_mint_per_vip_user: self.instruction_data.max_mint_per_vip_user,
+                mint_price_total: self.instruction_data.mint_price_total,
+                admin_minted: 0,
+                user_minted: 0,
+                vesting_mode: self.instruction_data.vesting_mode,
+                vesting_unlock_ts: self.instruction_data.vesting_unlock_ts,
+                mint_fee_lamports: self.instruction_data.mint_fee_lamports,
+                escrow_amount: self.instruction_data.escrow_amount,
+                mint_decimals: decimals,
+                num_revenue_wallets: self.instruction_data.num_revenue_wallets,
+                revenue_wallets: self.instruction_data.revenue_wallets,
+                revenue_shares: self.instruction_data.revenue_shares,
+            },
+        )
+    }
 
-        let decimals = TokenProgram::get_decimal(token_mint, token_program)?;
-
-        let cfg = Config {
-            authority: *authority.key,
-            max_supply: self.instruction_data.max_supply,
-            released: self.instruction_data.released,
-            price: self.instruction_data.price,
-            supply_minted: 0,
-            vesting_end_ts: self.instruction_data.vesting_end_ts,
-            mint: *token_mint.key,
-            mint_decimals: decimals,
-            protocol_fee_lamports: self.instruction_data.protocol_fee_lamports,
-        };
-
-        Config::init(&mut config_pda.data.borrow_mut()[..], &cfg)?;
-
-        let mut config_data = config_pda.data.borrow_mut();
-        let config = Config::load_mut(&mut config_data)?;
-
-        config.mint_decimals = decimals;
-
-        Ok(())
+    fn init_collection(self) -> ProgramResult {
+        MplCoreProgram::init_collection(
+            self.accounts.nft_collection,
+            self.accounts.admin,
+            self.accounts.mpl_core,
+            self.accounts.system_program,
+            InitMplCoreCollectionArgs {
+                num_royalty_recipients: self.instruction_data.num_royalty_recipients,
+                royalty_recipients: self.instruction_data.royalty_recipients,
+                royalty_shares_bps: self.instruction_data.royalty_shares_bps,
+                name: self.instruction_data.collection_name,
+                uri: self.instruction_data.collection_uri,
+            },
+        )
     }
 }
 
@@ -147,6 +209,8 @@ impl<'a, 'info>
 
 impl<'a, 'info> ProcessInstruction for InitConfigV1<'a, 'info> {
     fn process(self) -> ProgramResult {
-        self.init_config()
+        self.check_config_data()?;
+        self.init_config()?;
+        self.init_collection()
     }
 }
