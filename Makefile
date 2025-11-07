@@ -1,8 +1,9 @@
-.PHONY: build build-release clean update release fresh-release deploy change-authority verify idl send
+.PHONY: build build-release clean update release deploy change-authority verify idl send
 
 # ---- Build & Maintenance ----
 
 build:
+	@clear
 	@echo "🔧 Building Solana program..."
 	@cargo build-sbf
 
@@ -19,12 +20,6 @@ update:
 	@cargo update
 
 release:
-	@$(MAKE) build
-	@$(MAKE) deploy
-	@$(MAKE) verify
-
-fresh-release:
-	@$(MAKE) clean
 	@$(MAKE) build
 	@$(MAKE) deploy
 	@$(MAKE) verify
