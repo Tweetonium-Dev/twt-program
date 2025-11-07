@@ -33,9 +33,10 @@ fn process_instruction(
             msg!("Instruction: InitializeConfig");
             InitConfigV1::try_from((accounts, data, program_id))?.process()
         }
-        TweetoniumInstruction::MintAndVaultV1(data) => {
-            msg!("Instruction: MintAndVault");
-            MintAndVaultV1::try_from((accounts, data, program_id))?.process()
+        TweetoniumInstruction::MintUserV1(data) => {
+            msg!("Instruction: MintUser");
+            MintUserV1::try_from((accounts, data, program_id))?.process()
+        }
         }
         TweetoniumInstruction::UpdateNftV1(data) => {
             msg!("Instruction: UpdateNft");
