@@ -82,16 +82,16 @@ impl TokenProgram {
         let balance_bytes: [u8; 8] = data[balance_offset..balance_offset + 8]
             .try_into()
             .inspect_err(|_| msg!("Balance bytes not found"))
-            .map_err(|_| ProgramError::Custom(7))?;
+            .map_err(|_| ProgramError::Custom(6))?;
 
         Ok(u64::from_le_bytes(balance_bytes))
     }
 
-    pub fn transfer(args: TransferArgs) -> ProgramResult {
+    pub fn transfer(args: TokenTransferArgs) -> ProgramResult {
         Self::transfer_signed(args, &[])
     }
 
-    pub fn transfer_signed(args: TransferArgs, signers_seeds: &[&[&[u8]]]) -> ProgramResult {
+    pub fn transfer_signed(args: TokenTransferArgs, signers_seeds: &[&[&[u8]]]) -> ProgramResult {
         match Self::detect_token_program(args.token_program)? {
             Self::Token => {
                 let ix = transfer(
@@ -175,7 +175,7 @@ impl TokenProgram {
 }
 
 #[derive(Clone)]
-pub struct TransferArgs<'a, 'info> {
+pub struct TokenTransferArgs<'a, 'info> {
     pub source: &'a AccountInfo<'info>,
     pub destination: &'a AccountInfo<'info>,
     pub authority: &'a AccountInfo<'info>,
