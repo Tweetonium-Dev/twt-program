@@ -15,10 +15,6 @@ pub trait AccountCheck {
     fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult;
 }
 
-pub trait AccountUninitializedCheck {
-    fn check_uninitialized<'info>(account: &AccountInfo<'info>) -> ProgramResult;
-}
-
 pub trait AssociatedTokenAccountCheck {
     fn check<'info>(
         account: &AccountInfo<'info>,
@@ -28,36 +24,12 @@ pub trait AssociatedTokenAccountCheck {
     ) -> ProgramResult;
 }
 
-pub struct WritableAccount;
-
-impl AccountCheck for WritableAccount {
-    fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult {
-        if !account.is_writable {
-            msg!("Account need writable: {}", account.key);
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        Ok(())
-    }
-}
-
-impl AccountUninitializedCheck for WritableAccount {
-    fn check_uninitialized<'info>(account: &AccountInfo<'info>) -> ProgramResult {
-        if !account.data_is_empty() {
-            msg!("Account are initialized: {}", account.key);
-            return Err(ProgramError::AccountAlreadyInitialized);
-        }
-
-        Ok(())
-    }
-}
-
 pub struct SignerAccount;
 
 impl AccountCheck for SignerAccount {
     fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult {
         if !account.is_signer {
-            msg!("Account need signer: {}", account.key);
+            msg!("SignerAccount: account {} must be a signer", account.key);
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -65,13 +37,29 @@ impl AccountCheck for SignerAccount {
     }
 }
 
-pub struct MplCoreAccount;
+pub struct UninitializedAccount;
 
-impl AccountCheck for MplCoreAccount {
+impl AccountCheck for UninitializedAccount {
     fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult {
-        if *account.key != mpl_core::ID {
-            msg!("Mpl core invalid");
-            return Err(ProgramError::IncorrectProgramId);
+        if !account.lamports() == 0 || !account.data_is_empty() {
+            msg!(
+                "UninitializedAccount: account {} is already initialized",
+                account.key
+            );
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
+
+        Ok(())
+    }
+}
+
+pub struct WritableAccount;
+
+impl AccountCheck for WritableAccount {
+    fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult {
+        if !account.is_writable {
+            msg!("WritableAccount: account {} must be writable", account.key);
+            return Err(ProgramError::InvalidAccountData);
         }
 
         Ok(())
@@ -87,9 +75,10 @@ impl AccountCheck for MintAccount {
         if *owner == TOKEN_2022_PROGRAM_ID {
             if account.data_len() > MINT_2022_MIN_LEN {
                 msg!(
-                    "Mint 2022 account length should be {}, but found {}",
+                    "MintAccount: invalid Token-2022 mint length (expected ≤ {}, found {}) for account {}",
+                    MINT_2022_MIN_LEN,
                     account.data_len(),
-                    MINT_2022_MIN_LEN
+                    account.key
                 );
                 return Err(ProgramError::InvalidAccountData);
             }
@@ -99,28 +88,21 @@ impl AccountCheck for MintAccount {
         if *owner == TOKEN_PROGRAM_ID {
             if account.data_len() != MINT_LEN {
                 msg!(
-                    "Mint account length should be {}, but found {}",
+                    "MintAccount: invalid Token mint length (expected {}, found {}) for account {}",
+                    MINT_LEN,
                     account.data_len(),
-                    MINT_LEN
+                    account.key
                 );
                 return Err(ProgramError::InvalidAccountData);
             }
             return Ok(());
         }
 
-        msg!("Mint account invalid owner: {}", account.key);
+        msg!(
+            "MintAccount: invalid mint owner {} (expected SPL Token or Token-2022 program)",
+            owner
+        );
         Err(ProgramError::InvalidAccountOwner)
-    }
-}
-
-impl AccountUninitializedCheck for MintAccount {
-    fn check_uninitialized<'info>(account: &AccountInfo<'info>) -> ProgramResult {
-        if !account.data_is_empty() {
-            msg!("Account should be uninitalized: {}", account.key);
-            return Err(ProgramError::AccountAlreadyInitialized);
-        }
-
-        Ok(())
     }
 }
 
@@ -133,9 +115,10 @@ impl AccountCheck for TokenAccount {
         if *owner == TOKEN_2022_PROGRAM_ID {
             if account.data_len() < TOKEN_ACCOUNT_2022_MIN_LEN {
                 msg!(
-                    "Token 2022 account length should be {}, but found {}",
+                    "TokenAccount: invalid Token-2022 account length (expected ≥ {}, found {}) for account {}",
+                    TOKEN_ACCOUNT_2022_MIN_LEN,
                     account.data_len(),
-                    TOKEN_ACCOUNT_2022_MIN_LEN
+                    account.key
                 );
                 return Err(ProgramError::InvalidAccountData);
             }
@@ -146,9 +129,10 @@ impl AccountCheck for TokenAccount {
         if *owner == TOKEN_PROGRAM_ID {
             if account.data_len() != TOKEN_ACCOUNT_LEN {
                 msg!(
-                    "Token account length should be {}, but found {}",
+                    "TokenAccount: invalid SPL Token account length (expected {}, found {}) for account {}",
+                    TOKEN_ACCOUNT_LEN,
                     account.data_len(),
-                    TOKEN_ACCOUNT_LEN
+                    account.key
                 );
                 return Err(ProgramError::InvalidAccountData);
             }
@@ -156,7 +140,11 @@ impl AccountCheck for TokenAccount {
             return Ok(());
         }
 
-        msg!("Invalid Token account {}", account.key);
+        msg!(
+            "TokenAccount: invalid owner {} for account {} (expected SPL Token or Token-2022 program)",
+            owner,
+            account.key
+        );
         Err(ProgramError::InvalidAccountOwner)
     }
 }
@@ -166,15 +154,20 @@ pub struct ConfigAccount;
 impl AccountCheck for ConfigAccount {
     fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult {
         if account.owner != &crate::ID {
-            msg!("Config should be owned by program");
+            msg!(
+                "ConfigAccount: invalid owner {} (expected program {})",
+                account.owner,
+                crate::ID
+            );
             return Err(ProgramError::InvalidAccountOwner);
         }
 
         if account.data_len() != Config::LEN {
             msg!(
-                "Config length should be {}, but found {}",
+                "ConfigAccount: invalid data length (expected {}, found {}) for account {}",
+                Config::LEN,
                 account.data_len(),
-                Config::LEN
+                account.key
             );
             return Err(ProgramError::InvalidAccountData);
         }
@@ -188,41 +181,22 @@ pub struct VaultAccount;
 impl AccountCheck for VaultAccount {
     fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult {
         if account.owner != &crate::ID {
-            msg!("Vault should be owned by program");
+            msg!(
+                "VaultAccount: invalid owner {} (expected program {})",
+                account.owner,
+                crate::ID
+            );
             return Err(ProgramError::InvalidAccountOwner);
         }
 
         if account.data_len() != Vault::LEN {
             msg!(
-                "Vault length should be {}, but found {}",
+                "VaultAccount: invalid data length (expected {}, found {}) for account {}",
+                Vault::LEN,
                 account.data_len(),
-                Config::LEN
+                account.key
             );
             return Err(ProgramError::InvalidAccountData);
-        }
-
-        Ok(())
-    }
-}
-
-impl AccountUninitializedCheck for VaultAccount {
-    fn check_uninitialized<'info>(account: &AccountInfo<'info>) -> ProgramResult {
-        if !account.data_is_empty() {
-            msg!("Vault should be uninitalized");
-            return Err(ProgramError::AccountAlreadyInitialized);
-        }
-
-        Ok(())
-    }
-}
-
-pub struct MintedUserAccount;
-
-impl AccountUninitializedCheck for MintedUserAccount {
-    fn check_uninitialized<'info>(account: &AccountInfo<'info>) -> ProgramResult {
-        if !account.data_is_empty() {
-            msg!("User already mint NFT");
-            return Err(ProgramError::AccountAlreadyInitialized);
         }
 
         Ok(())
