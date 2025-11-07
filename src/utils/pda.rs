@@ -9,29 +9,21 @@ pub struct Pda<'a, 'info> {
     pub system_program: &'a AccountInfo<'info>,
     pub seeds: &'a [&'a [u8]],
     pub space: usize,
-    pub owner: &'a Pubkey,
+    pub program_id: &'a Pubkey,
     pub bump: u8,
 }
 
 impl<'a, 'info> Pda<'a, 'info> {
-    pub fn new(
-        payer: &'a AccountInfo<'info>,
-        pda: &'a AccountInfo<'info>,
-        system_program: &'a AccountInfo<'info>,
-        seeds: &'a [&'a [u8]],
-        space: usize,
-        owner: &'a Pubkey,
-        program_id: &'a Pubkey,
-    ) -> Result<Self, ProgramError> {
-        let (_pda, bump) = Self::validate(pda, seeds, program_id)?;
+    pub fn new(args: InitPdaArgs<'a, 'info>) -> Result<Self, ProgramError> {
+        let (_, bump) = Self::validate(args.pda, args.seeds, args.program_id)?;
 
         Ok(Self {
-            payer,
-            pda,
-            system_program,
-            seeds,
-            space,
-            owner,
+            payer: args.payer,
+            pda: args.pda,
+            system_program: args.system_program,
+            seeds: args.seeds,
+            space: args.space,
+            program_id: args.program_id,
             bump,
         })
     }
@@ -54,17 +46,20 @@ impl<'a, 'info> Pda<'a, 'info> {
         let lamports = rent.minimum_balance(self.space);
 
         let bump_slice: &[u8] = &[self.bump];
-        let mut signer_seed_vec = Vec::with_capacity(self.seeds.len() + 1);
-        signer_seed_vec.extend_from_slice(self.seeds);
-        signer_seed_vec.push(bump_slice);
-        let signer_seeds: &[&[&[u8]]] = &[signer_seed_vec.as_slice()];
+        let seed_vec: Vec<&[u8]> = self
+            .seeds
+            .iter()
+            .copied()
+            .chain(std::iter::once(bump_slice))
+            .collect();
+        let signer_seeds: &[&[&[u8]]] = &[&seed_vec];
 
         let ix = system_instruction::create_account(
             self.payer.key,
             self.pda.key,
             lamports,
             self.space as u64,
-            self.owner,
+            self.program_id,
         );
 
         invoke_signed(
@@ -79,12 +74,13 @@ impl<'a, 'info> Pda<'a, 'info> {
 
         Ok(self.bump)
     }
+}
 
-    pub fn init_if_needed(&self) -> Result<u8, ProgramError> {
-        if self.pda.lamports() == 0 || self.pda.data_is_empty() {
-            self.init()?;
-        }
-
-        Ok(self.bump)
-    }
+pub struct InitPdaArgs<'a, 'info> {
+    pub payer: &'a AccountInfo<'info>,
+    pub pda: &'a AccountInfo<'info>,
+    pub system_program: &'a AccountInfo<'info>,
+    pub seeds: &'a [&'a [u8]],
+    pub space: usize,
+    pub program_id: &'a Pubkey,
 }
