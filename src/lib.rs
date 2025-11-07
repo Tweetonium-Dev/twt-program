@@ -33,6 +33,10 @@ fn process_instruction(
             msg!("Instruction: InitializeConfig");
             InitConfigV1::try_from((accounts, data, program_id))?.process()
         }
+        TweetoniumInstruction::MintAdminV1(data) => {
+            msg!("Instruction: MintAdmin");
+            MintAdminV1::try_from((accounts, data, program_id))?.process()
+        }
         TweetoniumInstruction::MintUserV1(data) => {
             msg!("Instruction: MintUser");
             MintUserV1::try_from((accounts, data, program_id))?.process()
