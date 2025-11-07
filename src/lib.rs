@@ -6,8 +6,8 @@ use solana_program::{
 
 use crate::{
     instructions::{
-        BurnAndRefundV1, ForceUnlockVestingV1, InitConfigV1, MintAndVaultV1, TweetoniumInstruction,
-        UpdateNftV1,
+        BurnAndRefundV1, ForceUnlockVestingV1, InitConfigV1, InitTraitV1, MintAdminV1, MintTraitV1,
+        MintUserV1, MintVipV1, TweetoniumInstruction, UpdateConfigV1, UpdateNftV1, UpdateTraitV1,
     },
     utils::ProcessInstruction,
 };
@@ -33,6 +33,10 @@ fn process_instruction(
             msg!("Instruction: InitializeConfig");
             InitConfigV1::try_from((accounts, data, program_id))?.process()
         }
+        TweetoniumInstruction::UpdateConfigV1(data) => {
+            msg!("Instruction: UpdateConfig");
+            UpdateConfigV1::try_from((accounts, data, program_id))?.process()
+        }
         TweetoniumInstruction::MintAdminV1(data) => {
             msg!("Instruction: MintAdmin");
             MintAdminV1::try_from((accounts, data, program_id))?.process()
@@ -48,6 +52,10 @@ fn process_instruction(
         TweetoniumInstruction::InitTraitV1(data) => {
             msg!("Instruction: InitTrait");
             InitTraitV1::try_from((accounts, data, program_id))?.process()
+        }
+        TweetoniumInstruction::UpdateTraitV1(data) => {
+            msg!("Instruction: UpdateTrait");
+            UpdateTraitV1::try_from((accounts, data, program_id))?.process()
         }
         TweetoniumInstruction::MintTraitV1(data) => {
             msg!("Instruction: MintTrait");

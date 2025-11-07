@@ -1,0 +1,159 @@
+use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
+    pubkey::Pubkey,
+};
+
+use crate::{
+    states::{TraitItem, UpdateTraitItemArgs, MAX_ROYALTY_RECIPIENTS},
+    utils::{
+        AccountCheck, MplCoreProgram, Pda, ProcessInstruction, SignerAccount, SystemProgram,
+        UpdateMplCoreCollectionArgs, WritableAccount,
+    },
+};
+
+#[derive(Debug)]
+pub struct UpdateTraitV1Accounts<'a, 'info> {
+    /// Authority that will control trait (e.g. protocol wallet).
+    /// Must be a signer.
+    pub authority: &'a AccountInfo<'info>,
+
+    /// MPL Core Collection account that groups NFTs under this trait.
+    /// Must be initialized before trait creation via `CreateV1CpiBuilder`.
+    /// Determines the project scope for mint rules, royalties, and limits.
+    pub trait_collection: &'a AccountInfo<'info>,
+
+    /// PDA: `[program_id, trait_collection, "config"]` — stores `Config` struct.
+    /// Must be uninitialized, writable, owned by this program.
+    pub trait_pda: &'a AccountInfo<'info>,
+
+    /// System program — required for PDA creation and rent.
+    pub system_program: &'a AccountInfo<'info>,
+
+    /// Metaplex Core program — for NFT minting.
+    /// Must be the official MPL Core program.
+    pub mpl_core: &'a AccountInfo<'info>,
+}
+
+impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateTraitV1Accounts<'a, 'info> {
+    type Error = ProgramError;
+
+    fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
+        let [authority, trait_collection, trait_pda, system_program, mpl_core] = accounts else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        SignerAccount::check(authority)?;
+        SignerAccount::check(trait_collection)?;
+
+        WritableAccount::check(trait_pda)?;
+
+        SystemProgram::check(system_program)?;
+        MplCoreProgram::check(mpl_core)?;
+
+        Ok(Self {
+            authority,
+            trait_collection,
+            trait_pda,
+            system_program,
+            mpl_core,
+        })
+    }
+}
+
+#[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
+pub struct UpdateTraitV1InstructionData {
+    pub max_supply: u64,
+    pub mint_fee_lamports: u64,
+    pub trait_name: String,
+    pub trait_uri: String,
+    pub num_royalty_recipients: u8,
+    pub royalty_recipients: [Pubkey; MAX_ROYALTY_RECIPIENTS],
+    pub royalty_shares_bps: [u16; MAX_ROYALTY_RECIPIENTS],
+}
+
+#[derive(Debug)]
+pub struct UpdateTraitV1<'a, 'info> {
+    pub accounts: UpdateTraitV1Accounts<'a, 'info>,
+    pub instruction_data: UpdateTraitV1InstructionData,
+}
+
+impl<'a, 'info> UpdateTraitV1<'a, 'info> {
+    fn check_trait_royalties(&self) -> ProgramResult {
+        TraitItem::check_trait_royalties(
+            self.instruction_data.num_royalty_recipients,
+            self.instruction_data.royalty_shares_bps,
+        )
+    }
+
+    fn update_trait(&self) -> ProgramResult {
+        let mut trait_data = self.accounts.trait_pda.try_borrow_mut_data()?;
+        let trait_item = TraitItem::load_mut(trait_data.as_mut())?;
+
+        if trait_item.authority != *self.accounts.authority.key {
+            msg!("Unauthorized authority for trait update");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        trait_item.update(UpdateTraitItemArgs {
+            max_supply: self.instruction_data.max_supply,
+            mint_fee_lamports: self.instruction_data.mint_fee_lamports,
+        });
+
+        Ok(())
+    }
+
+    fn update_collection(self) -> ProgramResult {
+        MplCoreProgram::update_collection(
+            self.accounts.trait_collection,
+            self.accounts.authority,
+            self.accounts.mpl_core,
+            self.accounts.system_program,
+            UpdateMplCoreCollectionArgs {
+                num_royalty_recipients: self.instruction_data.num_royalty_recipients,
+                royalty_recipients: self.instruction_data.royalty_recipients,
+                royalty_shares_bps: self.instruction_data.royalty_shares_bps,
+                name: self.instruction_data.trait_name,
+                uri: self.instruction_data.trait_uri,
+            },
+        )
+    }
+}
+
+impl<'a, 'info>
+    TryFrom<(
+        &'a [AccountInfo<'info>],
+        UpdateTraitV1InstructionData,
+        &'a Pubkey,
+    )> for UpdateTraitV1<'a, 'info>
+{
+    type Error = ProgramError;
+    fn try_from(
+        (accounts, instruction_data, program_id): (
+            &'a [AccountInfo<'info>],
+            UpdateTraitV1InstructionData,
+            &'a Pubkey,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let accounts = UpdateTraitV1Accounts::try_from(accounts)?;
+
+        Pda::validate(
+            accounts.trait_pda,
+            &[TraitItem::SEED, accounts.trait_collection.key.as_ref()],
+            program_id,
+        )?;
+
+        Ok(Self {
+            accounts,
+            instruction_data,
+        })
+    }
+}
+
+impl<'a, 'info> ProcessInstruction for UpdateTraitV1<'a, 'info> {
+    fn process(self) -> ProgramResult {
+        self.check_trait_royalties()?;
+        self.update_trait()?;
+        self.update_collection()
+    }
+}
