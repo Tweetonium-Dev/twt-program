@@ -74,6 +74,30 @@ impl AssociatedTokenProgram {
         Ok(())
     }
 
+    pub fn init_if_needed<'info>(
+        payer: &AccountInfo<'info>,
+        wallet: &AccountInfo<'info>,
+        mint: &AccountInfo<'info>,
+        token_program: &AccountInfo<'info>,
+        associated_token_program: &AccountInfo<'info>,
+        system_program: &AccountInfo<'info>,
+        ata: &AccountInfo<'info>,
+    ) -> ProgramResult {
+        if ata.lamports() == 0 || ata.data_is_empty() {
+            Self::init(
+                payer,
+                wallet,
+                mint,
+                token_program,
+                associated_token_program,
+                system_program,
+                ata,
+            )?;
+        }
+
+        Ok(())
+    }
+
     pub fn check<'info>(
         ata: &AccountInfo<'info>,
         wallet: &Pubkey,
