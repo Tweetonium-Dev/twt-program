@@ -1,7 +1,1159 @@
 {
   "version": "0.1.0",
   "name": "tweetonium",
-  "instructions": [],
+  "instructions": [
+    {
+      "name": "InitConfigV1",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Authority that will control config updates (e.g. admin wallet)."
+          ]
+        },
+        {
+          "name": "nftCollection",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "MPL Core Collection account that groups NFTs under this project."
+          ]
+        },
+        {
+          "name": "configPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Uninitialize config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+          ]
+        },
+        {
+          "name": "tokenMint",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Must be valid mint (82 or 90+ bytes), owned by SPL Token or Token-2022."
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "SPL Token Program (legacy) or Token-2022 Program."
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System Program — required for PDA creation and rent."
+          ]
+        },
+        {
+          "name": "mplCore",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Metaplex Core program — must be the official MPL Core program."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "initConfigV1InstructionData",
+          "type": {
+            "defined": "InitConfigV1InstructionData"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 0
+      }
+    },
+    {
+      "name": "UpdateConfigV1",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "The config authority — must sign and match `config.admin`."
+          ]
+        },
+        {
+          "name": "nftCollection",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "MPL Core Collection account that groups NFTs under this project. Must be initialized before config creation."
+          ]
+        },
+        {
+          "name": "configPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Uninitialize config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+          ]
+        },
+        {
+          "name": "tokenMint",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Must be valid mint (82 or 90+ bytes), owned by SPL Token or Token-2022."
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System Program — required for PDA creation and rent."
+          ]
+        },
+        {
+          "name": "mplCore",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Metaplex Core program — must be the official MPL Core program."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "updateConfigV1InstructionData",
+          "type": {
+            "defined": "UpdateConfigV1InstructionData"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 1
+      }
+    },
+    {
+      "name": "MintAdminV1",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Authority as payer (admin wallet). Must sign."
+          ]
+        },
+        {
+          "name": "configPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+          ]
+        },
+        {
+          "name": "vaultPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Uninitialize vault pda with seeds [program_id, admin, token_mint, nft_collection, \"vault\"]"
+          ]
+        },
+        {
+          "name": "vaultAta",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Vault PDA's associated token account — holds escrowed 'token_mint' funds."
+          ]
+        },
+        {
+          "name": "adminAta",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Admin's ATA for 'token_mint' — source of payment."
+          ]
+        },
+        {
+          "name": "nftAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Controls: update all NFTs."
+          ]
+        },
+        {
+          "name": "nftCollection",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "MPL Core Collection account that groups NFTs under this project."
+          ]
+        },
+        {
+          "name": "nftAsset",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Uninitialize NFT asset (MPL Core) — the NFT being minted."
+          ]
+        },
+        {
+          "name": "tokenMint",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Token mint — the token being escrowed (e.g. ZDLT)"
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "SPL Token Program (legacy) or Token-2022 Program."
+          ]
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Associated Token Program — for ATA derivation and creation."
+          ]
+        },
+        {
+          "name": "protocolWallet",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Protocol wallet — receives the configurable SOL protocol fee."
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System Program — required for PDA creation and rent."
+          ]
+        },
+        {
+          "name": "mplCore",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Metaplex Core program — must be the official MPL Core program."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "mintAdminV1InstructionData",
+          "type": {
+            "defined": "MintAdminV1InstructionData"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 2
+      }
+    },
+    {
+      "name": "MintUserV1",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "User paying the mint price in 'token_mint' and solana."
+          ]
+        },
+        {
+          "name": "configPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+          ]
+        },
+        {
+          "name": "vaultPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Uninitialize vault pda with seeds [program_id, payer, token_mint, nft_collection, \"vault\"]"
+          ]
+        },
+        {
+          "name": "vaultAta",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Associated Token Account (ATA) of the vault PDA."
+          ]
+        },
+        {
+          "name": "payerAta",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Admin's ATA for 'token_mint' — source of payment."
+          ]
+        },
+        {
+          "name": "userMintPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Uninitialize user mint pda with seeds [program_id, payer, token_mint, nft_collection, \"user_mint\"]"
+          ]
+        },
+        {
+          "name": "nftAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Controls: update all NFTs."
+          ]
+        },
+        {
+          "name": "nftCollection",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "MPL Core Collection account that groups NFTs under this project."
+          ]
+        },
+        {
+          "name": "nftAsset",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Uninitialize NFT asset (MPL Core) — the NFT being minted."
+          ]
+        },
+        {
+          "name": "tokenMint",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Token mint — the token being escrowed (e.g. ZDLT)"
+          ]
+        },
+        {
+          "name": "revenueWalletAta0",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "ATA for revenue wallet #0 — receives share from mint price."
+          ]
+        },
+        {
+          "name": "revenueWalletAta1",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "ATA for revenue wallet #1 — receives share from mint price."
+          ]
+        },
+        {
+          "name": "revenueWalletAta2",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "ATA for revenue wallet #2 — receives share from mint price."
+          ]
+        },
+        {
+          "name": "revenueWalletAta3",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "ATA for revenue wallet #3 — receives share from mint price."
+          ]
+        },
+        {
+          "name": "revenueWalletAta4",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "ATA for revenue wallet #4 — receives share from mint price."
+          ]
+        },
+        {
+          "name": "protocolWallet",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Protocol wallet — receives the configurable SOL protocol fee."
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "SPL Token Program (legacy) or Token-2022 Program."
+          ]
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Associated Token Program"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System Program — required for PDA creation and rent."
+          ]
+        },
+        {
+          "name": "mplCore",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Metaplex Core program — must be the official MPL Core program."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "mintUserV1InstructionData",
+          "type": {
+            "defined": "MintUserV1InstructionData"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 3
+      }
+    },
+    {
+      "name": "MintVipV1",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "User paying the mint price in 'token_mint' and solana."
+          ]
+        },
+        {
+          "name": "configPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+          ]
+        },
+        {
+          "name": "vaultPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Uninitialize vault pda with seeds [program_id, payer, token_mint, nft_collection, \"vault\"]"
+          ]
+        },
+        {
+          "name": "vaultAta",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Associated Token Account (ATA) of the vault PDA."
+          ]
+        },
+        {
+          "name": "payerAta",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Admin's ATA for 'token_mint' — source of payment."
+          ]
+        },
+        {
+          "name": "userMintPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Uninitialize user mint pda with seeds [program_id, payer, token_mint, nft_collection, \"user_mint\"]"
+          ]
+        },
+        {
+          "name": "nftAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Controls: update all NFTs."
+          ]
+        },
+        {
+          "name": "nftCollection",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "MPL Core Collection account that groups NFTs under this project."
+          ]
+        },
+        {
+          "name": "nftAsset",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Uninitialize NFT asset (MPL Core) — the NFT being minted."
+          ]
+        },
+        {
+          "name": "tokenMint",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Token mint — the token being escrowed (e.g. ZDLT)"
+          ]
+        },
+        {
+          "name": "revenueWalletAta0",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "ATA for revenue wallet #0 — receives share from mint price."
+          ]
+        },
+        {
+          "name": "revenueWalletAta1",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "ATA for revenue wallet #1 — receives share from mint price."
+          ]
+        },
+        {
+          "name": "revenueWalletAta2",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "ATA for revenue wallet #2 — receives share from mint price."
+          ]
+        },
+        {
+          "name": "revenueWalletAta3",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "ATA for revenue wallet #3 — receives share from mint price."
+          ]
+        },
+        {
+          "name": "revenueWalletAta4",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "ATA for revenue wallet #4 — receives share from mint price."
+          ]
+        },
+        {
+          "name": "protocolWallet",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Protocol wallet — receives the configurable SOL protocol fee."
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "SPL Token Program (legacy) or Token-2022 Program."
+          ]
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Associated Token Program"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System Program — required for PDA creation and rent."
+          ]
+        },
+        {
+          "name": "mplCore",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Metaplex Core program — must be the official MPL Core program."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "mintVipV1InstructionData",
+          "type": {
+            "defined": "MintVipV1InstructionData"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 4
+      }
+    },
+    {
+      "name": "InitTraitV1",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Authority that will control trait updates (e.g. protocol wallet)."
+          ]
+        },
+        {
+          "name": "traitPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Uninitialize config pda with seeds [program_id, trait_collection, \"trait_item\"]"
+          ]
+        },
+        {
+          "name": "traitCollection",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "MPL Core Collection account that groups trait NFTs."
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System Program — required for PDA creation and rent."
+          ]
+        },
+        {
+          "name": "mplCore",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Metaplex Core program — must be the official MPL Core program."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "initTraitV1InstructionData",
+          "type": {
+            "defined": "InitTraitV1InstructionData"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 5
+      }
+    },
+    {
+      "name": "UpdateTraitV1",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Authority that will control trait updates (e.g. protocol wallet)."
+          ]
+        },
+        {
+          "name": "traitPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Uninitialize config pda with seeds [program_id, trait_collection, \"trait_item\"]"
+          ]
+        },
+        {
+          "name": "traitCollection",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "MPL Core Collection account that groups trait NFTs."
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System Program — required for PDA creation and rent."
+          ]
+        },
+        {
+          "name": "mplCore",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Metaplex Core program — must be the official MPL Core program."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "updateTraitV1InstructionData",
+          "type": {
+            "defined": "UpdateTraitV1InstructionData"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 6
+      }
+    },
+    {
+      "name": "MintTraitV1",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "User paying the mint price in 'token_mint' and solana."
+          ]
+        },
+        {
+          "name": "traitPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Uninitialize config pda with seeds [program_id, trait_collection, \"trait_item\"]"
+          ]
+        },
+        {
+          "name": "traitCollection",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "MPL Core Collection account that groups trait NFTs."
+          ]
+        },
+        {
+          "name": "traitAsset",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Uninitialize NFT asset (MPL Core) — the NFT being minted."
+          ]
+        },
+        {
+          "name": "protocolWallet",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Protocol wallet — receives the configurable SOL protocol fee."
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System Program — required for PDA creation and rent."
+          ]
+        },
+        {
+          "name": "mplCore",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Metaplex Core program — must be the official MPL Core program."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "minTraitV1InstructionData",
+          "type": {
+            "defined": "MinTraitV1InstructionData"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 7
+      }
+    },
+    {
+      "name": "UpdateNftV1",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "User paying the mint price in 'token_mint' and solana."
+          ]
+        },
+        {
+          "name": "configPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+          ]
+        },
+        {
+          "name": "tokenMint",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Token mint — the token being escrowed (e.g. ZDLT)"
+          ]
+        },
+        {
+          "name": "nftAuthority",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Authority to controls update for all NFTs."
+          ]
+        },
+        {
+          "name": "nftCollection",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "MPL Core Collection account that groups NFTs under this project."
+          ]
+        },
+        {
+          "name": "nftAsset",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Uninitialize NFT asset (MPL Core) — the NFT being minted."
+          ]
+        },
+        {
+          "name": "protocolWallet",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Protocol wallet — receives the configurable SOL protocol fee."
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System Program — required for PDA creation and rent."
+          ]
+        },
+        {
+          "name": "mplCore",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Metaplex Core program — must be the official MPL Core program."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "updateNftV1InstructionData",
+          "type": {
+            "defined": "UpdateNftV1InstructionData"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 8
+      }
+    },
+    {
+      "name": "BurnAndRefundV1",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "User paying the mint price in 'token_mint' and solana."
+          ]
+        },
+        {
+          "name": "nftCollection",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "MPL Core Collection account that groups NFTs under this project."
+          ]
+        },
+        {
+          "name": "nftAsset",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Uninitialize NFT asset (MPL Core) — the NFT being minted."
+          ]
+        },
+        {
+          "name": "vaultPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Uninitialize vault pda with seeds [program_id, payer, token_mint, nft_collection, \"vault\"]"
+          ]
+        },
+        {
+          "name": "vaultAta",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Associated Token Account (ATA) of the vault PDA."
+          ]
+        },
+        {
+          "name": "payerAta",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Admin's ATA for 'token_mint' — source of payment."
+          ]
+        },
+        {
+          "name": "configPda",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+          ]
+        },
+        {
+          "name": "tokenMint",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Token mint — the token being escrowed (e.g. ZDLT)"
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "SPL Token Program (legacy) or Token-2022 Program."
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System Program — required for PDA creation and rent."
+          ]
+        },
+        {
+          "name": "mplCore",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Metaplex Core program — must be the official MPL Core program."
+          ]
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 9
+      }
+    },
+    {
+      "name": "ForceUnlockVestingV1",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Authority that will control force unlock vesting (e.g. admin wallet)."
+          ]
+        },
+        {
+          "name": "configPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+          ]
+        },
+        {
+          "name": "tokenMint",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Token mint — the token being escrowed (e.g. ZDLT)"
+          ]
+        },
+        {
+          "name": "nftCollection",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "MPL Core Collection account that groups NFTs under this project."
+          ]
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 10
+      }
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Config",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "publicKey"
+          },
+          {
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "name": "mintDecimals",
+            "type": "u8"
+          },
+          {
+            "name": "maxSupply",
+            "type": "u64"
+          },
+          {
+            "name": "released",
+            "type": "u64"
+          },
+          {
+            "name": "maxMintPerUser",
+            "type": "u64"
+          },
+          {
+            "name": "maxMintPerVipUser",
+            "type": "u64"
+          },
+          {
+            "name": "adminMinted",
+            "type": "u64"
+          },
+          {
+            "name": "userMinted",
+            "type": "u64"
+          },
+          {
+            "name": "vestingMode",
+            "type": {
+              "defined": "VestingMode"
+            }
+          },
+          {
+            "name": "vestingUnlockTs",
+            "type": "i64"
+          },
+          {
+            "name": "mintFeeLamports",
+            "type": "u64"
+          },
+          {
+            "name": "mintPriceTotal",
+            "type": "u64"
+          },
+          {
+            "name": "escrowAmount",
+            "type": "u64"
+          },
+          {
+            "name": "numRevenueWallets",
+            "type": "u8"
+          },
+          {
+            "name": "revenueWallets",
+            "type": {
+              "array": [
+                "publicKey",
+                5
+              ]
+            }
+          },
+          {
+            "name": "revenueShares",
+            "type": {
+              "array": [
+                "u64",
+                5
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TraitItem",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "maxSupply",
+            "type": "u64"
+          },
+          {
+            "name": "userMinted",
+            "type": "u64"
+          },
+          {
+            "name": "mintFeeLamports",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ],
   "types": [
     {
       "name": "InitConfigV1InstructionData",
@@ -17,31 +1169,293 @@
             "type": "u64"
           },
           {
-            "name": "price",
+            "name": "maxMintPerUser",
             "type": "u64"
           },
           {
-            "name": "vestingEndTs",
+            "name": "maxMintPerVipUser",
+            "type": "u64"
+          },
+          {
+            "name": "vestingMode",
+            "type": {
+              "defined": "VestingMode"
+            }
+          },
+          {
+            "name": "vestingUnlockTs",
             "type": "i64"
           },
           {
-            "name": "protocolFeeLamports",
+            "name": "mintFeeLamports",
             "type": "u64"
+          },
+          {
+            "name": "mintPriceTotal",
+            "type": "u64"
+          },
+          {
+            "name": "escrowAmount",
+            "type": "u64"
+          },
+          {
+            "name": "numRevenueWallets",
+            "type": "u8"
+          },
+          {
+            "name": "revenueWallets",
+            "type": {
+              "array": [
+                "publicKey",
+                5
+              ]
+            }
+          },
+          {
+            "name": "revenueShares",
+            "type": {
+              "array": [
+                "u64",
+                5
+              ]
+            }
+          },
+          {
+            "name": "numRoyaltyRecipients",
+            "type": "u8"
+          },
+          {
+            "name": "royaltyRecipients",
+            "type": {
+              "array": [
+                "publicKey",
+                5
+              ]
+            }
+          },
+          {
+            "name": "royaltySharesBps",
+            "type": {
+              "array": [
+                "u16",
+                5
+              ]
+            }
+          },
+          {
+            "name": "collectionName",
+            "type": "string"
+          },
+          {
+            "name": "collectionUri",
+            "type": "string"
           }
         ]
       }
     },
     {
-      "name": "MintAndVaultV1InstructionData",
+      "name": "InitTraitV1InstructionData",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "name",
+            "name": "maxSupply",
+            "type": "u64"
+          },
+          {
+            "name": "mintFeeLamports",
+            "type": "u64"
+          },
+          {
+            "name": "traitName",
             "type": "string"
           },
           {
-            "name": "uri",
+            "name": "traitUri",
+            "type": "string"
+          },
+          {
+            "name": "numRoyaltyRecipients",
+            "type": "u8"
+          },
+          {
+            "name": "royaltyRecipients",
+            "type": {
+              "array": [
+                "publicKey",
+                5
+              ]
+            }
+          },
+          {
+            "name": "royaltySharesBps",
+            "type": {
+              "array": [
+                "u16",
+                5
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "MintAdminV1InstructionData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "nftName",
+            "type": "string"
+          },
+          {
+            "name": "nftUri",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MinTraitV1InstructionData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "nftName",
+            "type": "string"
+          },
+          {
+            "name": "nftUri",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MintUserV1InstructionData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "nftName",
+            "type": "string"
+          },
+          {
+            "name": "nftUri",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MintVipV1InstructionData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "nftName",
+            "type": "string"
+          },
+          {
+            "name": "nftUri",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdateConfigV1InstructionData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "maxSupply",
+            "type": "u64"
+          },
+          {
+            "name": "released",
+            "type": "u64"
+          },
+          {
+            "name": "maxMintPerUser",
+            "type": "u64"
+          },
+          {
+            "name": "maxMintPerVipUser",
+            "type": "u64"
+          },
+          {
+            "name": "vestingMode",
+            "type": {
+              "defined": "VestingMode"
+            }
+          },
+          {
+            "name": "vestingUnlockTs",
+            "type": "i64"
+          },
+          {
+            "name": "mintFeeLamports",
+            "type": "u64"
+          },
+          {
+            "name": "mintPriceTotal",
+            "type": "u64"
+          },
+          {
+            "name": "escrowAmount",
+            "type": "u64"
+          },
+          {
+            "name": "numRevenueWallets",
+            "type": "u8"
+          },
+          {
+            "name": "revenueWallets",
+            "type": {
+              "array": [
+                "publicKey",
+                5
+              ]
+            }
+          },
+          {
+            "name": "revenueShares",
+            "type": {
+              "array": [
+                "u64",
+                5
+              ]
+            }
+          },
+          {
+            "name": "numRoyaltyRecipients",
+            "type": "u8"
+          },
+          {
+            "name": "royaltyRecipients",
+            "type": {
+              "array": [
+                "publicKey",
+                5
+              ]
+            }
+          },
+          {
+            "name": "royaltySharesBps",
+            "type": {
+              "array": [
+                "u16",
+                5
+              ]
+            }
+          },
+          {
+            "name": "collectionName",
+            "type": "string"
+          },
+          {
+            "name": "collectionUri",
             "type": "string"
           }
         ]
@@ -53,50 +1467,75 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "name",
+            "name": "nftName",
             "type": "string"
           },
           {
-            "name": "uri",
+            "name": "nftUri",
             "type": "string"
           }
         ]
       }
     },
     {
-      "name": "TweetoniumInstruction",
+      "name": "UpdateTraitV1InstructionData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "maxSupply",
+            "type": "u64"
+          },
+          {
+            "name": "mintFeeLamports",
+            "type": "u64"
+          },
+          {
+            "name": "traitName",
+            "type": "string"
+          },
+          {
+            "name": "traitUri",
+            "type": "string"
+          },
+          {
+            "name": "numRoyaltyRecipients",
+            "type": "u8"
+          },
+          {
+            "name": "royaltyRecipients",
+            "type": {
+              "array": [
+                "publicKey",
+                5
+              ]
+            }
+          },
+          {
+            "name": "royaltySharesBps",
+            "type": {
+              "array": [
+                "u16",
+                5
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "VestingMode",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "InitConfigV1",
-            "fields": [
-              {
-                "defined": "InitConfigV1InstructionData"
-              }
-            ]
+            "name": "None"
           },
           {
-            "name": "MintAndVaultV1",
-            "fields": [
-              {
-                "defined": "MintAndVaultV1InstructionData"
-              }
-            ]
+            "name": "Permanent"
           },
           {
-            "name": "UpdateNftV1",
-            "fields": [
-              {
-                "defined": "UpdateNftV1InstructionData"
-              }
-            ]
-          },
-          {
-            "name": "BurnAndRefundV1"
-          },
-          {
-            "name": "ForceUnlockVestingV1"
+            "name": "TimeStamp"
           }
         ]
       }
