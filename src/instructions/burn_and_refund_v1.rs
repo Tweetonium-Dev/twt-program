@@ -1,4 +1,3 @@
-use mpl_core::instructions::BurnV1CpiBuilder;
 use solana_program::{
     account_info::AccountInfo, clock::Clock, entrypoint::ProgramResult, msg,
     program_error::ProgramError, pubkey::Pubkey, sysvar::Sysvar,
@@ -7,7 +6,10 @@ use solana_program::{
 use crate::{
     states::{Config, Vault, VestingMode},
     utils::{
-        AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, ConfigAccount, MintAccount, MplCoreProgram, Pda, ProcessInstruction, SignerAccount, SystemProgram, TokenProgram, TokenTransferArgs, VaultAccount, WritableAccount
+        AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck,
+        BurnMplCoreAssetAccounts, ConfigAccount, MintAccount, MplCoreProgram, Pda,
+        ProcessInstruction, SignerAccount, SystemProgram, TokenProgram, TokenTransferAccounts,
+        TokenTransferArgs, VaultAccount, WritableAccount,
     },
 };
 
@@ -19,7 +21,6 @@ pub struct BurnAndRefundV1Accounts<'a, 'info> {
 
     /// MPL Core Collection account that groups NFTs under this project.
     /// Must be initialized before config creation via `CreateV1CpiBuilder`.
-    /// Used as part of the config PDA seeds: `[program_id, token_mint, collection.key.as_ref()]`.
     /// Determines the project scope for mint rules, royalties, and limits.
     pub nft_collection: &'a AccountInfo<'info>,
 
@@ -72,10 +73,10 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
         SignerAccount::check(payer)?;
 
         WritableAccount::check(nft_collection)?;
+        WritableAccount::check(nft_asset)?;
         WritableAccount::check(vault_pda)?;
         WritableAccount::check(vault_ata)?;
         WritableAccount::check(payer_ata)?;
-        WritableAccount::check(config_pda)?;
 
         VaultAccount::check(vault_pda)?;
         ConfigAccount::check(config_pda)?;
@@ -148,12 +149,13 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
     }
 
     fn burn_nft(&self) -> ProgramResult {
-        BurnV1CpiBuilder::new(self.accounts.mpl_core)
-            .asset(self.accounts.nft_asset)
-            .payer(self.accounts.payer)
-            .authority(Some(self.accounts.payer))
-            .system_program(Some(self.accounts.system_program))
-            .invoke()
+        MplCoreProgram::burn(BurnMplCoreAssetAccounts {
+            asset: self.accounts.nft_asset,
+            collection: self.accounts.nft_collection,
+            payer: self.accounts.payer,
+            mpl_core: self.accounts.mpl_core,
+            system_program: self.accounts.system_program,
+        })
     }
 
     fn refund_token(&self, config: &Config, balance: u64) -> ProgramResult {
@@ -166,12 +168,14 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
         ]];
 
         TokenProgram::transfer_signed(
-            TokenTransferArgs {
+            TokenTransferAccounts {
                 source: self.accounts.vault_ata,
                 destination: self.accounts.payer_ata,
                 authority: self.accounts.vault_pda,
                 mint: self.accounts.token_mint,
                 token_program: self.accounts.token_program,
+            },
+            TokenTransferArgs {
                 signer_pubkeys: &[],
                 amount: balance,
                 decimals: config.mint_decimals,

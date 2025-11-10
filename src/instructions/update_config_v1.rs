@@ -8,15 +8,16 @@ use crate::{
     states::{Config, UpdateConfigArgs, VestingMode, MAX_REVENUE_WALLETS, MAX_ROYALTY_RECIPIENTS},
     utils::{
         AccountCheck, MintAccount, MplCoreProgram, Pda, ProcessInstruction, SignerAccount,
-        SystemProgram, UpdateMplCoreCollectionArgs, WritableAccount,
+        SystemProgram, UpdateMplCoreCollectionAccounts, UpdateMplCoreCollectionArgs,
+        WritableAccount,
     },
 };
 
 #[derive(Debug)]
 pub struct UpdateConfigV1Accounts<'a, 'info> {
-    /// The config authority — must sign.
-    /// Must match `config.admin`.
-    pub admin: &'a AccountInfo<'info>,
+    /// Authority that will control config updates (e.g. admin wallet).
+    /// Must be a signer.
+    pub authority: &'a AccountInfo<'info>,
 
     /// MPL Core Collection account that groups NFTs under this project.
     /// Must be initialized before config creation via `CreateV1CpiBuilder`.
@@ -44,12 +45,13 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateConfigV1Accounts<'a,
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [admin, nft_collection, config_pda, token_mint, system_program, mpl_core] = accounts
+        let [authority, nft_collection, config_pda, token_mint, system_program, mpl_core] =
+            accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        SignerAccount::check(admin)?;
+        SignerAccount::check(authority)?;
 
         WritableAccount::check(nft_collection)?;
         WritableAccount::check(config_pda)?;
@@ -59,7 +61,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateConfigV1Accounts<'a,
         MplCoreProgram::check(mpl_core)?;
 
         Ok(Self {
-            admin,
+            authority,
             nft_collection,
             config_pda,
             token_mint,
@@ -81,11 +83,11 @@ pub struct UpdateConfigV1InstructionData {
     pub mint_price_total: u64,
     pub escrow_amount: u64,
     pub num_revenue_wallets: u8,
-    pub revenue_wallets: [Pubkey; MAX_REVENUE_WALLETS],
-    pub revenue_shares: [u64; MAX_REVENUE_WALLETS],
+    pub revenue_wallets: [Pubkey; 5],
+    pub revenue_shares: [u64; 5],
     pub num_royalty_recipients: u8,
-    pub royalty_recipients: [Pubkey; MAX_ROYALTY_RECIPIENTS],
-    pub royalty_shares_bps: [u16; MAX_ROYALTY_RECIPIENTS],
+    pub royalty_recipients: [Pubkey; 5],
+    pub royalty_shares_bps: [u16; 5],
     pub collection_name: String,
     pub collection_uri: String,
 }
@@ -97,25 +99,85 @@ pub struct UpdateConfigV1<'a, 'info> {
 }
 
 impl<'a, 'info> UpdateConfigV1<'a, 'info> {
-    fn check_config_data(&self) -> ProgramResult {
-        Config::check_revenue_wallets(
-            self.instruction_data.mint_price_total,
-            self.instruction_data.escrow_amount,
-            self.instruction_data.num_revenue_wallets,
-            self.instruction_data.revenue_shares,
-        )?;
-        Config::check_nft_royalties(
-            self.instruction_data.num_royalty_recipients,
-            self.instruction_data.royalty_shares_bps,
-        )
+    fn check_revenue_wallets(&self) -> ProgramResult {
+        let num_wallets = self.instruction_data.num_revenue_wallets as usize;
+
+        if num_wallets == 0 {
+            return Ok(());
+        }
+
+        if num_wallets > MAX_REVENUE_WALLETS {
+            msg!(
+                "Invalid configuration: DAO wallet count ({}) exceeds allowed maximum ({})",
+                num_wallets,
+                MAX_REVENUE_WALLETS
+            );
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let total_dao_price: u64 = self
+            .instruction_data
+            .revenue_shares
+            .iter()
+            .try_fold(0u64, |acc, &price| {
+                acc.checked_add(price)
+                    .ok_or(ProgramError::InvalidInstructionData)
+            })
+            .inspect_err(|_| msg!("Overflow while summing DAO revenue shares"))?;
+
+        let total_dao_shares = self.instruction_data.escrow_amount + total_dao_price;
+
+        if total_dao_shares != self.instruction_data.mint_price_total {
+            msg!(
+                "Inconsistent pricing: expected mint_price_total ({}) = escrow_amount ({}) + total DAO shares ({})",
+                self.instruction_data.mint_price_total,
+                self.instruction_data.escrow_amount,
+                total_dao_shares
+            );
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        Ok(())
+    }
+
+    fn check_nft_royalties(&self) -> ProgramResult {
+        let recipients = self.instruction_data.num_royalty_recipients as usize;
+
+        if recipients == 0 {
+            return Ok(());
+        }
+
+        if recipients > MAX_ROYALTY_RECIPIENTS {
+            msg!("Too many royalty wallets, max: {}", MAX_ROYALTY_RECIPIENTS);
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let total_bps: u16 = self
+            .instruction_data
+            .royalty_shares_bps
+            .iter()
+            .try_fold(0u16, |acc, &price| {
+                acc.checked_add(price)
+                    .ok_or(ProgramError::InvalidInstructionData)
+            })
+            .inspect_err(|_| msg!("Failed to sum total bps"))?;
+
+        if total_bps > 10_000 {
+            msg!("Total royalty BPS exceeds 100% (10_000)");
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        Ok(())
     }
 
     fn update_collection(&self) -> ProgramResult {
         MplCoreProgram::update_collection(
-            self.accounts.nft_collection,
-            self.accounts.admin,
-            self.accounts.mpl_core,
-            self.accounts.system_program,
+            UpdateMplCoreCollectionAccounts {
+                collection: self.accounts.nft_collection,
+                authority: self.accounts.authority,
+                mpl_core: self.accounts.mpl_core,
+                system_program: self.accounts.system_program,
+            },
             UpdateMplCoreCollectionArgs {
                 num_royalty_recipients: self.instruction_data.num_royalty_recipients,
                 royalty_recipients: self.instruction_data.royalty_recipients,
@@ -130,8 +192,8 @@ impl<'a, 'info> UpdateConfigV1<'a, 'info> {
         let mut config_data = self.accounts.config_pda.try_borrow_mut_data()?;
         let config = Config::load_mut(config_data.as_mut())?;
 
-        if config.admin != *self.accounts.admin.key {
-            msg!("Unauthorized admin for config update");
+        if config.admin != *self.accounts.authority.key {
+            msg!("Unauthorized authority for config update");
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -190,7 +252,8 @@ impl<'a, 'info>
 
 impl<'a, 'info> ProcessInstruction for UpdateConfigV1<'a, 'info> {
     fn process(self) -> ProgramResult {
-        self.check_config_data()?;
+        self.check_revenue_wallets()?;
+        self.check_nft_royalties()?;
         self.update_collection()?;
         self.update_config()
     }

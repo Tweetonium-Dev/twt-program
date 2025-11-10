@@ -1,7 +1,11 @@
 use core::mem::transmute;
+use shank::ShankAccount;
 use solana_program::{entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
 
-use crate::{states::{MAX_BASIS_POINTS, MAX_ROYALTY_RECIPIENTS}, utils::{AccountCheck, InitPdaArgs, Pda, UninitializedAccount}};
+use crate::{
+    states::{MAX_BASIS_POINTS, MAX_ROYALTY_RECIPIENTS},
+    utils::{AccountCheck, InitPdaAccounts, InitPdaArgs, Pda, UninitializedAccount},
+};
 
 /// Global configuration account that defines minting, payment, and vesting rules
 /// for a single collection or minting campaign.
@@ -16,7 +20,7 @@ use crate::{states::{MAX_BASIS_POINTS, MAX_ROYALTY_RECIPIENTS}, utils::{AccountC
 ///
 /// PDA seed: `[program_id, "config", hashed_nft_symbol, token_mint]`
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, ShankAccount)]
 pub struct TraitItem {
     /// The authority that controls configuration updates and protocol-level actions.
     ///
@@ -53,10 +57,11 @@ impl TraitItem {
     #[inline(always)]
     pub fn init<'a, 'info>(
         bytes: &mut [u8],
-        pda_args: InitPdaArgs<'a, 'info>,
+        pda_accounts: InitPdaAccounts<'a, 'info>,
+        pda_args: InitPdaArgs<'a>,
         args: InitTraitItemArgs,
     ) -> ProgramResult {
-        Pda::new(pda_args)?.init()?;
+        Pda::new(pda_accounts, pda_args)?.init()?;
 
         let config = Self::load_mut(bytes)?;
         config.authority = args.authority;
@@ -70,11 +75,12 @@ impl TraitItem {
     #[inline(always)]
     pub fn init_if_needed<'a, 'info>(
         bytes: &mut [u8],
-        pda_args: InitPdaArgs<'a, 'info>,
+        pda_accounts: InitPdaAccounts<'a, 'info>,
+        pda_args: InitPdaArgs<'a>,
         args: InitTraitItemArgs,
     ) -> ProgramResult {
-        if UninitializedAccount::check(pda_args.pda).is_ok() {
-            Self::init(bytes, pda_args, args)?;
+        if UninitializedAccount::check(pda_accounts.pda).is_ok() {
+            Self::init(bytes, pda_accounts, pda_args, args)?;
         }
 
         Ok(())
@@ -122,10 +128,7 @@ impl TraitItem {
         }
 
         if recipients > MAX_ROYALTY_RECIPIENTS {
-            msg!(
-                "Too many royalty wallets, max: {}",
-                MAX_ROYALTY_RECIPIENTS
-            );
+            msg!("Too many royalty wallets, max: {}", MAX_ROYALTY_RECIPIENTS);
             return Err(ProgramError::InvalidInstructionData);
         }
 

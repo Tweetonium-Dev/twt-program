@@ -27,7 +27,6 @@ pub struct ForceUnlockVestingV1Accounts<'a, 'info> {
 
     /// MPL Core Collection account that groups NFTs under this project.
     /// Must be initialized before config creation via `CreateV1CpiBuilder`.
-    /// Used as part of the config PDA seeds: `[program_id, token_mint, collection.key.as_ref()]`.
     /// Determines the project scope for mint rules, royalties, and limits.
     pub nft_collection: &'a AccountInfo<'info>,
 }

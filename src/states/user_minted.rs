@@ -3,7 +3,7 @@ use solana_program::{msg, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{
     states::Config,
-    utils::{AccountCheck, InitPdaArgs, Pda, UninitializedAccount},
+    utils::{AccountCheck, InitPdaAccounts, InitPdaArgs, Pda, UninitializedAccount},
 };
 
 /// Tracks whether a specific wallet has already minted an NFT in this collection.
@@ -38,10 +38,11 @@ impl UserMinted {
     #[inline(always)]
     pub fn init<'a, 'info>(
         bytes: &mut [u8],
-        pda_args: InitPdaArgs<'a, 'info>,
+        pda_accounts: InitPdaAccounts<'a, 'info>,
+        pda_args: InitPdaArgs<'a>,
         owner: &Pubkey,
     ) -> Result<(), ProgramError> {
-        Pda::new(pda_args)?.init()?;
+        Pda::new(pda_accounts, pda_args)?.init()?;
 
         let minted_user = Self::load_mut(bytes)?;
         minted_user.owner = *owner;
@@ -53,11 +54,12 @@ impl UserMinted {
     #[inline(always)]
     pub fn init_if_needed<'a, 'info>(
         bytes: &mut [u8],
-        pda_args: InitPdaArgs<'a, 'info>,
+        pda_accounts: InitPdaAccounts<'a, 'info>,
+        pda_args: InitPdaArgs<'a>,
         owner: &Pubkey,
     ) -> Result<(), ProgramError> {
-        if UninitializedAccount::check(pda_args.pda).is_ok() {
-            Self::init(bytes, pda_args, owner)?;
+        if UninitializedAccount::check(pda_accounts.pda).is_ok() {
+            Self::init(bytes, pda_accounts, pda_args, owner)?;
         }
 
         Ok(())

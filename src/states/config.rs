@@ -1,9 +1,10 @@
 use core::mem::transmute;
+use shank::ShankAccount;
 use solana_program::{entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{
     states::{VestingMode, MAX_BASIS_POINTS, MAX_REVENUE_WALLETS, MAX_ROYALTY_RECIPIENTS},
-    utils::{AccountCheck, InitPdaArgs, Pda, UninitializedAccount},
+    utils::{AccountCheck, InitPdaAccounts, InitPdaArgs, Pda, UninitializedAccount},
 };
 
 /// Global configuration account that defines minting, payment, and vesting rules
@@ -19,7 +20,7 @@ use crate::{
 ///
 /// PDA seed: `[program_id, "config", hashed_nft_symbol, token_mint]`
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, ShankAccount)]
 pub struct Config {
     /// The authority that controls configuration updates and protocol-level actions.
     ///
@@ -121,13 +122,13 @@ pub struct Config {
     ///
     /// - Indexed 0..`num_revenue_wallets`.
     /// - Each entry corresponds to the same index in `revenue_shares`.
-    pub revenue_wallets: [Pubkey; MAX_REVENUE_WALLETS],
+    pub revenue_wallets: [Pubkey; 5],
 
     /// The raw (unadjusted) amount in payment tokens each revenue wallet receives.
     ///
     /// - Indexed 0..`num_revenue_wallets`.
     /// - Must sum up (with `escrow_amount`) to ≤ `mint_price_total`.
-    pub revenue_shares: [u64; MAX_REVENUE_WALLETS],
+    pub revenue_shares: [u64; 5],
 }
 
 impl Config {
@@ -139,10 +140,11 @@ impl Config {
     #[inline(always)]
     pub fn init<'a, 'info>(
         bytes: &mut [u8],
-        pda_args: InitPdaArgs<'a, 'info>,
+        pda_accounts: InitPdaAccounts<'a, 'info>,
+        pda_args: InitPdaArgs<'a>,
         args: InitConfigArgs,
     ) -> ProgramResult {
-        Pda::new(pda_args)?.init()?;
+        Pda::new(pda_accounts, pda_args)?.init()?;
 
         let config = Self::load_mut(bytes)?;
         config.admin = args.admin;
@@ -169,11 +171,12 @@ impl Config {
     #[inline(always)]
     pub fn init_if_needed<'a, 'info>(
         bytes: &mut [u8],
-        pda_args: InitPdaArgs<'a, 'info>,
+        pda_accounts: InitPdaAccounts<'a, 'info>,
+        pda_args: InitPdaArgs<'a>,
         args: InitConfigArgs,
     ) -> ProgramResult {
-        if UninitializedAccount::check(pda_args.pda).is_ok() {
-            Self::init(bytes, pda_args, args)?;
+        if UninitializedAccount::check(pda_accounts.pda).is_ok() {
+            Self::init(bytes, pda_accounts, pda_args, args)?;
         }
 
         Ok(())
@@ -232,14 +235,14 @@ impl Config {
     }
 
     #[inline(always)]
-    pub fn dao_wallet(&self, index: usize) -> Result<&Pubkey, ProgramError> {
+    pub fn revenue_wallet(&self, index: usize) -> Result<&Pubkey, ProgramError> {
         self.revenue_wallets
             .get(index)
             .ok_or(ProgramError::InvalidAccountData)
     }
 
     #[inline(always)]
-    pub fn dao_price(&self, index: usize) -> Result<u64, ProgramError> {
+    pub fn revenue_share(&self, index: usize) -> Result<u64, ProgramError> {
         self.revenue_shares
             .get(index)
             .cloned()
@@ -314,7 +317,7 @@ impl Config {
                 "Inconsistent pricing: expected mint_price_total ({}) = escrow_amount ({}) + total DAO revenue shares ({})",
                 mint_price_total,
                 escrow_amount,
-                total_revenue_shares, 
+                total_revenue_shares,
             );
             return Err(ProgramError::InvalidInstructionData);
         }
@@ -334,10 +337,7 @@ impl Config {
         }
 
         if recipients > MAX_ROYALTY_RECIPIENTS {
-            msg!(
-                "Too many royalty wallets, max: {}",
-                MAX_ROYALTY_RECIPIENTS
-            );
+            msg!("Too many royalty wallets, max: {}", MAX_ROYALTY_RECIPIENTS);
             return Err(ProgramError::InvalidInstructionData);
         }
 

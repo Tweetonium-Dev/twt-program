@@ -7,8 +7,8 @@ use solana_program::{
 use crate::{
     states::TraitItem,
     utils::{
-        AccountCheck, InitMplCoreAssetArgs, MplCoreProgram, Pda, ProcessInstruction, SignerAccount,
-        SystemProgram, UninitializedAccount, WritableAccount,
+        AccountCheck, CreateMplCoreAssetAccounts, CreateMplCoreAssetArgs, MplCoreProgram, Pda,
+        ProcessInstruction, SignerAccount, SystemProgram, UninitializedAccount, WritableAccount,
     },
 };
 
@@ -56,6 +56,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintTraitV1Accounts<'a, 'i
         SignerAccount::check(payer)?;
         SignerAccount::check(trait_asset)?;
 
+        WritableAccount::check(trait_pda)?;
         WritableAccount::check(trait_collection)?;
         WritableAccount::check(protocol_wallet)?;
 
@@ -117,13 +118,15 @@ impl<'a, 'info> MintTraitV1<'a, 'info> {
 
     fn mint_nft(self, trait_item: &mut TraitItem) -> ProgramResult {
         MplCoreProgram::create(
-            self.accounts.trait_asset,
-            self.accounts.trait_collection,
-            self.accounts.payer,
-            None,
-            self.accounts.mpl_core,
-            self.accounts.system_program,
-            InitMplCoreAssetArgs {
+            CreateMplCoreAssetAccounts {
+                asset: self.accounts.trait_asset,
+                collection: self.accounts.trait_collection,
+                authority: self.accounts.payer,
+                update_authority: None,
+                mpl_core: self.accounts.mpl_core,
+                system_program: self.accounts.system_program,
+            },
+            CreateMplCoreAssetArgs {
                 name: self.instruction_data.nft_name,
                 uri: self.instruction_data.nft_uri,
             },

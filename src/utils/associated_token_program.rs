@@ -11,7 +11,8 @@ use solana_program::{
 use spl_token::instruction::initialize_account3;
 
 use crate::utils::{
-    Pda, TokenProgram, TOKEN_2022_PROGRAM_ID, TOKEN_ACCOUNT_2022_MIN_LEN, TOKEN_ACCOUNT_LEN,
+    AccountCheck, Pda, TokenProgram, UninitializedAccount, TOKEN_2022_PROGRAM_ID,
+    TOKEN_ACCOUNT_2022_MIN_LEN, TOKEN_ACCOUNT_LEN,
 };
 
 pub const ASSOCIATED_TOKEN_PROGRAM_ID: Pubkey =
@@ -20,37 +21,35 @@ pub const ASSOCIATED_TOKEN_PROGRAM_ID: Pubkey =
 pub struct AssociatedTokenProgram;
 
 impl AssociatedTokenProgram {
-    pub fn init<'info>(
-        payer: &AccountInfo<'info>,
-        wallet: &AccountInfo<'info>,
-        mint: &AccountInfo<'info>,
-        token_program: &AccountInfo<'info>,
-        associated_token_program: &AccountInfo<'info>,
-        system_program: &AccountInfo<'info>,
-        ata: &AccountInfo<'info>,
+    pub fn init<'a, 'info>(
+        accounts: InitAssociatedTokenProgramAccounts<'a, 'info>,
+        args: InitAssociatedTokenProgramArgs<'a>,
     ) -> ProgramResult {
         let seeds = &[
-            wallet.key.as_ref(),
-            token_program.key.as_ref(),
-            mint.key.as_ref(),
+            args.wallet.as_ref(),
+            accounts.token_program.key.as_ref(),
+            accounts.mint.key.as_ref(),
         ];
 
-        Pda::validate(ata, seeds, &ASSOCIATED_TOKEN_PROGRAM_ID)?;
+        Pda::validate(accounts.ata, seeds, &ASSOCIATED_TOKEN_PROGRAM_ID)?;
 
-        let ix = match TokenProgram::detect_token_program(token_program)? {
-            TokenProgram::Token => {
-                initialize_account3(token_program.key, ata.key, mint.key, wallet.key)?
-            }
+        let ix = match TokenProgram::detect_token_program(accounts.token_program)? {
+            TokenProgram::Token => initialize_account3(
+                accounts.token_program.key,
+                accounts.ata.key,
+                accounts.mint.key,
+                args.wallet,
+            )?,
             TokenProgram::Token2022 => {
                 Instruction {
                     program_id: ASSOCIATED_TOKEN_PROGRAM_ID,
                     accounts: vec![
-                        AccountMeta::new(*payer.key, payer.is_signer),
-                        AccountMeta::new(*ata.key, false),
-                        AccountMeta::new_readonly(*wallet.key, false),
-                        AccountMeta::new_readonly(*mint.key, false),
-                        AccountMeta::new_readonly(*system_program.key, false),
-                        AccountMeta::new_readonly(*token_program.key, false),
+                        AccountMeta::new(*accounts.payer.key, accounts.payer.is_signer),
+                        AccountMeta::new(*accounts.ata.key, false),
+                        AccountMeta::new_readonly(*args.wallet, false),
+                        AccountMeta::new_readonly(*accounts.mint.key, false),
+                        AccountMeta::new_readonly(*accounts.system_program.key, false),
+                        AccountMeta::new_readonly(*accounts.token_program.key, false),
                         // AccountMeta::new_readonly(sysvar::rent::id(), false),
                     ],
                     data: vec![0],
@@ -61,38 +60,24 @@ impl AssociatedTokenProgram {
         invoke(
             &ix,
             &[
-                payer.clone(),
-                ata.clone(),
-                wallet.clone(),
-                mint.clone(),
-                system_program.clone(),
-                token_program.clone(),
-                associated_token_program.clone(),
+                accounts.payer.clone(),
+                accounts.ata.clone(),
+                accounts.mint.clone(),
+                accounts.system_program.clone(),
+                accounts.token_program.clone(),
+                accounts.associated_token_program.clone(),
             ],
         )?;
 
         Ok(())
     }
 
-    pub fn init_if_needed<'info>(
-        payer: &AccountInfo<'info>,
-        wallet: &AccountInfo<'info>,
-        mint: &AccountInfo<'info>,
-        token_program: &AccountInfo<'info>,
-        associated_token_program: &AccountInfo<'info>,
-        system_program: &AccountInfo<'info>,
-        ata: &AccountInfo<'info>,
+    pub fn init_if_needed<'a, 'info>(
+        accounts: InitAssociatedTokenProgramAccounts<'a, 'info>,
+        args: InitAssociatedTokenProgramArgs<'a>,
     ) -> ProgramResult {
-        if ata.lamports() == 0 || ata.data_is_empty() {
-            Self::init(
-                payer,
-                wallet,
-                mint,
-                token_program,
-                associated_token_program,
-                system_program,
-                ata,
-            )?;
+        if UninitializedAccount::check(accounts.ata).is_ok() {
+            Self::init(accounts, args)?;
         }
 
         Ok(())
@@ -132,4 +117,17 @@ impl AssociatedTokenProgram {
 
         Ok(())
     }
+}
+
+pub struct InitAssociatedTokenProgramAccounts<'a, 'info> {
+    pub payer: &'a AccountInfo<'info>,
+    pub mint: &'a AccountInfo<'info>,
+    pub token_program: &'a AccountInfo<'info>,
+    pub associated_token_program: &'a AccountInfo<'info>,
+    pub system_program: &'a AccountInfo<'info>,
+    pub ata: &'a AccountInfo<'info>,
+}
+
+pub struct InitAssociatedTokenProgramArgs<'a> {
+    pub wallet: &'a Pubkey,
 }

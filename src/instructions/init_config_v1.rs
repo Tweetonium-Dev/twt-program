@@ -5,11 +5,11 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, InitConfigArgs, VestingMode, MAX_REVENUE_WALLETS, MAX_ROYALTY_RECIPIENTS},
+    states::{Config, InitConfigArgs, VestingMode},
     utils::{
-        AccountCheck, InitMplCoreCollectionArgs, InitPdaArgs, MintAccount, MplCoreProgram,
-        ProcessInstruction, SignerAccount, SystemProgram, TokenProgram, UninitializedAccount,
-        WritableAccount,
+        AccountCheck, InitMplCoreCollectionAccounts, InitMplCoreCollectionArgs, InitPdaAccounts,
+        InitPdaArgs, MintAccount, MplCoreProgram, ProcessInstruction, SignerAccount, SystemProgram,
+        TokenProgram, UninitializedAccount, WritableAccount,
     },
 };
 
@@ -91,11 +91,11 @@ pub struct InitConfigV1InstructionData {
     pub mint_price_total: u64,
     pub escrow_amount: u64,
     pub num_revenue_wallets: u8,
-    pub revenue_wallets: [Pubkey; MAX_REVENUE_WALLETS],
-    pub revenue_shares: [u64; MAX_REVENUE_WALLETS],
+    pub revenue_wallets: [Pubkey; 5],
+    pub revenue_shares: [u64; 5],
     pub num_royalty_recipients: u8,
-    pub royalty_recipients: [Pubkey; MAX_ROYALTY_RECIPIENTS],
-    pub royalty_shares_bps: [u16; MAX_ROYALTY_RECIPIENTS],
+    pub royalty_recipients: [Pubkey; 5],
+    pub royalty_shares_bps: [u16; 5],
     pub collection_name: String,
     pub collection_uri: String,
 }
@@ -134,10 +134,12 @@ impl<'a, 'info> InitConfigV1<'a, 'info> {
         // FIXME: Make this Config::init_if_needed() at mainnet.
         Config::init(
             &mut config_data,
-            InitPdaArgs {
+            InitPdaAccounts {
                 payer: self.accounts.admin,
                 pda: self.accounts.config_pda,
                 system_program: self.accounts.system_program,
+            },
+            InitPdaArgs {
                 seeds,
                 space: Config::LEN,
                 program_id: self.program_id,
@@ -166,10 +168,12 @@ impl<'a, 'info> InitConfigV1<'a, 'info> {
 
     fn init_collection(self) -> ProgramResult {
         MplCoreProgram::init_collection(
-            self.accounts.nft_collection,
-            self.accounts.admin,
-            self.accounts.mpl_core,
-            self.accounts.system_program,
+            InitMplCoreCollectionAccounts {
+                collection: self.accounts.nft_collection,
+                authority: self.accounts.admin,
+                mpl_core: self.accounts.mpl_core,
+                system_program: self.accounts.system_program,
+            },
             InitMplCoreCollectionArgs {
                 num_royalty_recipients: self.instruction_data.num_royalty_recipients,
                 royalty_recipients: self.instruction_data.royalty_recipients,

@@ -1,7 +1,7 @@
 use core::mem::transmute;
 use solana_program::{entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
 
-use crate::utils::{AccountCheck, InitPdaArgs, Pda, UninitializedAccount};
+use crate::utils::{AccountCheck, InitPdaAccounts, InitPdaArgs, Pda, UninitializedAccount};
 
 /// Represents the escrow state for a minted NFT and its associated SPL tokens.
 ///
@@ -51,10 +51,11 @@ impl Vault {
     #[inline(always)]
     pub fn init<'a, 'info>(
         bytes: &mut [u8],
-        pda_args: InitPdaArgs<'a, 'info>,
+        pda_accounts: InitPdaAccounts<'a, 'info>,
+        pda_args: InitPdaArgs<'a>,
         args: InitVaultArgs,
     ) -> ProgramResult {
-        let bump = Pda::new(pda_args)?.init()?;
+        let bump = Pda::new(pda_accounts, pda_args)?.init()?;
 
         let vault = Self::load_mut(bytes)?;
         vault.owner = args.owner;
@@ -69,11 +70,12 @@ impl Vault {
     #[inline(always)]
     pub fn init_if_needed<'a, 'info>(
         bytes: &mut [u8],
-        pda_args: InitPdaArgs<'a, 'info>,
+        pda_accounts: InitPdaAccounts<'a, 'info>,
+        pda_args: InitPdaArgs<'a>,
         args: InitVaultArgs,
     ) -> ProgramResult {
-        if UninitializedAccount::check(pda_args.pda).is_ok() {
-            Self::init(bytes, pda_args, args)?;
+        if UninitializedAccount::check(pda_accounts.pda).is_ok() {
+            Self::init(bytes, pda_accounts, pda_args, args)?;
         }
 
         Ok(())

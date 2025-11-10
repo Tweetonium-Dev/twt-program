@@ -14,13 +14,16 @@ pub struct Pda<'a, 'info> {
 }
 
 impl<'a, 'info> Pda<'a, 'info> {
-    pub fn new(args: InitPdaArgs<'a, 'info>) -> Result<Self, ProgramError> {
-        let (_, bump) = Self::validate(args.pda, args.seeds, args.program_id)?;
+    pub fn new(
+        accounts: InitPdaAccounts<'a, 'info>,
+        args: InitPdaArgs<'a>,
+    ) -> Result<Self, ProgramError> {
+        let (_, bump) = Self::validate(accounts.pda, args.seeds, args.program_id)?;
 
         Ok(Self {
-            payer: args.payer,
-            pda: args.pda,
-            system_program: args.system_program,
+            payer: accounts.payer,
+            pda: accounts.pda,
+            system_program: accounts.system_program,
             seeds: args.seeds,
             space: args.space,
             program_id: args.program_id,
@@ -76,10 +79,13 @@ impl<'a, 'info> Pda<'a, 'info> {
     }
 }
 
-pub struct InitPdaArgs<'a, 'info> {
+pub struct InitPdaAccounts<'a, 'info> {
     pub payer: &'a AccountInfo<'info>,
     pub pda: &'a AccountInfo<'info>,
     pub system_program: &'a AccountInfo<'info>,
+}
+
+pub struct InitPdaArgs<'a> {
     pub seeds: &'a [&'a [u8]],
     pub space: usize,
     pub program_id: &'a Pubkey,

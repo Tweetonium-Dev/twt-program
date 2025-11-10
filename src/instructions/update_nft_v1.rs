@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use mpl_core::{instructions::UpdateV1CpiBuilder, Asset};
+use mpl_core::Asset;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
     pubkey::Pubkey,
@@ -9,7 +9,8 @@ use crate::{
     states::{Config, NftAuthority},
     utils::{
         AccountCheck, ConfigAccount, MintAccount, MplCoreProgram, Pda, ProcessInstruction,
-        SignerAccount, SystemProgram, WritableAccount,
+        SignerAccount, SystemProgram, UpdateMplCoreAssetAccounts, UpdateMplCoreAssetArgs,
+        WritableAccount,
     },
 };
 
@@ -67,8 +68,6 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateNftV1Accounts<'a, 'i
 
         WritableAccount::check(config_pda)?;
         WritableAccount::check(nft_asset)?;
-        WritableAccount::check(nft_collection)?;
-        WritableAccount::check(nft_authority)?;
         WritableAccount::check(protocol_wallet)?;
 
         ConfigAccount::check(config_pda)?;
@@ -117,17 +116,6 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
         Ok(())
     }
 
-    fn update_nft(&self) -> ProgramResult {
-        UpdateV1CpiBuilder::new(self.accounts.mpl_core)
-            .asset(self.accounts.nft_asset)
-            .payer(self.accounts.payer)
-            .authority(Some(self.accounts.nft_authority))
-            .system_program(self.accounts.system_program)
-            .new_name(self.instruction_data.nft_name.to_string())
-            .new_uri(self.instruction_data.nft_uri.to_string())
-            .invoke_signed(&[&[NftAuthority::SEED, &[self.nft_authority_bump]]])
-    }
-
     fn pay_protocol_fee(&self, config: &Config) -> ProgramResult {
         if config.mint_fee_lamports == 0 {
             return Ok(());
@@ -138,6 +126,24 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
             self.accounts.protocol_wallet,
             self.accounts.system_program,
             config.mint_fee_lamports,
+        )
+    }
+
+    fn update_nft(self) -> ProgramResult {
+        MplCoreProgram::update(
+            UpdateMplCoreAssetAccounts {
+                asset: self.accounts.nft_asset,
+                collection: self.accounts.nft_collection,
+                payer: self.accounts.payer,
+                update_authority: self.accounts.nft_authority,
+                mpl_core: self.accounts.mpl_core,
+                system_program: self.accounts.system_program,
+            },
+            UpdateMplCoreAssetArgs {
+                name: self.instruction_data.nft_name,
+                uri: self.instruction_data.nft_uri,
+            },
+            &[&[NftAuthority::SEED, &[self.nft_authority_bump]]],
         )
     }
 }
@@ -187,15 +193,10 @@ impl<'a, 'info> ProcessInstruction for UpdateNftV1<'a, 'info> {
         let config = Config::load(&config_data)?;
 
         self.check_ownership()?;
-        self.update_nft()?;
         self.pay_protocol_fee(config)?;
+        self.update_nft()?;
 
-        msg!(
-            "UpdateNft: updated NFT {} with name='{}', uri='{}'",
-            self.accounts.nft_asset.key,
-            self.instruction_data.nft_name,
-            self.instruction_data.nft_uri
-        );
+        msg!("UpdateNft: NFT updated successfully");
 
         Ok(())
     }

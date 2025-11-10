@@ -8,9 +8,11 @@ use crate::{
     states::{Config, InitVaultArgs, NftAuthority, UserMinted, Vault},
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, AssociatedTokenProgram,
-        ConfigAccount, InitMplCoreAssetArgs, InitPdaArgs, MintAccount, MplCoreProgram, Pda,
-        ProcessInstruction, SignerAccount, SystemProgram, TokenProgram, TokenTransferArgs,
-        UninitializedAccount, WritableAccount,
+        ConfigAccount, CreateMplCoreAssetAccounts, CreateMplCoreAssetArgs,
+        InitAssociatedTokenProgramAccounts, InitAssociatedTokenProgramArgs, InitPdaAccounts,
+        InitPdaArgs, MintAccount, MplCoreProgram, Pda, ProcessInstruction, RevenueWallet,
+        RevenueWalletAccounts, RevenueWalletArgs, SignerAccount, SystemProgram, TokenProgram,
+        TokenTransferAccounts, TokenTransferArgs, UninitializedAccount, WritableAccount,
     },
 };
 
@@ -24,7 +26,7 @@ pub struct MintUserV1Accounts<'a, 'info> {
     /// Must be readable, owned by program.
     pub config_pda: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, authority, token_mint, nft_collection, "vault"]` — stores `Vault` state.
+    /// PDA: `[program_id, payer, token_mint, nft_collection, "vault"]` — stores `Vault` state.
     /// Must be writable if updating vault balance.
     pub vault_pda: &'a AccountInfo<'info>,
 
@@ -37,10 +39,10 @@ pub struct MintUserV1Accounts<'a, 'info> {
     /// Must be writable, owned by `token_program`.
     pub payer_ata: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, "minted", payer.key]` — per-user mint flag.
+    /// PDA: `[program_id, payer, token_mint, nft_collection, "user_mint"]` — per-user mint flag.
     /// Prevents double-minting.
     /// Must be uninitialized or checked for prior mint.
-    pub user_minted_pda: &'a AccountInfo<'info>,
+    pub user_mint_pda: &'a AccountInfo<'info>,
 
     /// PDA: `[program_id, "nft_authority"]`
     /// Controls: update/burn all NFTs.
@@ -49,7 +51,6 @@ pub struct MintUserV1Accounts<'a, 'info> {
 
     /// MPL Core Collection account that groups NFTs under this project.
     /// Must be initialized before config creation via `CreateV1CpiBuilder`.
-    /// Used as part of the config PDA seeds: `[program_id, token_mint, collection.key.as_ref()]`.
     /// Determines the project scope for mint rules, royalties, and limits.
     pub nft_collection: &'a AccountInfo<'info>,
 
@@ -61,18 +62,40 @@ pub struct MintUserV1Accounts<'a, 'info> {
     /// Must match `config_pda.data.mint`, owned by `token_program`.
     pub token_mint: &'a AccountInfo<'info>,
 
+    // ---------------- Revenue Wallets ----------------
+    /// ATA for revenue wallet #0 — corresponds to `config.revenue_wallet(0)`.
+    /// Must be writable if receiving transfer.
+    /// Must belong to the same mint as `token_mint`.
+    pub revenue_wallet_ata_0: &'a AccountInfo<'info>,
+
+    /// ATA for revenue wallet #1 — corresponds to `config.revenue_wallet(1)`.
+    /// Must be writable if receiving transfer.
+    pub revenue_wallet_ata_1: &'a AccountInfo<'info>,
+
+    /// ATA for revenue wallet #2 — corresponds to `config.revenue_wallet(2)`.
+    /// Must be writable if receiving transfer.
+    pub revenue_wallet_ata_2: &'a AccountInfo<'info>,
+
+    /// ATA for revenue wallet #3 — corresponds to `config.revenue_wallet(3)`.
+    /// Must be writable if receiving transfer.
+    pub revenue_wallet_ata_3: &'a AccountInfo<'info>,
+
+    /// ATA for revenue wallet #4 — corresponds to `config.revenue_wallet(4)`.
+    /// Must be writable if receiving transfer.
+    pub revenue_wallet_ata_4: &'a AccountInfo<'info>,
+
+    // --------------------------------------------------
+    /// Protocol wallet — receives the configurable SOL protocol fee.
+    /// Must writable, not zero address, owned by system_program.
+    pub protocol_wallet: &'a AccountInfo<'info>,
+
     /// SPL Token Program (legacy or Token-2022).
     /// Must match `token_mint.owner`.
     pub token_program: &'a AccountInfo<'info>,
 
     /// Associated Token Program (ATA).
-    /// Used to derive and create ATAs (`vault_ata`, `payer_ata`) deterministically.
     /// Must be the official SPL Associated Token Account program.
     pub associated_token_program: &'a AccountInfo<'info>,
-
-    /// Protocol wallet — receives the configurable SOL protocol fee.
-    /// Must writable, not zero address, owned by system_program.
-    pub protocol_wallet: &'a AccountInfo<'info>,
 
     /// System program — for account allocation.
     pub system_program: &'a AccountInfo<'info>,
@@ -80,40 +103,17 @@ pub struct MintUserV1Accounts<'a, 'info> {
     /// Metaplex Core program — for NFT minting.
     /// Must be the official MPL Core program.
     pub mpl_core: &'a AccountInfo<'info>,
-
-    /// Revenue wallets accounts: ATAs for the additional wallets defined in config
-    /// Must match config.dao_wallets, config.dao_prices, and config.num_dao_wallet.
-    pub revenue_wallets: &'a [AccountInfo<'info>],
-}
-
-impl<'a, 'info> MintUserV1Accounts<'a, 'info> {
-    const ACCOUNTS_LEN: usize = 15;
 }
 
 impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintUserV1Accounts<'a, 'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        if accounts.len() < Self::ACCOUNTS_LEN {
+        let [payer, config_pda, vault_pda, vault_ata, payer_ata, user_mint_pda, nft_authority, nft_collection, nft_asset, token_mint, revenue_wallet_ata_0, revenue_wallet_ata_1, revenue_wallet_ata_2, revenue_wallet_ata_3, revenue_wallet_ata_4, protocol_wallet, token_program, associated_token_program, system_program, mpl_core] =
+            accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
-        }
-
-        let payer = &accounts[0];
-        let config_pda = &accounts[1];
-        let vault_pda = &accounts[2];
-        let vault_ata = &accounts[3];
-        let payer_ata = &accounts[4];
-        let user_minted_pda = &accounts[5];
-        let nft_authority = &accounts[6];
-        let nft_collection = &accounts[7];
-        let nft_asset = &accounts[8];
-        let token_mint = &accounts[9];
-        let token_program = &accounts[10];
-        let associated_token_program = &accounts[11];
-        let protocol_wallet = &accounts[12];
-        let system_program = &accounts[13];
-        let mpl_core = &accounts[14];
-        let revenue_wallets = &accounts[Self::ACCOUNTS_LEN..];
+        };
 
         SignerAccount::check(payer)?;
         SignerAccount::check(nft_asset)?;
@@ -122,8 +122,13 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintUserV1Accounts<'a, 'in
         WritableAccount::check(vault_pda)?;
         WritableAccount::check(vault_ata)?;
         WritableAccount::check(payer_ata)?;
-        WritableAccount::check(user_minted_pda)?;
+        WritableAccount::check(user_mint_pda)?;
         WritableAccount::check(nft_collection)?;
+        WritableAccount::check(revenue_wallet_ata_0)?;
+        WritableAccount::check(revenue_wallet_ata_1)?;
+        WritableAccount::check(revenue_wallet_ata_2)?;
+        WritableAccount::check(revenue_wallet_ata_3)?;
+        WritableAccount::check(revenue_wallet_ata_4)?;
         WritableAccount::check(protocol_wallet)?;
 
         UninitializedAccount::check(vault_pda)?;
@@ -142,17 +147,21 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintUserV1Accounts<'a, 'in
             vault_pda,
             vault_ata,
             payer_ata,
-            user_minted_pda,
+            user_mint_pda,
             nft_authority,
             nft_collection,
             nft_asset,
             token_mint,
+            revenue_wallet_ata_0,
+            revenue_wallet_ata_1,
+            revenue_wallet_ata_2,
+            revenue_wallet_ata_3,
+            revenue_wallet_ata_4,
+            protocol_wallet,
             token_program,
             associated_token_program,
-            protocol_wallet,
             system_program,
             mpl_core,
-            revenue_wallets,
         })
     }
 }
@@ -200,7 +209,7 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
     }
 
     fn init_user_minted_if_needed(&self) -> ProgramResult {
-        let mut minted_user_data = self.accounts.user_minted_pda.try_borrow_mut_data()?;
+        let mut minted_user_data = self.accounts.user_mint_pda.try_borrow_mut_data()?;
 
         let seeds = &[
             UserMinted::SEED,
@@ -211,10 +220,12 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
 
         UserMinted::init_if_needed(
             &mut minted_user_data,
-            InitPdaArgs {
+            InitPdaAccounts {
                 payer: self.accounts.payer,
-                pda: self.accounts.user_minted_pda,
+                pda: self.accounts.user_mint_pda,
                 system_program: self.accounts.system_program,
+            },
+            InitPdaArgs {
                 seeds,
                 space: UserMinted::LEN,
                 program_id: self.program_id,
@@ -223,52 +234,63 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
         )
     }
 
-    fn tf_to_revenue_wallet(&self, config: &Config, index: usize) -> ProgramResult {
-        let dao_wallet_ata = &self
-            .accounts
-            .revenue_wallets
-            .get(index)
-            .ok_or(ProgramError::InvalidInstructionData)
-            .inspect_err(|_| msg!("DAO wallet ata index {} not found", index))?;
-        let dao_wallet_key = &config
-            .dao_wallet(index)
-            .inspect_err(|_| msg!("DAO wallet index {} not found!", index))?;
-        let dao_price = config
-            .dao_price(index)
-            .inspect_err(|_| msg!("DAO prices index {} not found!", index))?;
+    fn pay_to_all_revenue_wallets(&self, config: &Config) -> ProgramResult {
+        let num_wallets = config.num_revenue_wallets as usize;
 
-        AssociatedTokenAccount::check(
-            dao_wallet_ata,
-            dao_wallet_key,
-            self.accounts.token_mint.key,
-            self.accounts.token_program.key,
-        )?;
-        WritableAccount::check(dao_wallet_ata)?;
-
-        if config.allow_tf_to_dao_wallet(index) {
-            TokenProgram::transfer(TokenTransferArgs {
-                source: self.accounts.payer_ata,
-                destination: dao_wallet_ata,
-                authority: self.accounts.payer,
-                mint: self.accounts.token_mint,
-                token_program: self.accounts.token_program,
-                signer_pubkeys: &[],
-                amount: dao_price,
-                decimals: config.mint_decimals,
-            })?;
+        if num_wallets == 0 {
+            return Ok(());
         }
 
-        Ok(())
-    }
+        let revenue_wallet_atas = [
+            self.accounts.revenue_wallet_ata_0,
+            self.accounts.revenue_wallet_ata_1,
+            self.accounts.revenue_wallet_ata_2,
+            self.accounts.revenue_wallet_ata_3,
+            self.accounts.revenue_wallet_ata_4,
+        ];
 
-    fn pay_to_all_revenue_wallets(&self, config: &Config) -> ProgramResult {
-        if self.accounts.revenue_wallets.len() != config.num_revenue_wallets as usize {
-            msg!("Incorrect number of remaining accounts for revenue's wallet ATAs");
+        if num_wallets > revenue_wallet_atas.len() {
+            msg!("Incorrect number of accounts for revenue's wallet ATAs");
             return Err(ProgramError::NotEnoughAccountKeys);
         }
 
-        for wallet_idx in 0..config.num_revenue_wallets as usize {
-            self.tf_to_revenue_wallet(config, wallet_idx)?;
+        for index in 0..num_wallets {
+            let (Ok(revenue_wallet), Ok(amount)) = (
+                config
+                    .revenue_wallet(index)
+                    .inspect_err(|_| msg!("Revenue wallet index {} not found!", index)),
+                config
+                    .revenue_share(index)
+                    .inspect_err(|_| msg!("Revenue share index {} not found!", index)),
+            ) else {
+                continue;
+            };
+
+            if !config.allow_tf_to_dao_wallet(index) || *revenue_wallet == Pubkey::default() {
+                continue;
+            }
+
+            let revenue_ata = revenue_wallet_atas
+                .get(index)
+                .ok_or(ProgramError::InvalidAccountData)
+                .inspect_err(|_| msg!("Revenue wallet ata index {} not found!"))?;
+
+            RevenueWallet::transfer(
+                RevenueWalletAccounts {
+                    payer_ata: self.accounts.payer_ata,
+                    destination_ata: revenue_ata,
+                    wallet: revenue_wallet,
+                    payer: self.accounts.payer,
+                    mint: self.accounts.token_mint,
+                    token_program: self.accounts.token_program,
+                    associated_token_program: self.accounts.associated_token_program,
+                    system_program: self.accounts.system_program,
+                },
+                RevenueWalletArgs {
+                    amount,
+                    decimals: config.mint_decimals,
+                },
+            )?;
         }
 
         Ok(())
@@ -290,10 +312,12 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
 
         Vault::init_if_needed(
             &mut vault_data,
-            InitPdaArgs {
+            InitPdaAccounts {
                 payer: self.accounts.payer,
                 pda: self.accounts.vault_pda,
                 system_program: self.accounts.system_program,
+            },
+            InitPdaArgs {
                 seeds,
                 space: Vault::LEN,
                 program_id: self.program_id,
@@ -307,25 +331,33 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
         )?;
 
         AssociatedTokenProgram::init_if_needed(
-            self.accounts.payer,
-            self.accounts.vault_pda,
-            self.accounts.token_mint,
-            self.accounts.token_program,
-            self.accounts.associated_token_program,
-            self.accounts.system_program,
-            self.accounts.vault_ata,
+            InitAssociatedTokenProgramAccounts {
+                payer: self.accounts.payer,
+                mint: self.accounts.token_mint,
+                token_program: self.accounts.token_program,
+                associated_token_program: self.accounts.associated_token_program,
+                system_program: self.accounts.system_program,
+                ata: self.accounts.vault_ata,
+            },
+            InitAssociatedTokenProgramArgs {
+                wallet: self.accounts.vault_pda.key,
+            },
         )?;
 
-        TokenProgram::transfer(TokenTransferArgs {
-            source: self.accounts.payer_ata,
-            destination: self.accounts.vault_ata,
-            authority: self.accounts.payer,
-            mint: self.accounts.token_mint,
-            token_program: self.accounts.token_program,
-            signer_pubkeys: &[],
-            amount: config.escrow_amount,
-            decimals: config.mint_decimals,
-        })?;
+        TokenProgram::transfer(
+            TokenTransferAccounts {
+                source: self.accounts.payer_ata,
+                destination: self.accounts.vault_ata,
+                authority: self.accounts.payer,
+                mint: self.accounts.token_mint,
+                token_program: self.accounts.token_program,
+            },
+            TokenTransferArgs {
+                signer_pubkeys: &[],
+                amount: config.escrow_amount,
+                decimals: config.mint_decimals,
+            },
+        )?;
 
         Ok(())
     }
@@ -345,13 +377,15 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
 
     fn mint_nft(self, config: &mut Config, user_minted: &mut UserMinted) -> ProgramResult {
         MplCoreProgram::create(
-            self.accounts.nft_asset,
-            self.accounts.nft_collection,
-            self.accounts.payer,
-            Some(self.accounts.nft_authority),
-            self.accounts.mpl_core,
-            self.accounts.system_program,
-            InitMplCoreAssetArgs {
+            CreateMplCoreAssetAccounts {
+                asset: self.accounts.nft_asset,
+                collection: self.accounts.nft_collection,
+                authority: self.accounts.payer,
+                update_authority: Some(self.accounts.nft_authority),
+                mpl_core: self.accounts.mpl_core,
+                system_program: self.accounts.system_program,
+            },
+            CreateMplCoreAssetArgs {
                 name: self.instruction_data.nft_name,
                 uri: self.instruction_data.nft_uri,
             },
@@ -409,7 +443,7 @@ impl<'a, 'info> ProcessInstruction for MintUserV1<'a, 'info> {
 
         self.init_user_minted_if_needed()?;
 
-        let mut minted_user_data = self.accounts.user_minted_pda.try_borrow_mut_data()?;
+        let mut minted_user_data = self.accounts.user_mint_pda.try_borrow_mut_data()?;
         let user_minted = UserMinted::load_mut(minted_user_data.as_mut())?;
         if user_minted.has_reached_limit(config) {
             msg!("User has minted their allowed supply");

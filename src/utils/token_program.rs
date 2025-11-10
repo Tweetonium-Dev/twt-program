@@ -87,18 +87,25 @@ impl TokenProgram {
         Ok(u64::from_le_bytes(balance_bytes))
     }
 
-    pub fn transfer(args: TokenTransferArgs) -> ProgramResult {
-        Self::transfer_signed(args, &[])
+    pub fn transfer<'a, 'info>(
+        accounts: TokenTransferAccounts<'a, 'info>,
+        args: TokenTransferArgs<'a>,
+    ) -> ProgramResult {
+        Self::transfer_signed(accounts, args, &[])
     }
 
-    pub fn transfer_signed(args: TokenTransferArgs, signers_seeds: &[&[&[u8]]]) -> ProgramResult {
-        match Self::detect_token_program(args.token_program)? {
+    pub fn transfer_signed<'a, 'info>(
+        accounts: TokenTransferAccounts<'a, 'info>,
+        args: TokenTransferArgs<'a>,
+        signers_seeds: &[&[&[u8]]],
+    ) -> ProgramResult {
+        match Self::detect_token_program(accounts.token_program)? {
             Self::Token => {
                 let ix = transfer(
                     &TOKEN_PROGRAM_ID,
-                    args.source.key,
-                    args.destination.key,
-                    args.authority.key,
+                    accounts.source.key,
+                    accounts.destination.key,
+                    accounts.authority.key,
                     args.signer_pubkeys,
                     args.amount,
                 )?;
@@ -106,19 +113,19 @@ impl TokenProgram {
                 invoke(
                     &ix,
                     &[
-                        args.source.clone(),
-                        args.destination.clone(),
-                        args.authority.clone(),
-                        args.token_program.clone(),
+                        accounts.source.clone(),
+                        accounts.destination.clone(),
+                        accounts.authority.clone(),
+                        accounts.token_program.clone(),
                     ],
                 )?;
             }
             Self::Token2022 => {
                 let ix = Self::token_2022_transfer_checked_ix(
-                    *args.source.key,
-                    *args.mint.key,
-                    *args.destination.key,
-                    *args.authority.key,
+                    *accounts.source.key,
+                    *accounts.mint.key,
+                    *accounts.destination.key,
+                    *accounts.authority.key,
                     args.signer_pubkeys,
                     args.amount,
                     args.decimals,
@@ -127,11 +134,11 @@ impl TokenProgram {
                 invoke_signed(
                     &ix,
                     &[
-                        args.source.clone(),
-                        args.mint.clone(),
-                        args.destination.clone(),
-                        args.authority.clone(),
-                        args.token_program.clone(),
+                        accounts.source.clone(),
+                        accounts.mint.clone(),
+                        accounts.destination.clone(),
+                        accounts.authority.clone(),
+                        accounts.token_program.clone(),
                     ],
                     signers_seeds,
                 )?;
@@ -174,13 +181,15 @@ impl TokenProgram {
     }
 }
 
-#[derive(Clone)]
-pub struct TokenTransferArgs<'a, 'info> {
+pub struct TokenTransferAccounts<'a, 'info> {
     pub source: &'a AccountInfo<'info>,
     pub destination: &'a AccountInfo<'info>,
     pub authority: &'a AccountInfo<'info>,
     pub mint: &'a AccountInfo<'info>,
     pub token_program: &'a AccountInfo<'info>,
+}
+
+pub struct TokenTransferArgs<'a> {
     pub signer_pubkeys: &'a [&'a Pubkey],
     pub amount: u64,
     pub decimals: u8,

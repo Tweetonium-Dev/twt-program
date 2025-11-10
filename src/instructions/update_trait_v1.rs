@@ -5,10 +5,10 @@ use solana_program::{
 };
 
 use crate::{
-    states::{TraitItem, UpdateTraitItemArgs, MAX_ROYALTY_RECIPIENTS},
+    states::{TraitItem, UpdateTraitItemArgs},
     utils::{
         AccountCheck, MplCoreProgram, Pda, ProcessInstruction, SignerAccount, SystemProgram,
-        UpdateMplCoreCollectionArgs, WritableAccount,
+        UpdateMplCoreCollectionAccounts, UpdateMplCoreCollectionArgs, WritableAccount,
     },
 };
 
@@ -44,8 +44,8 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateTraitV1Accounts<'a, 
         };
 
         SignerAccount::check(authority)?;
-        SignerAccount::check(trait_collection)?;
 
+        WritableAccount::check(trait_collection)?;
         WritableAccount::check(trait_pda)?;
 
         SystemProgram::check(system_program)?;
@@ -68,8 +68,8 @@ pub struct UpdateTraitV1InstructionData {
     pub trait_name: String,
     pub trait_uri: String,
     pub num_royalty_recipients: u8,
-    pub royalty_recipients: [Pubkey; MAX_ROYALTY_RECIPIENTS],
-    pub royalty_shares_bps: [u16; MAX_ROYALTY_RECIPIENTS],
+    pub royalty_recipients: [Pubkey; 5],
+    pub royalty_shares_bps: [u16; 5],
 }
 
 #[derive(Debug)]
@@ -105,10 +105,12 @@ impl<'a, 'info> UpdateTraitV1<'a, 'info> {
 
     fn update_collection(self) -> ProgramResult {
         MplCoreProgram::update_collection(
-            self.accounts.trait_collection,
-            self.accounts.authority,
-            self.accounts.mpl_core,
-            self.accounts.system_program,
+            UpdateMplCoreCollectionAccounts {
+                collection: self.accounts.trait_collection,
+                authority: self.accounts.authority,
+                mpl_core: self.accounts.mpl_core,
+                system_program: self.accounts.system_program,
+            },
             UpdateMplCoreCollectionArgs {
                 num_royalty_recipients: self.instruction_data.num_royalty_recipients,
                 royalty_recipients: self.instruction_data.royalty_recipients,

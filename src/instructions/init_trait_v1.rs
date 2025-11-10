@@ -5,10 +5,11 @@ use solana_program::{
 };
 
 use crate::{
-    states::{InitTraitItemArgs, TraitItem, MAX_ROYALTY_RECIPIENTS},
+    states::{InitTraitItemArgs, TraitItem},
     utils::{
-        AccountCheck, InitMplCoreCollectionArgs, InitPdaArgs, MplCoreProgram, ProcessInstruction,
-        SignerAccount, SystemProgram, UninitializedAccount, WritableAccount,
+        AccountCheck, InitMplCoreCollectionAccounts, InitMplCoreCollectionArgs, InitPdaAccounts,
+        InitPdaArgs, MplCoreProgram, ProcessInstruction, SignerAccount, SystemProgram,
+        UninitializedAccount, WritableAccount,
     },
 };
 
@@ -18,7 +19,7 @@ pub struct InitTraitV1Accounts<'a, 'info> {
     /// Must be a signer.
     pub authority: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, trait_collection, "config"]` — stores `Config` struct.
+    /// PDA: `[program_id, trait_collection, "trait_item"]` — stores `Config` struct.
     /// Must be uninitialized, writable, owned by this program.
     pub trait_pda: &'a AccountInfo<'info>,
 
@@ -72,8 +73,8 @@ pub struct InitTraitV1InstructionData {
     pub trait_name: String,
     pub trait_uri: String,
     pub num_royalty_recipients: u8,
-    pub royalty_recipients: [Pubkey; MAX_ROYALTY_RECIPIENTS],
-    pub royalty_shares_bps: [u16; MAX_ROYALTY_RECIPIENTS],
+    pub royalty_recipients: [Pubkey; 5],
+    pub royalty_shares_bps: [u16; 5],
 }
 
 #[derive(Debug)]
@@ -97,10 +98,12 @@ impl<'a, 'info> InitTraitV1<'a, 'info> {
 
         TraitItem::init_if_needed(
             &mut trait_data,
-            InitPdaArgs {
+            InitPdaAccounts {
                 payer: self.accounts.authority,
                 pda: self.accounts.trait_pda,
                 system_program: self.accounts.system_program,
+            },
+            InitPdaArgs {
                 seeds,
                 space: TraitItem::LEN,
                 program_id: self.program_id,
@@ -116,10 +119,12 @@ impl<'a, 'info> InitTraitV1<'a, 'info> {
 
     fn init_collection(self) -> ProgramResult {
         MplCoreProgram::init_collection(
-            self.accounts.trait_collection,
-            self.accounts.authority,
-            self.accounts.mpl_core,
-            self.accounts.system_program,
+            InitMplCoreCollectionAccounts {
+                collection: self.accounts.trait_collection,
+                authority: self.accounts.authority,
+                mpl_core: self.accounts.mpl_core,
+                system_program: self.accounts.system_program,
+            },
             InitMplCoreCollectionArgs {
                 num_royalty_recipients: self.instruction_data.num_royalty_recipients,
                 royalty_recipients: self.instruction_data.royalty_recipients,

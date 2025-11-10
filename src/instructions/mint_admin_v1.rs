@@ -8,8 +8,10 @@ use crate::{
     states::{Config, InitVaultArgs, NftAuthority, Vault},
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, AssociatedTokenProgram,
-        ConfigAccount, InitMplCoreAssetArgs, InitPdaArgs, MintAccount, MplCoreProgram, Pda,
-        ProcessInstruction, SignerAccount, SystemProgram, TokenProgram, TokenTransferArgs,
+        ConfigAccount, CreateMplCoreAssetAccounts, CreateMplCoreAssetArgs,
+        InitAssociatedTokenProgramAccounts, InitAssociatedTokenProgramArgs, InitPdaAccounts,
+        InitPdaArgs, MintAccount, MplCoreProgram, Pda, ProcessInstruction, SignerAccount,
+        SystemProgram, TokenProgram, TokenTransferAccounts, TokenTransferArgs,
         UninitializedAccount, WritableAccount,
     },
 };
@@ -44,7 +46,6 @@ pub struct MintAdminV1Accounts<'a, 'info> {
 
     /// MPL Core Collection account that groups NFTs under this project.
     /// Must be initialized before config creation via `CreateV1CpiBuilder`.
-    /// Used as part of the config PDA seeds: `[program_id, token_mint, collection.key.as_ref()]`.
     /// Determines the project scope for mint rules, royalties, and limits.
     pub nft_collection: &'a AccountInfo<'info>,
 
@@ -52,7 +53,7 @@ pub struct MintAdminV1Accounts<'a, 'info> {
     /// Must be uninitialized, owned by `mpl_core`.
     pub nft_asset: &'a AccountInfo<'info>,
 
-    /// Token mint — the token being escrowed (e.g. ZDLT.
+    /// Token mint — the token being escrowed (e.g. ZDLT).
     /// Must match `config_pda.data.mint`, owned by `token_program`.
     pub token_mint: &'a AccountInfo<'info>,
 
@@ -95,7 +96,6 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAdminV1Accounts<'a, 'i
         WritableAccount::check(vault_ata)?;
         WritableAccount::check(admin_ata)?;
         WritableAccount::check(nft_collection)?;
-        WritableAccount::check(nft_asset)?;
         WritableAccount::check(protocol_wallet)?;
 
         UninitializedAccount::check(nft_asset)?;
@@ -185,10 +185,12 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
 
         Vault::init_if_needed(
             &mut vault_data,
-            InitPdaArgs {
+            InitPdaAccounts {
                 payer: self.accounts.admin,
                 pda: self.accounts.vault_pda,
                 system_program: self.accounts.system_program,
+            },
+            InitPdaArgs {
                 seeds,
                 space: Vault::LEN,
                 program_id: self.program_id,
@@ -202,27 +204,33 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
         )?;
 
         AssociatedTokenProgram::init_if_needed(
-            self.accounts.admin,
-            self.accounts.vault_pda,
-            self.accounts.token_mint,
-            self.accounts.token_program,
-            self.accounts.associated_token_program,
-            self.accounts.system_program,
-            self.accounts.vault_ata,
+            InitAssociatedTokenProgramAccounts {
+                payer: self.accounts.admin,
+                mint: self.accounts.token_mint,
+                token_program: self.accounts.token_program,
+                associated_token_program: self.accounts.associated_token_program,
+                system_program: self.accounts.system_program,
+                ata: self.accounts.vault_ata,
+            },
+            InitAssociatedTokenProgramArgs {
+                wallet: self.accounts.vault_pda.key,
+            },
         )?;
 
-        TokenProgram::transfer(TokenTransferArgs {
-            source: self.accounts.admin_ata,
-            destination: self.accounts.vault_ata,
-            authority: self.accounts.admin,
-            mint: self.accounts.token_mint,
-            token_program: self.accounts.token_program,
-            signer_pubkeys: &[],
-            amount: config.escrow_amount,
-            decimals: config.mint_decimals,
-        })?;
-
-        Ok(())
+        TokenProgram::transfer(
+            TokenTransferAccounts {
+                source: self.accounts.admin_ata,
+                destination: self.accounts.vault_ata,
+                authority: self.accounts.admin,
+                mint: self.accounts.token_mint,
+                token_program: self.accounts.token_program,
+            },
+            TokenTransferArgs {
+                signer_pubkeys: &[],
+                amount: config.escrow_amount,
+                decimals: config.mint_decimals,
+            },
+        )
     }
 
     fn pay_protocol_fee(&self, config: &Config) -> ProgramResult {
@@ -240,13 +248,15 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
 
     fn mint_nft(self, config: &mut Config) -> ProgramResult {
         MplCoreProgram::create(
-            self.accounts.nft_asset,
-            self.accounts.nft_collection,
-            self.accounts.admin,
-            Some(self.accounts.nft_authority),
-            self.accounts.mpl_core,
-            self.accounts.system_program,
-            InitMplCoreAssetArgs {
+            CreateMplCoreAssetAccounts {
+                asset: self.accounts.nft_asset,
+                collection: self.accounts.nft_collection,
+                authority: self.accounts.admin,
+                update_authority: Some(self.accounts.nft_authority),
+                mpl_core: self.accounts.mpl_core,
+                system_program: self.accounts.system_program,
+            },
+            CreateMplCoreAssetArgs {
                 name: self.instruction_data.nft_name,
                 uri: self.instruction_data.nft_uri,
             },
