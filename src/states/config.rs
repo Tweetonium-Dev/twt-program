@@ -1,6 +1,6 @@
 use core::mem::transmute;
 use shank::ShankAccount;
-use solana_program::{entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{
     states::{VestingMode, MAX_BASIS_POINTS, MAX_REVENUE_WALLETS, MAX_ROYALTY_RECIPIENTS},
@@ -139,14 +139,16 @@ impl Config {
 impl Config {
     #[inline(always)]
     pub fn init<'a, 'info>(
-        bytes: &mut [u8],
+        accounts: InitConfigAccounts,
+        args: InitConfigArgs,
         pda_accounts: InitPdaAccounts<'a, 'info>,
         pda_args: InitPdaArgs<'a>,
-        args: InitConfigArgs,
     ) -> ProgramResult {
         Pda::new(pda_accounts, pda_args)?.init()?;
 
-        let config = Self::load_mut(bytes)?;
+        let mut bytes = accounts.pda.try_borrow_mut_data()?;
+
+        let config = Self::load_mut(&mut bytes)?;
         config.admin = args.admin;
         config.mint = args.mint;
         config.mint_decimals = args.mint_decimals;
@@ -170,13 +172,13 @@ impl Config {
 
     #[inline(always)]
     pub fn init_if_needed<'a, 'info>(
-        bytes: &mut [u8],
+        accounts: InitConfigAccounts,
+        args: InitConfigArgs,
         pda_accounts: InitPdaAccounts<'a, 'info>,
         pda_args: InitPdaArgs<'a>,
-        args: InitConfigArgs,
     ) -> ProgramResult {
         if UninitializedAccount::check(pda_accounts.pda).is_ok() {
-            Self::init(bytes, pda_accounts, pda_args, args)?;
+            Self::init(accounts, args, pda_accounts, pda_args)?;
         }
 
         Ok(())
@@ -285,6 +287,7 @@ impl Config {
         mint_price_total: u64,
         escrow_amount: u64,
         num_revenue_wallets: u8,
+        revenue_wallets: [Pubkey; MAX_REVENUE_WALLETS],
         revenue_shares: [u64; MAX_REVENUE_WALLETS],
     ) -> ProgramResult {
         let num_wallets = num_revenue_wallets as usize;
@@ -298,6 +301,26 @@ impl Config {
                 "Revenue wallets count ({}) exceeds allowed maximum ({})",
                 num_wallets,
                 MAX_REVENUE_WALLETS
+            );
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let input_wallets_count = revenue_wallets
+            .iter()
+            .filter(|pk| **pk != Pubkey::default())
+            .count();
+
+        let input_shares_count = revenue_shares
+            .iter()
+            .filter(|s| **s != 0)
+            .count();
+
+        if num_wallets != input_wallets_count || num_wallets != input_shares_count {
+            msg!(
+                "Revenue wallet mismatch: declared {} but found {} valid wallets and {} non-zero shares",
+                num_wallets,
+                input_wallets_count,
+                input_shares_count, 
             );
             return Err(ProgramError::InvalidInstructionData);
         }
@@ -328,6 +351,7 @@ impl Config {
     #[inline(always)]
     pub fn check_nft_royalties(
         num_royalty_recipients: u8,
+        royalty_recipients: [Pubkey; MAX_ROYALTY_RECIPIENTS],
         royalty_shares_bps: [u16; MAX_ROYALTY_RECIPIENTS],
     ) -> ProgramResult {
         let recipients = num_royalty_recipients as usize;
@@ -338,6 +362,26 @@ impl Config {
 
         if recipients > MAX_ROYALTY_RECIPIENTS {
             msg!("Too many royalty wallets, max: {}", MAX_ROYALTY_RECIPIENTS);
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let input_recipients_count = royalty_recipients 
+            .iter()
+            .filter(|pk| **pk != Pubkey::default())
+            .count();
+
+        let input_shares_count = royalty_shares_bps
+            .iter()
+            .filter(|s| **s != 0)
+            .count();
+
+        if recipients != input_recipients_count || recipients != input_shares_count {
+            msg!(
+                "Royalty mismatch: declared {} recipients, but found {} valid wallets and {} non-zero share entries",
+                recipients,
+                input_recipients_count,
+                input_shares_count,
+            );
             return Err(ProgramError::InvalidInstructionData);
         }
 
@@ -372,6 +416,10 @@ impl Config {
         self.revenue_wallets = args.revenue_wallets;
         self.revenue_shares = args.revenue_shares;
     }
+}
+
+pub struct InitConfigAccounts<'a, 'info> {
+    pub pda: &'a AccountInfo<'info>,
 }
 
 pub struct InitConfigArgs {
