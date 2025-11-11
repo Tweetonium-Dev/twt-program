@@ -15,7 +15,7 @@
         },
         {
           "name": "nftCollection",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true,
           "docs": [
             "MPL Core Collection account that groups NFTs under this project."
@@ -35,14 +35,6 @@
           "isSigner": false,
           "docs": [
             "Must be valid mint (82 or 90+ bytes), owned by SPL Token or Token-2022."
-          ]
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "SPL Token Program (legacy) or Token-2022 Program."
           ]
         },
         {

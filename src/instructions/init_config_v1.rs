@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, InitConfigArgs, VestingMode},
+    states::{Config, InitConfigAccounts, InitConfigArgs, VestingMode},
     utils::{
         AccountCheck, InitMplCoreCollectionAccounts, InitMplCoreCollectionArgs, InitPdaAccounts,
         InitPdaArgs, MintAccount, MplCoreProgram, ProcessInstruction, SignerAccount, SystemProgram,
@@ -32,10 +32,6 @@ pub struct InitConfigV1Accounts<'a, 'info> {
     /// Must be valid mint (82 or 90+ bytes), owned by SPL Token or Token-2022.
     pub token_mint: &'a AccountInfo<'info>,
 
-    /// SPL Token Program (legacy) or Token-2022 Program.
-    /// Must match the mint's owner.
-    pub token_program: &'a AccountInfo<'info>,
-
     /// System program — required for PDA creation and rent.
     pub system_program: &'a AccountInfo<'info>,
 
@@ -48,8 +44,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [admin, nft_collection, config_pda, token_mint, token_program, system_program, mpl_core] =
-            accounts
+        let [admin, nft_collection, config_pda, token_mint, system_program, mpl_core] = accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -72,7 +67,6 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
             nft_collection,
             config_pda,
             token_mint,
-            token_program,
             system_program,
             mpl_core,
         })
@@ -113,36 +107,29 @@ impl<'a, 'info> InitConfigV1<'a, 'info> {
             self.instruction_data.mint_price_total,
             self.instruction_data.escrow_amount,
             self.instruction_data.num_revenue_wallets,
+            self.instruction_data.revenue_wallets,
             self.instruction_data.revenue_shares,
         )?;
         Config::check_nft_royalties(
             self.instruction_data.num_royalty_recipients,
+            self.instruction_data.royalty_recipients,
             self.instruction_data.royalty_shares_bps,
         )
     }
 
     fn init_config(&self) -> ProgramResult {
-        let mut config_data = self.accounts.config_pda.try_borrow_mut_data()?;
+        // let mut config_data = self.accounts.config_pda.try_borrow_mut_data()?;
         let seeds: &[&[u8]] = &[
             Config::SEED,
             self.accounts.nft_collection.key.as_ref(),
             self.accounts.token_mint.key.as_ref(),
         ];
-        let decimals =
-            TokenProgram::get_decimal(self.accounts.token_mint, self.accounts.token_program)?;
+        let decimals = TokenProgram::get_decimal(self.accounts.token_mint)?;
 
         // FIXME: Make this Config::init_if_needed() at mainnet.
         Config::init(
-            &mut config_data,
-            InitPdaAccounts {
-                payer: self.accounts.admin,
+            InitConfigAccounts {
                 pda: self.accounts.config_pda,
-                system_program: self.accounts.system_program,
-            },
-            InitPdaArgs {
-                seeds,
-                space: Config::LEN,
-                program_id: self.program_id,
             },
             InitConfigArgs {
                 admin: *self.accounts.admin.key,
@@ -162,6 +149,16 @@ impl<'a, 'info> InitConfigV1<'a, 'info> {
                 num_revenue_wallets: self.instruction_data.num_revenue_wallets,
                 revenue_wallets: self.instruction_data.revenue_wallets,
                 revenue_shares: self.instruction_data.revenue_shares,
+            },
+            InitPdaAccounts {
+                payer: self.accounts.admin,
+                pda: self.accounts.config_pda,
+                system_program: self.accounts.system_program,
+            },
+            InitPdaArgs {
+                seeds,
+                space: Config::LEN,
+                program_id: self.program_id,
             },
         )
     }

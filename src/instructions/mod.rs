@@ -37,6 +37,7 @@ pub enum TweetoniumInstruction {
     #[account(
         1,
         signer,
+        writable,
         name = "nft_collection",
         desc = "MPL Core Collection account that groups NFTs under this project."
     )]
@@ -53,16 +54,11 @@ pub enum TweetoniumInstruction {
     )]
     #[account(
         4,
-        name = "token_program",
-        desc = "SPL Token Program (legacy) or Token-2022 Program."
-    )]
-    #[account(
-        5,
         name = "system_program",
         desc = "System Program — required for PDA creation and rent."
     )]
     #[account(
-        6,
+        5,
         name = "mpl_core",
         desc = "Metaplex Core program — must be the official MPL Core program."
     )]
