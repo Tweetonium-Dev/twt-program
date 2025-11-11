@@ -36,22 +36,16 @@ impl TokenProgram {
         }
     }
 
-    pub fn get_decimal<'info>(
-        mint: &AccountInfo<'info>,
-        token_program: &AccountInfo<'info>,
-    ) -> Result<u8, ProgramError> {
-        let data = mint.try_borrow_data()?;
-        let decimals_offset = match Self::detect_token_program(token_program)? {
-            Self::Token => 44,
-            Self::Token2022 => 8 + 44, // Extension header (8 bytes) + Mint::decimals
-        };
+    pub fn get_decimal<'info>(mint: &AccountInfo<'info>) -> Result<u8, ProgramError> {
+        const DECIMALS_OFFSET: usize = 44;
 
-        if data.len() < decimals_offset + 1 {
+        let data = mint.try_borrow_data()?;
+        if data.len() <= DECIMALS_OFFSET {
             msg!("Invalid mint data {}", mint.key);
             return Err(ProgramError::InvalidAccountData);
         }
 
-        Ok(data[decimals_offset])
+        Ok(data[DECIMALS_OFFSET])
     }
 
     pub fn get_balance<'info>(
