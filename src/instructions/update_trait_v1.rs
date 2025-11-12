@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{TraitItem, UpdateTraitItemArgs},
+    states::{TraitAuthority, TraitItem, UpdateTraitItemArgs},
     utils::{
         AccountCheck, MplCoreProgram, Pda, ProcessInstruction, SignerAccount, SystemProgram,
         UpdateMplCoreCollectionAccounts, UpdateMplCoreCollectionArgs, WritableAccount,
@@ -18,14 +18,19 @@ pub struct UpdateTraitV1Accounts<'a, 'info> {
     /// Must be a signer.
     pub authority: &'a AccountInfo<'info>,
 
+    /// PDA: `[program_id, trait_collection, "config"]` — stores `TraitItem` struct.
+    /// Must be uninitialized, writable, owned by this program.
+    pub trait_pda: &'a AccountInfo<'info>,
+
+    /// PDA: `[program_id, "trait_authority"]`
+    /// Controls: update/burn all trait NFTs.
+    /// Only program can sign.
+    pub trait_authority: &'a AccountInfo<'info>,
+
     /// MPL Core Collection account that groups NFTs under this trait.
     /// Must be initialized before trait creation via `CreateV1CpiBuilder`.
     /// Determines the project scope for mint rules, royalties, and limits.
     pub trait_collection: &'a AccountInfo<'info>,
-
-    /// PDA: `[program_id, trait_collection, "config"]` — stores `Config` struct.
-    /// Must be uninitialized, writable, owned by this program.
-    pub trait_pda: &'a AccountInfo<'info>,
 
     /// System program — required for PDA creation and rent.
     pub system_program: &'a AccountInfo<'info>,
@@ -39,22 +44,25 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateTraitV1Accounts<'a, 
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [authority, trait_collection, trait_pda, system_program, mpl_core] = accounts else {
+        let [authority, trait_pda, trait_authority, trait_collection, system_program, mpl_core] =
+            accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         SignerAccount::check(authority)?;
 
-        WritableAccount::check(trait_collection)?;
         WritableAccount::check(trait_pda)?;
+        WritableAccount::check(trait_collection)?;
 
         SystemProgram::check(system_program)?;
         MplCoreProgram::check(mpl_core)?;
 
         Ok(Self {
             authority,
-            trait_collection,
             trait_pda,
+            trait_authority,
+            trait_collection,
             system_program,
             mpl_core,
         })
@@ -76,12 +84,14 @@ pub struct UpdateTraitV1InstructionData {
 pub struct UpdateTraitV1<'a, 'info> {
     pub accounts: UpdateTraitV1Accounts<'a, 'info>,
     pub instruction_data: UpdateTraitV1InstructionData,
+    pub trait_authority_bump: u8,
 }
 
 impl<'a, 'info> UpdateTraitV1<'a, 'info> {
     fn check_trait_royalties(&self) -> ProgramResult {
         TraitItem::check_trait_royalties(
             self.instruction_data.num_royalty_recipients,
+            self.instruction_data.royalty_recipients,
             self.instruction_data.royalty_shares_bps,
         )
     }
@@ -106,8 +116,9 @@ impl<'a, 'info> UpdateTraitV1<'a, 'info> {
     fn update_collection(self) -> ProgramResult {
         MplCoreProgram::update_collection(
             UpdateMplCoreCollectionAccounts {
+                payer: self.accounts.authority,
                 collection: self.accounts.trait_collection,
-                authority: self.accounts.authority,
+                update_authority: self.accounts.trait_authority,
                 mpl_core: self.accounts.mpl_core,
                 system_program: self.accounts.system_program,
             },
@@ -118,6 +129,7 @@ impl<'a, 'info> UpdateTraitV1<'a, 'info> {
                 name: self.instruction_data.trait_name,
                 uri: self.instruction_data.trait_uri,
             },
+            &[&[TraitAuthority::SEED, &[self.trait_authority_bump]]],
         )
     }
 }
@@ -145,9 +157,16 @@ impl<'a, 'info>
             program_id,
         )?;
 
+        let (_, trait_authority_bump) = Pda::validate(
+            accounts.trait_authority,
+            &[TraitAuthority::SEED],
+            program_id,
+        )?;
+
         Ok(Self {
             accounts,
             instruction_data,
+            trait_authority_bump,
         })
     }
 }

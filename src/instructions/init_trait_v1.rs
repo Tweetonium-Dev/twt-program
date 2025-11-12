@@ -5,10 +5,10 @@ use solana_program::{
 };
 
 use crate::{
-    states::{InitTraitItemArgs, TraitItem},
+    states::{InitTraitItemAccounts, InitTraitItemArgs, TraitAuthority, TraitItem},
     utils::{
         AccountCheck, InitMplCoreCollectionAccounts, InitMplCoreCollectionArgs, InitPdaAccounts,
-        InitPdaArgs, MplCoreProgram, ProcessInstruction, SignerAccount, SystemProgram,
+        InitPdaArgs, MplCoreProgram, Pda, ProcessInstruction, SignerAccount, SystemProgram,
         UninitializedAccount, WritableAccount,
     },
 };
@@ -22,6 +22,11 @@ pub struct InitTraitV1Accounts<'a, 'info> {
     /// PDA: `[program_id, trait_collection, "trait_item"]` — stores `Config` struct.
     /// Must be uninitialized, writable, owned by this program.
     pub trait_pda: &'a AccountInfo<'info>,
+
+    /// PDA: `[program_id, "trait_authority"]`
+    /// Controls: update/burn all trait NFTs.
+    /// Only program can sign.
+    pub trait_authority: &'a AccountInfo<'info>,
 
     /// MPL Core Collection account that groups NFTs under this trait.
     /// Must be initialized before trait creation via `CreateV1CpiBuilder`.
@@ -40,7 +45,9 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitTraitV1Accounts<'a, 'i
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [authority, trait_pda, trait_collection, system_program, mpl_core] = accounts else {
+        let [authority, trait_pda, trait_authority, trait_collection, system_program, mpl_core] =
+            accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -48,6 +55,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitTraitV1Accounts<'a, 'i
         SignerAccount::check(trait_collection)?;
 
         WritableAccount::check(trait_pda)?;
+        WritableAccount::check(trait_collection)?;
 
         UninitializedAccount::check(trait_collection)?;
         // FIXME: Uncomment this on mainnet
@@ -59,6 +67,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitTraitV1Accounts<'a, 'i
         Ok(Self {
             authority,
             trait_pda,
+            trait_authority,
             trait_collection,
             system_program,
             mpl_core,
@@ -88,16 +97,24 @@ impl<'a, 'info> InitTraitV1<'a, 'info> {
     fn check_trait_royalties(&self) -> ProgramResult {
         TraitItem::check_trait_royalties(
             self.instruction_data.num_royalty_recipients,
+            self.instruction_data.royalty_recipients,
             self.instruction_data.royalty_shares_bps,
         )
     }
 
     fn init_trait(&self) -> ProgramResult {
-        let mut trait_data = self.accounts.trait_pda.try_borrow_mut_data()?;
         let seeds: &[&[u8]] = &[TraitItem::SEED, self.accounts.trait_collection.key.as_ref()];
 
         TraitItem::init_if_needed(
-            &mut trait_data,
+            InitTraitItemAccounts {
+                pda: self.accounts.trait_pda,
+            },
+            InitTraitItemArgs {
+                authority: *self.accounts.authority.key,
+                max_supply: self.instruction_data.max_supply,
+                user_minted: 0,
+                mint_fee_lamports: self.instruction_data.mint_fee_lamports,
+            },
             InitPdaAccounts {
                 payer: self.accounts.authority,
                 pda: self.accounts.trait_pda,
@@ -108,20 +125,15 @@ impl<'a, 'info> InitTraitV1<'a, 'info> {
                 space: TraitItem::LEN,
                 program_id: self.program_id,
             },
-            InitTraitItemArgs {
-                authority: *self.accounts.authority.key,
-                max_supply: self.instruction_data.max_supply,
-                user_minted: 0,
-                mint_fee_lamports: self.instruction_data.mint_fee_lamports,
-            },
         )
     }
 
     fn init_collection(self) -> ProgramResult {
         MplCoreProgram::init_collection(
             InitMplCoreCollectionAccounts {
+                payer: self.accounts.authority,
                 collection: self.accounts.trait_collection,
-                authority: self.accounts.authority,
+                update_authority: self.accounts.trait_authority,
                 mpl_core: self.accounts.mpl_core,
                 system_program: self.accounts.system_program,
             },
@@ -153,6 +165,12 @@ impl<'a, 'info>
         ),
     ) -> Result<Self, Self::Error> {
         let accounts = InitTraitV1Accounts::try_from(accounts)?;
+
+        Pda::validate(
+            accounts.trait_authority,
+            &[TraitAuthority::SEED],
+            program_id,
+        )?;
 
         Ok(Self {
             accounts,

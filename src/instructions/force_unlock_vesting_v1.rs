@@ -86,7 +86,7 @@ impl<'a, 'info> ForceUnlockVestingV1<'a, 'info> {
 
         if config.vesting_unlock_ts <= now {
             msg!("Vesting already unlocked");
-            return Err(ProgramError::Custom(5));
+            return Ok(());
         }
 
         let old_ts = config.vesting_unlock_ts;
@@ -132,8 +132,6 @@ impl<'a, 'info> ProcessInstruction for ForceUnlockVestingV1<'a, 'info> {
         let config = Config::load_mut(&mut config_data)?;
 
         self.check_vesting(config)?;
-        self.unlock_vesting(config)?;
-
-        Ok(())
+        self.unlock_vesting(config)
     }
 }

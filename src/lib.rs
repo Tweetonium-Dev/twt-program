@@ -30,47 +30,47 @@ fn process_instruction(
 
     match instruction {
         TweetoniumInstruction::InitConfigV1(data) => {
-            msg!("Instruction: InitializeConfig");
+            msg!("InitializeConfig");
             InitConfigV1::try_from((accounts, data, program_id))?.process()
         }
         TweetoniumInstruction::UpdateConfigV1(data) => {
-            msg!("Instruction: UpdateConfig");
+            msg!("UpdateConfig");
             UpdateConfigV1::try_from((accounts, data, program_id))?.process()
         }
         TweetoniumInstruction::MintAdminV1(data) => {
-            msg!("Instruction: MintAdmin");
+            msg!("MintAdmin");
             MintAdminV1::try_from((accounts, data, program_id))?.process()
         }
         TweetoniumInstruction::MintUserV1(data) => {
-            msg!("Instruction: MintUser");
+            msg!("MintUser");
             MintUserV1::try_from((accounts, data, program_id))?.process()
         }
         TweetoniumInstruction::MintVipV1(data) => {
-            msg!("Instruction: MintVip");
+            msg!("MintVip");
             MintVipV1::try_from((accounts, data, program_id))?.process()
         }
         TweetoniumInstruction::InitTraitV1(data) => {
-            msg!("Instruction: InitTrait");
+            msg!("InitTrait");
             InitTraitV1::try_from((accounts, data, program_id))?.process()
         }
         TweetoniumInstruction::UpdateTraitV1(data) => {
-            msg!("Instruction: UpdateTrait");
+            msg!("UpdateTrait");
             UpdateTraitV1::try_from((accounts, data, program_id))?.process()
         }
         TweetoniumInstruction::MintTraitV1(data) => {
-            msg!("Instruction: MintTrait");
+            msg!("MintTrait");
             MintTraitV1::try_from((accounts, data, program_id))?.process()
         }
         TweetoniumInstruction::UpdateNftV1(data) => {
-            msg!("Instruction: UpdateNft");
+            msg!("UpdateNft");
             UpdateNftV1::try_from((accounts, data, program_id))?.process()
         }
         TweetoniumInstruction::BurnAndRefundV1 => {
-            msg!("Instruction: BurnAndRefund");
+            msg!("BurnAndRefund");
             BurnAndRefundV1::try_from((accounts, program_id))?.process()
         }
         TweetoniumInstruction::ForceUnlockVestingV1 => {
-            msg!("Instruction: ForceUnlockVesting");
+            msg!("ForceUnlockVesting");
             ForceUnlockVestingV1::try_from((accounts, program_id))?.process()
         }
     }

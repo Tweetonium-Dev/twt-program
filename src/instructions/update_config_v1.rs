@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, UpdateConfigArgs, VestingMode, MAX_REVENUE_WALLETS, MAX_ROYALTY_RECIPIENTS},
+    states::{Config, NftAuthority, UpdateConfigArgs, VestingMode},
     utils::{
         AccountCheck, MintAccount, MplCoreProgram, Pda, ProcessInstruction, SignerAccount,
         SystemProgram, UpdateMplCoreCollectionAccounts, UpdateMplCoreCollectionArgs,
@@ -19,9 +19,13 @@ pub struct UpdateConfigV1Accounts<'a, 'info> {
     /// Must be a signer.
     pub admin: &'a AccountInfo<'info>,
 
+    /// PDA: `[program_id, "nft_authority"]`
+    /// Controls: update/burn all NFTs.
+    /// Only program can sign
+    pub nft_authority: &'a AccountInfo<'info>,
+
     /// MPL Core Collection account that groups NFTs under this project.
     /// Must be initialized before config creation via `CreateV1CpiBuilder`.
-    /// Used as part of the config PDA seeds: `[program_id, token_mint, collection.key.as_ref()]`.
     /// Determines the project scope for mint rules, royalties, and limits.
     pub nft_collection: &'a AccountInfo<'info>,
 
@@ -45,7 +49,8 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateConfigV1Accounts<'a,
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [admin, nft_collection, config_pda, token_mint, system_program, mpl_core] = accounts
+        let [admin, nft_authority, nft_collection, config_pda, token_mint, system_program, mpl_core] =
+            accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -61,6 +66,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateConfigV1Accounts<'a,
 
         Ok(Self {
             admin,
+            nft_authority,
             nft_collection,
             config_pda,
             token_mint,
@@ -95,6 +101,7 @@ pub struct UpdateConfigV1InstructionData {
 pub struct UpdateConfigV1<'a, 'info> {
     pub accounts: UpdateConfigV1Accounts<'a, 'info>,
     pub instruction_data: UpdateConfigV1InstructionData,
+    pub nft_authority_bump: u8,
 }
 
 impl<'a, 'info> UpdateConfigV1<'a, 'info> {
@@ -116,8 +123,9 @@ impl<'a, 'info> UpdateConfigV1<'a, 'info> {
     fn update_collection(&self) -> ProgramResult {
         MplCoreProgram::update_collection(
             UpdateMplCoreCollectionAccounts {
+                payer: self.accounts.admin,
                 collection: self.accounts.nft_collection,
-                authority: self.accounts.admin,
+                update_authority: self.accounts.nft_authority,
                 mpl_core: self.accounts.mpl_core,
                 system_program: self.accounts.system_program,
             },
@@ -128,6 +136,7 @@ impl<'a, 'info> UpdateConfigV1<'a, 'info> {
                 name: self.instruction_data.collection_name.clone(),
                 uri: self.instruction_data.collection_uri.clone(),
             },
+            &[&[NftAuthority::SEED, &[self.nft_authority_bump]]],
         )
     }
 
@@ -186,9 +195,13 @@ impl<'a, 'info>
             program_id,
         )?;
 
+        let (_, nft_authority_bump) =
+            Pda::validate(accounts.nft_authority, &[NftAuthority::SEED], program_id)?;
+
         Ok(Self {
             accounts,
             instruction_data,
+            nft_authority_bump,
         })
     }
 }

@@ -5,11 +5,11 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, InitConfigAccounts, InitConfigArgs, VestingMode},
+    states::{Config, InitConfigAccounts, InitConfigArgs, NftAuthority, VestingMode},
     utils::{
         AccountCheck, InitMplCoreCollectionAccounts, InitMplCoreCollectionArgs, InitPdaAccounts,
-        InitPdaArgs, MintAccount, MplCoreProgram, ProcessInstruction, SignerAccount, SystemProgram,
-        TokenProgram, UninitializedAccount, WritableAccount,
+        InitPdaArgs, MintAccount, MplCoreProgram, Pda, ProcessInstruction, SignerAccount,
+        SystemProgram, TokenProgram, UninitializedAccount, WritableAccount,
     },
 };
 
@@ -18,6 +18,11 @@ pub struct InitConfigV1Accounts<'a, 'info> {
     /// Authority that will control config updates (e.g. admin wallet).
     /// Must be a signer.
     pub admin: &'a AccountInfo<'info>,
+
+    /// PDA: `[program_id, "nft_authority"]`
+    /// Controls: update/burn all NFTs.
+    /// Only program can sign
+    pub nft_authority: &'a AccountInfo<'info>,
 
     /// MPL Core Collection account that groups NFTs under this project.
     /// Must be signer and initialized before nft creation via `CreateV1CpiBuilder`.
@@ -44,7 +49,8 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [admin, nft_collection, config_pda, token_mint, system_program, mpl_core] = accounts
+        let [admin, nft_authority, nft_collection, config_pda, token_mint, system_program, mpl_core] =
+            accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -64,6 +70,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
 
         Ok(Self {
             admin,
+            nft_authority,
             nft_collection,
             config_pda,
             token_mint,
@@ -166,8 +173,9 @@ impl<'a, 'info> InitConfigV1<'a, 'info> {
     fn init_collection(self) -> ProgramResult {
         MplCoreProgram::init_collection(
             InitMplCoreCollectionAccounts {
+                payer: self.accounts.admin,
                 collection: self.accounts.nft_collection,
-                authority: self.accounts.admin,
+                update_authority: self.accounts.nft_authority,
                 mpl_core: self.accounts.mpl_core,
                 system_program: self.accounts.system_program,
             },
@@ -199,6 +207,8 @@ impl<'a, 'info>
         ),
     ) -> Result<Self, Self::Error> {
         let accounts = InitConfigV1Accounts::try_from(accounts)?;
+
+        Pda::validate(accounts.nft_authority, &[NftAuthority::SEED], program_id)?;
 
         Ok(Self {
             accounts,

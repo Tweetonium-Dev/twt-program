@@ -4,7 +4,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, Vault, VestingMode},
+    states::{Config, NftAuthority, Vault, VestingMode},
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck,
         BurnMplCoreAssetAccounts, ConfigAccount, MintAccount, MplCoreProgram, Pda,
@@ -18,6 +18,11 @@ pub struct BurnAndRefundV1Accounts<'a, 'info> {
     /// NFT owner — must sign to burn.
     /// Must be owner of `nft_token_account`.
     pub payer: &'a AccountInfo<'info>,
+
+    /// PDA: `[program_id, "nft_authority"]`
+    /// Controls: update/burn all NFTs.
+    /// Only program can sign
+    pub nft_authority: &'a AccountInfo<'info>,
 
     /// MPL Core Collection account that groups NFTs under this project.
     /// Must be initialized before config creation via `CreateV1CpiBuilder`.
@@ -64,7 +69,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [payer, nft_collection, nft_asset, vault_pda, vault_ata, payer_ata, config_pda, token_mint, token_program, system_program, mpl_core] =
+        let [payer, nft_authority, nft_collection, nft_asset, vault_pda, vault_ata, payer_ata, config_pda, token_mint, token_program, system_program, mpl_core] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -89,6 +94,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
 
         Ok(Self {
             payer,
+            nft_authority,
             nft_collection,
             nft_asset,
             vault_pda,
@@ -106,6 +112,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
 #[derive(Debug)]
 pub struct BurnAndRefundV1<'a, 'info> {
     pub accounts: BurnAndRefundV1Accounts<'a, 'info>,
+    pub nft_authority_bump: u8,
     pub vault_bump: u8,
 }
 
@@ -114,18 +121,17 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
         let clock = Clock::get()?;
 
         if vault.owner != *self.accounts.payer.key {
-            msg!("Unauthorized: vault owner does not match payer.");
+            msg!(
+                "Unauthorized: vault owner does not match payer. Payer {}, vault owner {}",
+                self.accounts.payer.key,
+                vault.owner
+            );
             return Err(ProgramError::IllegalOwner);
         }
 
         if vault.is_unlocked() {
             msg!("Vault has already been refunded or unlocked.");
             return Err(ProgramError::InvalidAccountData);
-        }
-
-        if clock.unix_timestamp < config.vesting_unlock_ts {
-            msg!("Unauthorized: vault owner does not match payer.");
-            return Err(ProgramError::IllegalOwner);
         }
 
         match config.vesting_mode {
@@ -141,7 +147,7 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
                         clock.unix_timestamp,
                         config.vesting_unlock_ts
                     );
-                    return Err(ProgramError::Custom(4));
+                    return Err(ProgramError::Custom(3));
                 }
                 Ok(())
             }
@@ -149,13 +155,17 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
     }
 
     fn burn_nft(&self) -> ProgramResult {
-        MplCoreProgram::burn(BurnMplCoreAssetAccounts {
-            asset: self.accounts.nft_asset,
-            collection: self.accounts.nft_collection,
-            payer: self.accounts.payer,
-            mpl_core: self.accounts.mpl_core,
-            system_program: self.accounts.system_program,
-        })
+        MplCoreProgram::burn(
+            BurnMplCoreAssetAccounts {
+                asset: self.accounts.nft_asset,
+                collection: self.accounts.nft_collection,
+                payer: self.accounts.payer,
+                update_authority: self.accounts.nft_authority,
+                mpl_core: self.accounts.mpl_core,
+                system_program: self.accounts.system_program,
+            },
+            &[&[NftAuthority::SEED, &[self.nft_authority_bump]]],
+        )
     }
 
     fn refund_token(&self, config: &Config, balance: u64) -> ProgramResult {
@@ -217,6 +227,9 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)> for BurnAndRefun
     ) -> Result<Self, Self::Error> {
         let accounts = BurnAndRefundV1Accounts::try_from(accounts)?;
 
+        let (_, nft_authority_bump) =
+            Pda::validate(accounts.nft_authority, &[NftAuthority::SEED], program_id)?;
+
         Pda::validate(
             accounts.config_pda,
             &[
@@ -240,6 +253,7 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)> for BurnAndRefun
 
         Ok(Self {
             accounts,
+            nft_authority_bump,
             vault_bump,
         })
     }

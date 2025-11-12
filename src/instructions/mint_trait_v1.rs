@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::TraitItem,
+    states::{TraitAuthority, TraitItem},
     utils::{
         AccountCheck, CreateMplCoreAssetAccounts, CreateMplCoreAssetArgs, MplCoreProgram, Pda,
         ProcessInstruction, SignerAccount, SystemProgram, UninitializedAccount, WritableAccount,
@@ -21,6 +21,11 @@ pub struct MintTraitV1Accounts<'a, 'info> {
     /// PDA: `[program_id, trait_collection, "config"]` — stores `Config` struct.
     /// Must be uninitialized, writable, owned by this program.
     pub trait_pda: &'a AccountInfo<'info>,
+
+    /// PDA: `[program_id, "trait_authority"]`
+    /// Controls: update/burn all trait NFTs.
+    /// Only program can sign.
+    pub trait_authority: &'a AccountInfo<'info>,
 
     /// MPL Core Collection account that groups NFTs under this trait.
     /// Must be initialized before trait creation via `CreateV1CpiBuilder`.
@@ -47,7 +52,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintTraitV1Accounts<'a, 'i
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [payer, trait_pda, trait_collection, trait_asset, protocol_wallet, system_program, mpl_core] =
+        let [payer, trait_pda, trait_authority, trait_collection, trait_asset, protocol_wallet, system_program, mpl_core] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -58,6 +63,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintTraitV1Accounts<'a, 'i
 
         WritableAccount::check(trait_pda)?;
         WritableAccount::check(trait_collection)?;
+        WritableAccount::check(trait_asset)?;
         WritableAccount::check(protocol_wallet)?;
 
         UninitializedAccount::check(trait_asset)?;
@@ -68,6 +74,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintTraitV1Accounts<'a, 'i
         Ok(Self {
             payer,
             trait_pda,
+            trait_authority,
             trait_collection,
             trait_asset,
             protocol_wallet,
@@ -79,19 +86,20 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintTraitV1Accounts<'a, 'i
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 pub struct MinTraitV1InstructionData {
-    pub nft_name: String,
-    pub nft_uri: String,
+    pub trait_name: String,
+    pub trait_uri: String,
 }
 
 #[derive(Debug)]
 pub struct MintTraitV1<'a, 'info> {
     pub accounts: MintTraitV1Accounts<'a, 'info>,
     pub instruction_data: MinTraitV1InstructionData,
+    pub trait_authority_bump: u8,
 }
 
 impl<'a, 'info> MintTraitV1<'a, 'info> {
     fn check_mint_eligibility(&self, trait_item: &TraitItem) -> ProgramResult {
-        if trait_item.stock_available() {
+        if !trait_item.stock_available() {
             msg!(
                 "All trait are minted. Allowed supply: {}. Minted {}",
                 trait_item.max_supply,
@@ -119,17 +127,18 @@ impl<'a, 'info> MintTraitV1<'a, 'info> {
     fn mint_nft(self, trait_item: &mut TraitItem) -> ProgramResult {
         MplCoreProgram::create(
             CreateMplCoreAssetAccounts {
+                payer: self.accounts.payer,
                 asset: self.accounts.trait_asset,
                 collection: self.accounts.trait_collection,
-                authority: self.accounts.payer,
-                update_authority: None,
+                update_authority: Some(self.accounts.trait_authority),
                 mpl_core: self.accounts.mpl_core,
                 system_program: self.accounts.system_program,
             },
             CreateMplCoreAssetArgs {
-                name: self.instruction_data.nft_name,
-                uri: self.instruction_data.nft_uri,
+                name: self.instruction_data.trait_name,
+                uri: self.instruction_data.trait_uri,
             },
+            &[&[TraitAuthority::SEED, &[self.trait_authority_bump]]],
         )?;
 
         trait_item.increment_user_minted()?;
@@ -162,9 +171,16 @@ impl<'a, 'info>
             program_id,
         )?;
 
+        let (_, trait_authority_bump) = Pda::validate(
+            accounts.trait_authority,
+            &[TraitAuthority::SEED],
+            program_id,
+        )?;
+
         Ok(Self {
             accounts,
             instruction_data,
+            trait_authority_bump,
         })
     }
 }
@@ -178,7 +194,7 @@ impl<'a, 'info> ProcessInstruction for MintTraitV1<'a, 'info> {
         self.pay_protocol_fee(trait_item)?;
         self.mint_nft(trait_item)?;
 
-        msg!("MintTraitV1: minted trait NFT");
+        msg!("MintTraitV1: Trait NFT minted");
         Ok(())
     }
 }

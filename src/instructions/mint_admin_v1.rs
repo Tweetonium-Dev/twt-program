@@ -5,14 +5,13 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, InitVaultArgs, NftAuthority, Vault},
+    states::{Config, InitVaultAccounts, InitVaultArgs, NftAuthority, Vault},
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, AssociatedTokenProgram,
         ConfigAccount, CreateMplCoreAssetAccounts, CreateMplCoreAssetArgs,
-        InitAssociatedTokenProgramAccounts, InitAssociatedTokenProgramArgs, InitPdaAccounts,
-        InitPdaArgs, MintAccount, MplCoreProgram, Pda, ProcessInstruction, SignerAccount,
-        SystemProgram, TokenProgram, TokenTransferAccounts, TokenTransferArgs,
-        UninitializedAccount, WritableAccount,
+        InitAssociatedTokenProgramAccounts, InitPdaAccounts, InitPdaArgs, MintAccount,
+        MplCoreProgram, Pda, ProcessInstruction, SignerAccount, SystemProgram, TokenProgram,
+        TokenTransferAccounts, TokenTransferArgs, UninitializedAccount, WritableAccount,
     },
 };
 
@@ -96,6 +95,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAdminV1Accounts<'a, 'i
         WritableAccount::check(vault_ata)?;
         WritableAccount::check(admin_ata)?;
         WritableAccount::check(nft_collection)?;
+        WritableAccount::check(nft_asset)?;
         WritableAccount::check(protocol_wallet)?;
 
         UninitializedAccount::check(nft_asset)?;
@@ -137,6 +137,7 @@ pub struct MintAdminV1<'a, 'info> {
     pub accounts: MintAdminV1Accounts<'a, 'info>,
     pub instruction_data: MintAdminV1InstructionData,
     pub program_id: &'a Pubkey,
+    pub nft_authority_bump: u8,
 }
 
 impl<'a, 'info> MintAdminV1<'a, 'info> {
@@ -148,7 +149,7 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
         let user_minted = config.user_minted;
         let minted = admin_minted + user_minted;
 
-        if config.nft_stock_available() {
+        if !config.nft_stock_available() {
             msg!(
                 "All NFTs are minted. Allowed supply: {}. Minted: {}",
                 max_supply,
@@ -157,7 +158,7 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
             return Err(ProgramError::Custom(0));
         }
 
-        if config.admin_mint_available() {
+        if !config.admin_mint_available() {
             msg!(
                 "All admin NFTs already minted. Allowed supply: {}. Minted: {}",
                 admin_supply,
@@ -174,8 +175,6 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
             return Ok(());
         }
 
-        let mut vault_data = self.accounts.vault_pda.try_borrow_mut_data()?;
-
         let seeds: &[&[u8]] = &[
             Vault::SEED,
             self.accounts.nft_collection.key.as_ref(),
@@ -184,7 +183,15 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
         ];
 
         Vault::init_if_needed(
-            &mut vault_data,
+            InitVaultAccounts {
+                pda: self.accounts.vault_pda,
+            },
+            InitVaultArgs {
+                owner: *self.accounts.admin.key,
+                nft: *self.accounts.nft_asset.key,
+                amount: config.escrow_amount,
+                is_unlocked: false,
+            },
             InitPdaAccounts {
                 payer: self.accounts.admin,
                 pda: self.accounts.vault_pda,
@@ -195,27 +202,17 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
                 space: Vault::LEN,
                 program_id: self.program_id,
             },
-            InitVaultArgs {
-                owner: *self.accounts.admin.key,
-                nft: *self.accounts.nft_asset.key,
-                amount: config.escrow_amount,
-                is_unlocked: false,
-            },
         )?;
 
-        AssociatedTokenProgram::init_if_needed(
-            InitAssociatedTokenProgramAccounts {
-                payer: self.accounts.admin,
-                mint: self.accounts.token_mint,
-                token_program: self.accounts.token_program,
-                associated_token_program: self.accounts.associated_token_program,
-                system_program: self.accounts.system_program,
-                ata: self.accounts.vault_ata,
-            },
-            InitAssociatedTokenProgramArgs {
-                wallet: self.accounts.vault_pda.key,
-            },
-        )?;
+        AssociatedTokenProgram::init_if_needed(InitAssociatedTokenProgramAccounts {
+            payer: self.accounts.admin,
+            wallet: self.accounts.vault_pda,
+            mint: self.accounts.token_mint,
+            token_program: self.accounts.token_program,
+            associated_token_program: self.accounts.associated_token_program,
+            system_program: self.accounts.system_program,
+            ata: self.accounts.vault_ata,
+        })?;
 
         TokenProgram::transfer(
             TokenTransferAccounts {
@@ -249,9 +246,9 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
     fn mint_nft(self, config: &mut Config) -> ProgramResult {
         MplCoreProgram::create(
             CreateMplCoreAssetAccounts {
+                payer: self.accounts.admin,
                 asset: self.accounts.nft_asset,
                 collection: self.accounts.nft_collection,
-                authority: self.accounts.admin,
                 update_authority: Some(self.accounts.nft_authority),
                 mpl_core: self.accounts.mpl_core,
                 system_program: self.accounts.system_program,
@@ -260,6 +257,7 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
                 name: self.instruction_data.nft_name,
                 uri: self.instruction_data.nft_uri,
             },
+            &[&[NftAuthority::SEED, &[self.nft_authority_bump]]],
         )?;
 
         config.increment_admin_minted()?;
@@ -296,12 +294,14 @@ impl<'a, 'info>
             program_id,
         )?;
 
-        Pda::validate(accounts.nft_authority, &[NftAuthority::SEED], program_id)?;
+        let (_, nft_authority_bump) =
+            Pda::validate(accounts.nft_authority, &[NftAuthority::SEED], program_id)?;
 
         Ok(Self {
             accounts,
             instruction_data,
             program_id,
+            nft_authority_bump,
         })
     }
 }
