@@ -240,6 +240,17 @@ impl Config {
     }
 
     #[inline(always)]
+    pub fn need_vault(&self) -> bool {
+        self.escrow_amount > 0
+    }
+
+    #[inline(always)]
+    pub fn allow_tf_to_dao_wallet(&self, index: usize) -> bool {
+        let price = self.revenue_shares.get(index).cloned().unwrap_or_default();
+        price > 0
+    }
+
+    #[inline(always)]
     pub fn revenue_wallet(&self, index: usize) -> Result<&Pubkey, ProgramError> {
         self.revenue_wallets
             .get(index)
@@ -252,17 +263,6 @@ impl Config {
             .get(index)
             .cloned()
             .ok_or(ProgramError::InvalidAccountData)
-    }
-
-    #[inline(always)]
-    pub fn need_vault(&self) -> bool {
-        self.escrow_amount > 0
-    }
-
-    #[inline(always)]
-    pub fn allow_tf_to_dao_wallet(&self, index: usize) -> bool {
-        let price = self.revenue_shares.get(index).cloned().unwrap_or_default();
-        price > 0
     }
 
     #[inline(always)]
@@ -452,4 +452,351 @@ pub struct UpdateConfigArgs {
     pub num_revenue_wallets: u8,
     pub revenue_wallets: [Pubkey; MAX_REVENUE_WALLETS],
     pub revenue_shares: [u64; MAX_REVENUE_WALLETS],
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn zero_config() -> Vec<u8> {
+        vec![0u8; Config::LEN]
+    }
+
+    fn make_pubkeys<const N: usize>() -> [Pubkey; N] {
+        let mut arr: [Pubkey; N] = [Pubkey::default(); N];
+        for key in arr.iter_mut().take(N) {
+            *key = Pubkey::new_unique();
+        }
+        arr
+    }
+
+    fn zero_pubkeys<const N: usize>() -> [Pubkey; N] {
+        [Pubkey::default(); N]
+    }
+
+    fn zero_u64s<const N: usize>() -> [u64; N] {
+        [0u64; N]
+    }
+
+    fn zero_u16s<const N: usize>() -> [u16; N] {
+        [0u16; N]
+    }
+
+    #[test]
+    fn test_free_mint_fee() {
+        let buf = zero_config();
+        let cfg = Config::load(&buf).expect("load should succeed");
+        assert!(cfg.is_free_mint_fee());
+    }
+
+    #[test]
+    fn test_need_pay_mint_fee() {
+        let mut buf = zero_config();
+        let cfg = Config::load_mut(&mut buf).expect("load_mut should succeed");
+        cfg.mint_fee_lamports = 100;
+        assert!(!cfg.is_free_mint_fee());
+    }
+
+    #[test]
+    fn test_total_minted() {
+        let mut buf = zero_config();
+        let cfg = Config::load_mut(&mut buf).expect("load_mut should succeed");
+        cfg.admin_minted = 3;
+        cfg.user_minted = 7;
+        assert_eq!(cfg.total_minted(), 10);
+    }
+
+    #[test]
+    fn test_admin_supply() {
+        let mut buf = zero_config();
+        let cfg = Config::load_mut(&mut buf).expect("load_mut should succeed");
+        cfg.max_supply = 100;
+        cfg.released = 40;
+        assert_eq!(cfg.admin_supply(), 60);
+    }
+
+    #[test]
+    fn test_nft_stock_available() {
+        let mut buf = zero_config();
+        let cfg = Config::load_mut(&mut buf).expect("load_mut should succeed");
+        cfg.max_supply = 1;
+        cfg.admin_minted = 2;
+        cfg.user_minted = 3;
+        assert!(!cfg.nft_stock_available());
+    }
+
+    #[test]
+    fn test_nft_stock_unavailable() {
+        let mut buf = zero_config();
+        let cfg = Config::load_mut(&mut buf).expect("load_mut should succeed");
+        cfg.max_supply = 100;
+        cfg.admin_minted = 2;
+        cfg.user_minted = 3;
+        assert!(cfg.nft_stock_available());
+    }
+
+    #[test]
+    fn test_admin_mint_available() {
+        let mut buf = zero_config();
+        let cfg = Config::load_mut(&mut buf).expect("load_mut should succeed");
+        cfg.max_supply = 100;
+        cfg.released = 40;
+        cfg.admin_minted = 2;
+        assert!(cfg.admin_mint_available());
+    }
+
+    #[test]
+    fn test_admin_mint_unavailable() {
+        let mut buf = zero_config();
+        let cfg = Config::load_mut(&mut buf).expect("load_mut should succeed");
+        cfg.max_supply = 100;
+        cfg.released = 99;
+        cfg.admin_minted = 2;
+        assert!(!cfg.admin_mint_available());
+    }
+
+    #[test]
+    fn test_user_mint_available() {
+        let mut buf = zero_config();
+        let cfg = Config::load_mut(&mut buf).expect("load_mut should succeed");
+        cfg.released = 40;
+        cfg.user_minted = 3;
+        assert!(cfg.user_mint_available());
+    }
+
+    #[test]
+    fn test_user_mint_unavailable() {
+        let buf = zero_config();
+        let cfg = Config::load(&buf).expect("load should succeed");
+        assert!(!cfg.user_mint_available());
+    }
+
+    #[test]
+    fn test_need_vault() {
+        let mut buf = zero_config();
+        let cfg = Config::load_mut(&mut buf).expect("load_mut should succeed");
+        cfg.escrow_amount = 200;
+        assert!(cfg.need_vault());
+    }
+
+    #[test]
+    fn test_not_need_vault() {
+        let buf = zero_config();
+        let cfg = Config::load(&buf).expect("load should succeed");
+        assert!(!cfg.need_vault());
+    }
+
+    #[test]
+    fn test_allow_tf_to_dao_wallet() {
+        let mut buf = zero_config();
+        let cfg = Config::load_mut(&mut buf).expect("load_mut should succeed");
+
+        let mut shares= zero_u64s::<MAX_REVENUE_WALLETS>();
+        shares[1] = 50;
+        cfg.revenue_shares = shares;
+
+        assert!(!cfg.allow_tf_to_dao_wallet(0));
+        assert!(cfg.allow_tf_to_dao_wallet(1));
+    }
+
+    #[test]
+    fn test_revenue_wallet_and_share_accessors() {
+        let mut buf = zero_config();
+        let cfg = Config::load_mut(&mut buf).expect("load_mut should succeed");
+
+        let wallets = make_pubkeys::<MAX_REVENUE_WALLETS>();
+        let mut shares= zero_u64s::<MAX_REVENUE_WALLETS>();
+        shares[0] = 100;
+
+        cfg.revenue_wallets = wallets;
+        cfg.revenue_shares = shares;
+
+        assert_eq!(cfg.revenue_share(0).unwrap(), 100);
+        assert!(cfg.revenue_wallet(0).is_ok());
+
+        assert!(cfg.revenue_share(MAX_REVENUE_WALLETS).is_err());
+        assert!(cfg.revenue_wallet(MAX_REVENUE_WALLETS).is_err());
+    }
+
+    #[test]
+    fn test_increment_admin_user_minted_and_overflow() {
+        let mut buf = zero_config();
+        let cfg = Config::load_mut(&mut buf).expect("load_mut should succeed");
+
+        cfg.admin_minted = 0;
+        cfg.user_minted = 0;
+
+        cfg.increment_admin_minted().expect("increment admin shoud be ok");
+        cfg.increment_user_minted().expect("increment user shoud be ok");
+
+        assert_eq!(cfg.admin_minted, 1);
+        assert_eq!(cfg.user_minted, 1);
+
+        cfg.admin_minted = u64::MAX;
+        assert!(cfg.increment_admin_minted().is_err());
+
+        cfg.user_minted = u64::MAX;
+        assert!(cfg.increment_user_minted().is_err());
+    }
+
+    #[test]
+    fn test_check_revenue_wallet_success() {
+        let mint_price_total = 1000u64;
+        let escrow_amount = 200u64;
+        let num_revenue_wallets = 2u8;
+
+        let mut wallets = zero_pubkeys::<MAX_REVENUE_WALLETS>();
+        wallets[0] = Pubkey::new_unique();
+        wallets[1] = Pubkey::new_unique();
+
+        let mut shares= zero_u64s::<MAX_REVENUE_WALLETS>();
+        shares[0] = 300;
+        shares[1] = 500;
+
+        Config::check_revenue_wallets(
+            mint_price_total,
+            escrow_amount,
+            num_revenue_wallets,
+            wallets,
+            shares,
+        ).expect("check_revenue_wallets should succeed");
+    }
+
+    #[test]
+    fn test_check_revenue_wallet_mismatch() {
+        let mint_price_total = 1000u64;
+        let escrow_amount = 200u64;
+        let num_revenue_wallets = 2u8;
+
+        let mut wallets = zero_pubkeys::<MAX_REVENUE_WALLETS>();
+        wallets[0] = Pubkey::new_unique();
+
+        let mut shares= zero_u64s::<MAX_REVENUE_WALLETS>();
+        shares[0] = 300;
+
+        let res = Config::check_revenue_wallets(
+            mint_price_total,
+            escrow_amount,
+            num_revenue_wallets,
+            wallets,
+            shares,
+        );
+
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_check_revenue_wallet_sum_dont_match() {
+        let mint_price_total = 1000u64;
+        let escrow_amount = 200u64;
+        let num_revenue_wallets = 228;
+
+        let mut wallets = zero_pubkeys::<MAX_REVENUE_WALLETS>();
+        wallets[0] = Pubkey::new_unique();
+        wallets[1] = Pubkey::new_unique();
+
+        let mut shares= zero_u64s::<MAX_REVENUE_WALLETS>();
+        shares[0] = 500;
+        shares[0] = 300;
+
+        let res = Config::check_revenue_wallets(
+            mint_price_total,
+            escrow_amount,
+            num_revenue_wallets,
+            wallets,
+            shares,
+        );
+
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_check_nft_royalties_zero_recipients_success() {
+        let recipients = zero_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
+        let bps = zero_u16s::<MAX_ROYALTY_RECIPIENTS>();
+        Config::check_nft_royalties(0u8, recipients, bps).expect("zero recipients ok");
+    }
+
+    #[test]
+    fn test_check_nft_royalties_normal_recipients_success() {
+        let mut recipients = zero_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
+        recipients[0] = Pubkey::new_unique();
+        recipients[1] = Pubkey::new_unique();
+
+        let mut bps = zero_u16s::<MAX_ROYALTY_RECIPIENTS>();
+        bps[0] = 3_000;
+        bps[1] = 1_000;
+
+        Config::check_nft_royalties(0u8, recipients, bps).expect("royalties ok");
+    }
+
+    #[test]
+    fn test_check_nft_royalties_mismatch_count() {
+        let mut recipients = zero_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
+        recipients[0] = Pubkey::new_unique();
+
+        let bps = zero_u16s::<MAX_ROYALTY_RECIPIENTS>();
+
+        let res = Config::check_nft_royalties(2u8, recipients, bps);
+
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_check_nft_royalties_exceeds_max() {
+        let mut recipients = zero_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
+        recipients[0] = Pubkey::new_unique();
+        recipients[1] = Pubkey::new_unique();
+
+        let mut bps = zero_u16s::<MAX_ROYALTY_RECIPIENTS>();
+        bps[0] = (MAX_BASIS_POINTS / 2) + 1;
+        bps[1] = (MAX_BASIS_POINTS / 2) + 1;
+
+        let res = Config::check_nft_royalties(2u8, recipients, bps);
+
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_update_applies_changes() {
+        let mut buf = zero_config();
+        let cfg = Config::load_mut(&mut buf).expect("load_mut should succeed");
+
+        cfg.max_supply = 100;
+        cfg.released = 20;
+
+        let mut new_wallets = zero_pubkeys::<MAX_REVENUE_WALLETS>();
+        new_wallets[0] = Pubkey::new_unique();
+
+        let mut new_shares= zero_u64s::<MAX_REVENUE_WALLETS>();
+        new_shares[0] = 100;
+
+        let args = UpdateConfigArgs {
+            max_supply: 200,
+            released: 50,
+            max_mint_per_user: 7,
+            max_mint_per_vip_user: 9,
+            vesting_mode: VestingMode::Permanent,
+            vesting_unlock_ts: 123456789,
+            mint_fee_lamports: 42,
+            mint_price_total: 1000,
+            escrow_amount: 100,
+            num_revenue_wallets: 1,
+            revenue_wallets: new_wallets,
+            revenue_shares: new_shares,
+        };
+
+        cfg.update(args);
+
+        assert_eq!(cfg.max_supply, 200);
+        assert_eq!(cfg.released, 50);
+        assert_eq!(cfg.max_mint_per_user, 7);
+        assert_eq!(cfg.vesting_mode, VestingMode::Permanent);
+        assert_eq!(cfg.vesting_unlock_ts, 123456789);
+        assert_eq!(cfg.mint_fee_lamports, 42);
+        assert_eq!(cfg.mint_price_total, 1000);
+        assert_eq!(cfg.escrow_amount, 100);
+        assert_eq!(cfg.num_revenue_wallets, 1);
+        assert_eq!(cfg.revenue_shares[0], 100);
+    }
 }
