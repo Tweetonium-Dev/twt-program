@@ -456,31 +456,17 @@ pub struct UpdateConfigArgs {
 
 #[cfg(test)]
 mod tests {
+    use crate::utils::mock::{default_pubkeys, mock_pubkeys, mock_u16s, mock_u64s};
+
     use super::*;
+
+    // --- Test Helpers ---
 
     fn zero_config() -> Vec<u8> {
         vec![0u8; Config::LEN]
     }
 
-    fn make_pubkeys<const N: usize>() -> [Pubkey; N] {
-        let mut arr: [Pubkey; N] = [Pubkey::default(); N];
-        for key in arr.iter_mut().take(N) {
-            *key = Pubkey::new_unique();
-        }
-        arr
-    }
-
-    fn zero_pubkeys<const N: usize>() -> [Pubkey; N] {
-        [Pubkey::default(); N]
-    }
-
-    fn zero_u64s<const N: usize>() -> [u64; N] {
-        [0u64; N]
-    }
-
-    fn zero_u16s<const N: usize>() -> [u16; N] {
-        [0u16; N]
-    }
+    // --- Test Cases ---
 
     #[test]
     fn test_free_mint_fee() {
@@ -580,7 +566,7 @@ mod tests {
     }
 
     #[test]
-    fn test_not_need_vault() {
+    fn test_dont_need_vault() {
         let buf = zero_config();
         let cfg = Config::load(&buf).expect("load should succeed");
         assert!(!cfg.need_vault());
@@ -591,7 +577,7 @@ mod tests {
         let mut buf = zero_config();
         let cfg = Config::load_mut(&mut buf).expect("load_mut should succeed");
 
-        let mut shares= zero_u64s::<MAX_REVENUE_WALLETS>();
+        let mut shares = mock_u64s::<MAX_REVENUE_WALLETS>(0);
         shares[1] = 50;
         cfg.revenue_shares = shares;
 
@@ -604,8 +590,8 @@ mod tests {
         let mut buf = zero_config();
         let cfg = Config::load_mut(&mut buf).expect("load_mut should succeed");
 
-        let wallets = make_pubkeys::<MAX_REVENUE_WALLETS>();
-        let mut shares= zero_u64s::<MAX_REVENUE_WALLETS>();
+        let wallets = mock_pubkeys::<MAX_REVENUE_WALLETS>();
+        let mut shares = mock_u64s::<MAX_REVENUE_WALLETS>(0);
         shares[0] = 100;
 
         cfg.revenue_wallets = wallets;
@@ -626,8 +612,10 @@ mod tests {
         cfg.admin_minted = 0;
         cfg.user_minted = 0;
 
-        cfg.increment_admin_minted().expect("increment admin shoud be ok");
-        cfg.increment_user_minted().expect("increment user shoud be ok");
+        cfg.increment_admin_minted()
+            .expect("increment admin shoud be ok");
+        cfg.increment_user_minted()
+            .expect("increment user shoud be ok");
 
         assert_eq!(cfg.admin_minted, 1);
         assert_eq!(cfg.user_minted, 1);
@@ -640,16 +628,16 @@ mod tests {
     }
 
     #[test]
-    fn test_check_revenue_wallet_success() {
+    fn test_check_revenue_wallet_valid() {
         let mint_price_total = 1000u64;
         let escrow_amount = 200u64;
         let num_revenue_wallets = 2u8;
 
-        let mut wallets = zero_pubkeys::<MAX_REVENUE_WALLETS>();
+        let mut wallets = default_pubkeys::<MAX_REVENUE_WALLETS>();
         wallets[0] = Pubkey::new_unique();
         wallets[1] = Pubkey::new_unique();
 
-        let mut shares= zero_u64s::<MAX_REVENUE_WALLETS>();
+        let mut shares = mock_u64s::<MAX_REVENUE_WALLETS>(0);
         shares[0] = 300;
         shares[1] = 500;
 
@@ -659,7 +647,8 @@ mod tests {
             num_revenue_wallets,
             wallets,
             shares,
-        ).expect("check_revenue_wallets should succeed");
+        )
+        .expect("check_revenue_wallets should succeed");
     }
 
     #[test]
@@ -668,10 +657,10 @@ mod tests {
         let escrow_amount = 200u64;
         let num_revenue_wallets = 2u8;
 
-        let mut wallets = zero_pubkeys::<MAX_REVENUE_WALLETS>();
+        let mut wallets = default_pubkeys::<MAX_REVENUE_WALLETS>();
         wallets[0] = Pubkey::new_unique();
 
-        let mut shares= zero_u64s::<MAX_REVENUE_WALLETS>();
+        let mut shares = mock_u64s::<MAX_REVENUE_WALLETS>(0);
         shares[0] = 300;
 
         let res = Config::check_revenue_wallets(
@@ -691,11 +680,11 @@ mod tests {
         let escrow_amount = 200u64;
         let num_revenue_wallets = 228;
 
-        let mut wallets = zero_pubkeys::<MAX_REVENUE_WALLETS>();
+        let mut wallets = default_pubkeys::<MAX_REVENUE_WALLETS>();
         wallets[0] = Pubkey::new_unique();
         wallets[1] = Pubkey::new_unique();
 
-        let mut shares= zero_u64s::<MAX_REVENUE_WALLETS>();
+        let mut shares = mock_u64s::<MAX_REVENUE_WALLETS>(0);
         shares[0] = 500;
         shares[0] = 300;
 
@@ -711,19 +700,19 @@ mod tests {
     }
 
     #[test]
-    fn test_check_nft_royalties_zero_recipients_success() {
-        let recipients = zero_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
-        let bps = zero_u16s::<MAX_ROYALTY_RECIPIENTS>();
+    fn test_check_nft_royalties_zero_recipients_valid() {
+        let recipients = default_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
+        let bps = mock_u16s::<MAX_ROYALTY_RECIPIENTS>(0);
         Config::check_nft_royalties(0u8, recipients, bps).expect("zero recipients ok");
     }
 
     #[test]
-    fn test_check_nft_royalties_normal_recipients_success() {
-        let mut recipients = zero_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
+    fn test_check_nft_royalties_normal_recipients_valid() {
+        let mut recipients = default_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
         recipients[0] = Pubkey::new_unique();
         recipients[1] = Pubkey::new_unique();
 
-        let mut bps = zero_u16s::<MAX_ROYALTY_RECIPIENTS>();
+        let mut bps = mock_u16s::<MAX_ROYALTY_RECIPIENTS>(0);
         bps[0] = 3_000;
         bps[1] = 1_000;
 
@@ -732,10 +721,10 @@ mod tests {
 
     #[test]
     fn test_check_nft_royalties_mismatch_count() {
-        let mut recipients = zero_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
+        let mut recipients = default_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
         recipients[0] = Pubkey::new_unique();
 
-        let bps = zero_u16s::<MAX_ROYALTY_RECIPIENTS>();
+        let bps = mock_u16s::<MAX_ROYALTY_RECIPIENTS>(0);
 
         let res = Config::check_nft_royalties(2u8, recipients, bps);
 
@@ -744,11 +733,11 @@ mod tests {
 
     #[test]
     fn test_check_nft_royalties_exceeds_max() {
-        let mut recipients = zero_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
+        let mut recipients = default_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
         recipients[0] = Pubkey::new_unique();
         recipients[1] = Pubkey::new_unique();
 
-        let mut bps = zero_u16s::<MAX_ROYALTY_RECIPIENTS>();
+        let mut bps = mock_u16s::<MAX_ROYALTY_RECIPIENTS>(0);
         bps[0] = (MAX_BASIS_POINTS / 2) + 1;
         bps[1] = (MAX_BASIS_POINTS / 2) + 1;
 
@@ -765,10 +754,10 @@ mod tests {
         cfg.max_supply = 100;
         cfg.released = 20;
 
-        let mut new_wallets = zero_pubkeys::<MAX_REVENUE_WALLETS>();
+        let mut new_wallets = default_pubkeys::<MAX_REVENUE_WALLETS>();
         new_wallets[0] = Pubkey::new_unique();
 
-        let mut new_shares= zero_u64s::<MAX_REVENUE_WALLETS>();
+        let mut new_shares = mock_u64s::<MAX_REVENUE_WALLETS>(0);
         new_shares[0] = 100;
 
         let args = UpdateConfigArgs {

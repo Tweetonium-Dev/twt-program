@@ -106,3 +106,68 @@ pub struct InitUserMintedAccounts<'a, 'info> {
 pub struct InitUserMintedArgs<'a> {
     pub owner: &'a Pubkey,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- Test Helpers ---
+
+    fn zero_user_minted() -> Vec<u8> {
+        vec![0u8; UserMinted::LEN]
+    }
+
+    fn zero_config() -> Vec<u8> {
+        vec![0u8; Config::LEN]
+    }
+
+    // --- Test Cases ---
+
+    #[test]
+    fn test_user_minted_load_mut_and_increment() {
+        let mut data = zero_user_minted();
+        let minted = UserMinted::load_mut(&mut data).unwrap();
+
+        // Should initialize to default values
+        minted.owner = Pubkey::new_unique();
+        assert_eq!(minted.minted_count, 0);
+
+        minted.increment();
+        assert_eq!(minted.minted_count, 1);
+
+        // Saturating increment test
+        minted.minted_count = u64::MAX;
+        minted.increment();
+        assert_eq!(minted.minted_count, u64::MAX);
+    }
+
+    #[test]
+    fn test_user_minted_has_reached_limit() {
+        let mut buf = zero_config();
+        let config = Config::load_mut(&mut buf).expect("load_mut should succeed");
+        config.max_mint_per_user = 3;
+        config.max_mint_per_vip_user = 10;
+
+        let mut user = UserMinted {
+            owner: Pubkey::new_unique(),
+            minted_count: 2,
+        };
+
+        assert!(!user.has_reached_limit(config));
+        assert!(!user.has_reached_vip_limit(config));
+
+        user.minted_count = 3;
+        assert!(user.has_reached_limit(config));
+        assert!(!user.has_reached_vip_limit(config));
+
+        user.minted_count = 10;
+        assert!(user.has_reached_vip_limit(config));
+    }
+
+    #[test]
+    fn test_user_minted_invalid_data_length() {
+        let mut short_data = vec![0u8; UserMinted::LEN - 1];
+        let err = UserMinted::load_mut(&mut short_data);
+        assert!(err.is_err());
+    }
+}

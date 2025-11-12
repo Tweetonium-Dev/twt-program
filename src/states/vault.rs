@@ -122,3 +122,57 @@ pub struct InitVaultArgs {
     pub amount: u64,
     pub is_unlocked: bool,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- Test Helpers ---
+
+    fn zero_vault() -> Vec<u8> {
+        vec![0u8; Vault::LEN]
+    }
+
+    // --- Test Cases ---
+
+    #[test]
+    fn test_vault_load_and_load_mut() {
+        let mut data = zero_vault();
+        let vault_mut = Vault::load_mut(&mut data).unwrap();
+        vault_mut.owner = Pubkey::new_unique();
+        vault_mut.nft = Pubkey::new_unique();
+        vault_mut.amount = 42;
+        vault_mut.is_unlocked = 1;
+        vault_mut.bump = [123];
+
+        let vault_ref = Vault::load(&data).unwrap();
+
+        assert_eq!(vault_ref.amount, 42);
+        assert!(vault_ref.is_unlocked());
+        assert_eq!(vault_ref.bump, [123]);
+    }
+
+    #[test]
+    fn test_vault_load_invalid_length() {
+        let mut bad = vec![0u8; Vault::LEN - 1];
+        assert!(Vault::load(&bad).is_err());
+        assert!(Vault::load_mut(&mut bad).is_err());
+    }
+
+    #[test]
+    fn test_vault_is_unlocked() {
+        let locked = Vault {
+            owner: Pubkey::new_unique(),
+            nft: Pubkey::new_unique(),
+            amount: 10,
+            is_unlocked: 0,
+            bump: [0],
+        };
+        let unlocked = Vault {
+            is_unlocked: 1,
+            ..locked
+        };
+        assert!(!locked.is_unlocked());
+        assert!(unlocked.is_unlocked());
+    }
+}

@@ -64,10 +64,13 @@ impl TraitItem {
         pda_accounts: InitPdaAccounts<'a, 'info>,
         pda_args: InitPdaArgs<'a>,
     ) -> ProgramResult {
+        println!("init pda");
         Pda::new(pda_accounts, pda_args)?.init()?;
 
+        println!("borrow data");
         let mut bytes = accounts.pda.try_borrow_mut_data()?;
 
+        println!("load mut trait");
         let config = Self::load_mut(&mut bytes)?;
         config.authority = args.authority;
         config.max_supply = args.max_supply;
@@ -100,7 +103,9 @@ impl TraitItem {
 
         Ok(unsafe { &mut *transmute::<*mut u8, *mut Self>(bytes.as_mut_ptr()) })
     }
+}
 
+impl TraitItem {
     #[inline(always)]
     pub fn is_free_mint_fee(&self) -> bool {
         self.mint_fee_lamports == 0
@@ -108,7 +113,7 @@ impl TraitItem {
 
     #[inline(always)]
     pub fn stock_available(&self) -> bool {
-        self.user_minted <= self.max_supply
+        self.user_minted < self.max_supply
     }
 
     #[inline(always)]
@@ -192,4 +197,146 @@ pub struct InitTraitItemArgs {
 pub struct UpdateTraitItemArgs {
     pub max_supply: u64,
     pub mint_fee_lamports: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::utils::mock::{default_pubkeys, mock_pubkeys, mock_u16s};
+
+    use super::*;
+
+    #[test]
+    fn test_load_mut_valid() {
+        let mut data = vec![0u8; TraitItem::LEN];
+        assert!(TraitItem::load_mut(&mut data).is_ok());
+    }
+
+    #[test]
+    fn test_load_mut_invalid() {
+        let mut data = vec![0u8; TraitItem::LEN - 1];
+        let err = TraitItem::load_mut(&mut data).unwrap_err();
+        assert_eq!(err, ProgramError::InvalidAccountData);
+    }
+
+    #[test]
+    fn test_free_mint_fee() {
+        let sut = TraitItem {
+            authority: Pubkey::new_unique(),
+            max_supply: 10,
+            user_minted: 5,
+            mint_fee_lamports: 0,
+        };
+
+        assert!(sut.is_free_mint_fee());
+    }
+
+    #[test]
+    fn test_pay_mint_fee() {
+        let sut = TraitItem {
+            authority: Pubkey::new_unique(),
+            max_supply: 10,
+            user_minted: 5,
+            mint_fee_lamports: 1_000_000,
+        };
+
+        assert!(!sut.is_free_mint_fee());
+    }
+
+    #[test]
+    fn test_stock_available() {
+        let sut = TraitItem {
+            authority: Pubkey::new_unique(),
+            max_supply: 10,
+            user_minted: 0,
+            mint_fee_lamports: 0,
+        };
+
+        assert!(sut.stock_available());
+    }
+
+    #[test]
+    fn test_stock_unavailable() {
+        let sut = TraitItem {
+            authority: Pubkey::new_unique(),
+            max_supply: 10,
+            user_minted: 10,
+            mint_fee_lamports: 0,
+        };
+
+        assert!(!sut.stock_available());
+    }
+
+    #[test]
+    fn test_increment_user_minted() {
+        let mut sut = TraitItem {
+            authority: Pubkey::new_unique(),
+            max_supply: 10,
+            user_minted: 0,
+            mint_fee_lamports: 1000,
+        };
+
+        assert!(sut.increment_user_minted().is_ok());
+        assert_eq!(sut.user_minted, 1);
+    }
+
+    #[test]
+    fn test_check_trait_royalties_valid() {
+        let mut recipients = default_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
+        recipients[0] = Pubkey::new_unique();
+        recipients[1] = Pubkey::new_unique();
+
+        let mut bps = mock_u16s::<MAX_ROYALTY_RECIPIENTS>(0);
+        bps[0] = 4000;
+        bps[1] = 6000;
+
+        assert!(TraitItem::check_trait_royalties(2, recipients, bps).is_ok());
+    }
+
+    #[test]
+    fn test_check_trait_royalties_too_many() {
+        let mut recipients = mock_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
+        recipients[0] = Pubkey::new_unique();
+
+        let mut bps = mock_u16s::<MAX_ROYALTY_RECIPIENTS>(0);
+        bps[0] = 100;
+
+        let err =
+            TraitItem::check_trait_royalties((MAX_ROYALTY_RECIPIENTS + 1) as u8, recipients, bps)
+                .unwrap_err();
+
+        assert_eq!(err, ProgramError::InvalidInstructionData);
+    }
+
+    #[test]
+    fn test_check_trait_royalties_sum_overflow() {
+        let mut recipients = mock_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
+        recipients[0] = Pubkey::new_unique();
+
+        let mut bps = mock_u16s::<MAX_ROYALTY_RECIPIENTS>(0);
+        bps[0] = MAX_BASIS_POINTS + 1;
+
+        let err = TraitItem::check_trait_royalties(1, recipients, bps).unwrap_err();
+
+        assert_eq!(err, ProgramError::InvalidInstructionData);
+    }
+
+    #[test]
+    fn test_update() {
+        let mut sut = TraitItem {
+            authority: Pubkey::new_unique(),
+            max_supply: 10,
+            user_minted: 0,
+            mint_fee_lamports: 1000,
+        };
+
+        let args = UpdateTraitItemArgs {
+            max_supply: 99,
+            mint_fee_lamports: 5000,
+        };
+
+        sut.update(args);
+
+        assert_eq!(sut.max_supply, 99);
+        assert_eq!(sut.mint_fee_lamports, 5000);
+    }
 }
