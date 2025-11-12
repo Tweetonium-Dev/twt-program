@@ -1,5 +1,5 @@
 use core::mem::transmute;
-use solana_program::{msg, program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{
     states::Config,
@@ -37,29 +37,31 @@ impl UserMinted {
 impl UserMinted {
     #[inline(always)]
     pub fn init<'a, 'info>(
-        bytes: &mut [u8],
+        accounts: InitUserMintedAccounts<'a, 'info>,
+        args: InitUserMintedArgs<'a>,
         pda_accounts: InitPdaAccounts<'a, 'info>,
         pda_args: InitPdaArgs<'a>,
-        owner: &Pubkey,
     ) -> Result<(), ProgramError> {
         Pda::new(pda_accounts, pda_args)?.init()?;
 
-        let minted_user = Self::load_mut(bytes)?;
-        minted_user.owner = *owner;
-        minted_user.minted_count = 1;
+        let mut bytes = accounts.pda.try_borrow_mut_data()?;
+
+        let minted_user = Self::load_mut(&mut bytes)?;
+        minted_user.owner = *args.owner;
+        minted_user.minted_count = 0;
 
         Ok(())
     }
 
     #[inline(always)]
     pub fn init_if_needed<'a, 'info>(
-        bytes: &mut [u8],
+        accounts: InitUserMintedAccounts<'a, 'info>,
+        args: InitUserMintedArgs<'a>,
         pda_accounts: InitPdaAccounts<'a, 'info>,
         pda_args: InitPdaArgs<'a>,
-        owner: &Pubkey,
     ) -> Result<(), ProgramError> {
         if UninitializedAccount::check(pda_accounts.pda).is_ok() {
-            Self::init(bytes, pda_accounts, pda_args, owner)?;
+            Self::init(accounts, args, pda_accounts, pda_args)?;
         }
 
         Ok(())
@@ -95,4 +97,12 @@ impl UserMinted {
     pub fn increment(&mut self) {
         self.minted_count = self.minted_count.saturating_add(1);
     }
+}
+
+pub struct InitUserMintedAccounts<'a, 'info> {
+    pub pda: &'a AccountInfo<'info>,
+}
+
+pub struct InitUserMintedArgs<'a> {
+    pub owner: &'a Pubkey,
 }

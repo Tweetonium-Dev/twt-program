@@ -1,6 +1,9 @@
 use core::mem::transmute;
 use shank::ShankAccount;
-use solana_program::{entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
+    pubkey::Pubkey,
+};
 
 use crate::{
     states::{MAX_BASIS_POINTS, MAX_ROYALTY_RECIPIENTS},
@@ -56,14 +59,16 @@ impl TraitItem {
 impl TraitItem {
     #[inline(always)]
     pub fn init<'a, 'info>(
-        bytes: &mut [u8],
+        accounts: InitTraitItemAccounts<'a, 'info>,
+        args: InitTraitItemArgs,
         pda_accounts: InitPdaAccounts<'a, 'info>,
         pda_args: InitPdaArgs<'a>,
-        args: InitTraitItemArgs,
     ) -> ProgramResult {
         Pda::new(pda_accounts, pda_args)?.init()?;
 
-        let config = Self::load_mut(bytes)?;
+        let mut bytes = accounts.pda.try_borrow_mut_data()?;
+
+        let config = Self::load_mut(&mut bytes)?;
         config.authority = args.authority;
         config.max_supply = args.max_supply;
         config.user_minted = args.user_minted;
@@ -74,13 +79,13 @@ impl TraitItem {
 
     #[inline(always)]
     pub fn init_if_needed<'a, 'info>(
-        bytes: &mut [u8],
+        accounts: InitTraitItemAccounts<'a, 'info>,
+        args: InitTraitItemArgs,
         pda_accounts: InitPdaAccounts<'a, 'info>,
         pda_args: InitPdaArgs<'a>,
-        args: InitTraitItemArgs,
     ) -> ProgramResult {
         if UninitializedAccount::check(pda_accounts.pda).is_ok() {
-            Self::init(bytes, pda_accounts, pda_args, args)?;
+            Self::init(accounts, args, pda_accounts, pda_args)?;
         }
 
         Ok(())
@@ -103,7 +108,7 @@ impl TraitItem {
 
     #[inline(always)]
     pub fn stock_available(&self) -> bool {
-        self.user_minted < self.max_supply
+        self.user_minted <= self.max_supply
     }
 
     #[inline(always)]
@@ -119,6 +124,7 @@ impl TraitItem {
     #[inline(always)]
     pub fn check_trait_royalties(
         num_royalty_recipients: u8,
+        royalty_recipients: [Pubkey; MAX_ROYALTY_RECIPIENTS],
         royalty_shares_bps: [u16; MAX_ROYALTY_RECIPIENTS],
     ) -> ProgramResult {
         let recipients = num_royalty_recipients as usize;
@@ -129,6 +135,23 @@ impl TraitItem {
 
         if recipients > MAX_ROYALTY_RECIPIENTS {
             msg!("Too many royalty wallets, max: {}", MAX_ROYALTY_RECIPIENTS);
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let input_recipients_count = royalty_recipients
+            .iter()
+            .filter(|pk| **pk != Pubkey::default())
+            .count();
+
+        let input_shares_count = royalty_shares_bps.iter().filter(|s| **s != 0).count();
+
+        if recipients != input_recipients_count || recipients != input_shares_count {
+            msg!(
+                "Royalty mismatch: declared {} recipients, but found {} valid wallets and {} non-zero share entries",
+                recipients,
+                input_recipients_count,
+                input_shares_count,
+            );
             return Err(ProgramError::InvalidInstructionData);
         }
 
@@ -153,6 +176,10 @@ impl TraitItem {
         self.max_supply = args.max_supply;
         self.mint_fee_lamports = args.mint_fee_lamports;
     }
+}
+
+pub struct InitTraitItemAccounts<'a, 'info> {
+    pub pda: &'a AccountInfo<'info>,
 }
 
 pub struct InitTraitItemArgs {

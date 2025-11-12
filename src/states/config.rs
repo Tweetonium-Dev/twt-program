@@ -1,6 +1,9 @@
 use core::mem::transmute;
 use shank::ShankAccount;
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
+    pubkey::Pubkey,
+};
 
 use crate::{
     states::{VestingMode, MAX_BASIS_POINTS, MAX_REVENUE_WALLETS, MAX_ROYALTY_RECIPIENTS},
@@ -223,12 +226,12 @@ impl Config {
 
     #[inline(always)]
     pub fn nft_stock_available(&self) -> bool {
-        self.total_minted() < self.max_supply
+        self.total_minted() <= self.max_supply
     }
 
     #[inline(always)]
     pub fn admin_mint_available(&self) -> bool {
-        self.admin_minted < self.admin_supply()
+        self.admin_minted <= self.admin_supply()
     }
 
     #[inline(always)]
@@ -310,17 +313,14 @@ impl Config {
             .filter(|pk| **pk != Pubkey::default())
             .count();
 
-        let input_shares_count = revenue_shares
-            .iter()
-            .filter(|s| **s != 0)
-            .count();
+        let input_shares_count = revenue_shares.iter().filter(|s| **s != 0).count();
 
         if num_wallets != input_wallets_count || num_wallets != input_shares_count {
             msg!(
                 "Revenue wallet mismatch: declared {} but found {} valid wallets and {} non-zero shares",
                 num_wallets,
                 input_wallets_count,
-                input_shares_count, 
+                input_shares_count,
             );
             return Err(ProgramError::InvalidInstructionData);
         }
@@ -365,15 +365,12 @@ impl Config {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        let input_recipients_count = royalty_recipients 
+        let input_recipients_count = royalty_recipients
             .iter()
             .filter(|pk| **pk != Pubkey::default())
             .count();
 
-        let input_shares_count = royalty_shares_bps
-            .iter()
-            .filter(|s| **s != 0)
-            .count();
+        let input_shares_count = royalty_shares_bps.iter().filter(|s| **s != 0).count();
 
         if recipients != input_recipients_count || recipients != input_shares_count {
             msg!(

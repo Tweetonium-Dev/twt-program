@@ -1,5 +1,8 @@
 use core::mem::transmute;
-use solana_program::{entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
+    pubkey::Pubkey,
+};
 
 use crate::utils::{AccountCheck, InitPdaAccounts, InitPdaArgs, Pda, UninitializedAccount};
 
@@ -50,14 +53,16 @@ impl Vault {
 impl Vault {
     #[inline(always)]
     pub fn init<'a, 'info>(
-        bytes: &mut [u8],
+        accounts: InitVaultAccounts,
+        args: InitVaultArgs,
         pda_accounts: InitPdaAccounts<'a, 'info>,
         pda_args: InitPdaArgs<'a>,
-        args: InitVaultArgs,
     ) -> ProgramResult {
         let bump = Pda::new(pda_accounts, pda_args)?.init()?;
 
-        let vault = Self::load_mut(bytes)?;
+        let mut bytes = accounts.pda.try_borrow_mut_data()?;
+
+        let vault = Self::load_mut(&mut bytes)?;
         vault.owner = args.owner;
         vault.nft = args.nft;
         vault.amount = args.amount;
@@ -69,13 +74,13 @@ impl Vault {
 
     #[inline(always)]
     pub fn init_if_needed<'a, 'info>(
-        bytes: &mut [u8],
+        accounts: InitVaultAccounts,
+        args: InitVaultArgs,
         pda_accounts: InitPdaAccounts<'a, 'info>,
         pda_args: InitPdaArgs<'a>,
-        args: InitVaultArgs,
     ) -> ProgramResult {
         if UninitializedAccount::check(pda_accounts.pda).is_ok() {
-            Self::init(bytes, pda_accounts, pda_args, args)?;
+            Self::init(accounts, args, pda_accounts, pda_args)?;
         }
 
         Ok(())
@@ -105,6 +110,10 @@ impl Vault {
     pub fn is_unlocked(&self) -> bool {
         self.is_unlocked == 1
     }
+}
+
+pub struct InitVaultAccounts<'a, 'info> {
+    pub pda: &'a AccountInfo<'info>,
 }
 
 pub struct InitVaultArgs {
