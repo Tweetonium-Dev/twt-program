@@ -41,7 +41,7 @@ pub struct UninitializedAccount;
 
 impl AccountCheck for UninitializedAccount {
     fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult {
-        if !account.lamports() == 0 || !account.data_is_empty() {
+        if account.lamports() != 0 || !account.data_is_empty() {
             msg!(
                 "UninitializedAccount: account {} is already initialized",
                 account.key

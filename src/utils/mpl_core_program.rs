@@ -68,8 +68,8 @@ impl MplCoreProgram {
         let mut cpi = CreateCollectionV2CpiBuilder::new(accounts.mpl_core);
 
         cpi.collection(accounts.collection)
-            .payer(accounts.authority)
-            .update_authority(Some(accounts.authority))
+            .payer(accounts.payer)
+            .update_authority(Some(accounts.update_authority))
             .system_program(accounts.system_program)
             .name(args.name)
             .uri(args.uri);
@@ -92,15 +92,16 @@ impl MplCoreProgram {
     pub fn update_collection<'a, 'info>(
         accounts: UpdateMplCoreCollectionAccounts<'a, 'info>,
         args: UpdateMplCoreCollectionArgs,
+        signers_seeds: &[&[&[u8]]],
     ) -> ProgramResult {
         UpdateCollectionV1CpiBuilder::new(accounts.mpl_core)
             .collection(accounts.collection)
-            .payer(accounts.authority)
-            .authority(Some(accounts.authority))
+            .payer(accounts.payer)
+            .authority(Some(accounts.update_authority))
             .system_program(accounts.system_program)
             .new_name(args.name)
             .new_uri(args.uri)
-            .invoke()?;
+            .invoke_signed(signers_seeds)?;
 
         if let Some(royalties) = Self::get_royalties(
             args.num_royalty_recipients,
@@ -109,11 +110,11 @@ impl MplCoreProgram {
         ) {
             UpdateCollectionPluginV1CpiBuilder::new(accounts.mpl_core)
                 .collection(accounts.collection)
-                .payer(accounts.authority)
-                .authority(Some(accounts.authority))
+                .payer(accounts.payer)
+                .authority(Some(accounts.update_authority))
                 .system_program(accounts.system_program)
                 .plugin(Plugin::Royalties(royalties))
-                .invoke()?;
+                .invoke_signed(signers_seeds)?
         }
 
         Ok(())
@@ -122,18 +123,18 @@ impl MplCoreProgram {
     pub fn create<'a, 'info>(
         accounts: CreateMplCoreAssetAccounts<'a, 'info>,
         args: CreateMplCoreAssetArgs,
+        signer_seeds: &[&[&[u8]]],
     ) -> ProgramResult {
         CreateV2CpiBuilder::new(accounts.mpl_core)
             .asset(accounts.asset)
             .collection(Some(accounts.collection))
-            .payer(accounts.authority)
-            .authority(Some(accounts.authority))
-            .owner(Some(accounts.authority))
-            .update_authority(accounts.update_authority)
+            .payer(accounts.payer)
+            .authority(accounts.update_authority)
+            .owner(Some(accounts.payer))
             .system_program(accounts.system_program)
             .name(args.name)
             .uri(args.uri)
-            .invoke()
+            .invoke_signed(signer_seeds)
     }
 
     pub fn update<'a, 'info>(
@@ -152,14 +153,17 @@ impl MplCoreProgram {
             .invoke_signed(signers_seeds)
     }
 
-    pub fn burn<'a, 'info>(accounts: BurnMplCoreAssetAccounts<'a, 'info>) -> ProgramResult {
+    pub fn burn<'a, 'info>(
+        accounts: BurnMplCoreAssetAccounts<'a, 'info>,
+        signers_seeds: &[&[&[u8]]],
+    ) -> ProgramResult {
         BurnV1CpiBuilder::new(accounts.mpl_core)
             .collection(Some(accounts.collection))
             .asset(accounts.asset)
             .payer(accounts.payer)
-            .authority(Some(accounts.payer))
+            .authority(Some(accounts.update_authority))
             .system_program(Some(accounts.system_program))
-            .invoke()
+            .invoke_signed(signers_seeds)
     }
 }
 
@@ -175,8 +179,9 @@ impl AccountCheck for MplCoreProgram {
 }
 
 pub struct InitMplCoreCollectionAccounts<'a, 'info> {
+    pub payer: &'a AccountInfo<'info>,
     pub collection: &'a AccountInfo<'info>,
-    pub authority: &'a AccountInfo<'info>,
+    pub update_authority: &'a AccountInfo<'info>,
     pub mpl_core: &'a AccountInfo<'info>,
     pub system_program: &'a AccountInfo<'info>,
 }
@@ -190,8 +195,9 @@ pub struct InitMplCoreCollectionArgs {
 }
 
 pub struct UpdateMplCoreCollectionAccounts<'a, 'info> {
+    pub payer: &'a AccountInfo<'info>,
     pub collection: &'a AccountInfo<'info>,
-    pub authority: &'a AccountInfo<'info>,
+    pub update_authority: &'a AccountInfo<'info>,
     pub mpl_core: &'a AccountInfo<'info>,
     pub system_program: &'a AccountInfo<'info>,
 }
@@ -205,9 +211,9 @@ pub struct UpdateMplCoreCollectionArgs {
 }
 
 pub struct CreateMplCoreAssetAccounts<'a, 'info> {
+    pub payer: &'a AccountInfo<'info>,
     pub asset: &'a AccountInfo<'info>,
     pub collection: &'a AccountInfo<'info>,
-    pub authority: &'a AccountInfo<'info>,
     pub update_authority: Option<&'a AccountInfo<'info>>,
     pub mpl_core: &'a AccountInfo<'info>,
     pub system_program: &'a AccountInfo<'info>,
@@ -236,6 +242,7 @@ pub struct BurnMplCoreAssetAccounts<'a, 'info> {
     pub asset: &'a AccountInfo<'info>,
     pub collection: &'a AccountInfo<'info>,
     pub payer: &'a AccountInfo<'info>,
+    pub update_authority: &'a AccountInfo<'info>,
     pub mpl_core: &'a AccountInfo<'info>,
     pub system_program: &'a AccountInfo<'info>,
 }

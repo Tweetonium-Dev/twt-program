@@ -76,7 +76,7 @@ impl TokenProgram {
         let balance_bytes: [u8; 8] = data[balance_offset..balance_offset + 8]
             .try_into()
             .inspect_err(|_| msg!("Balance bytes not found"))
-            .map_err(|_| ProgramError::Custom(6))?;
+            .map_err(|_| ProgramError::Custom(4))?;
 
         Ok(u64::from_le_bytes(balance_bytes))
     }

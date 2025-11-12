@@ -23,10 +23,9 @@ pub struct AssociatedTokenProgram;
 impl AssociatedTokenProgram {
     pub fn init<'a, 'info>(
         accounts: InitAssociatedTokenProgramAccounts<'a, 'info>,
-        args: InitAssociatedTokenProgramArgs<'a>,
     ) -> ProgramResult {
         let seeds = &[
-            args.wallet.as_ref(),
+            accounts.wallet.key.as_ref(),
             accounts.token_program.key.as_ref(),
             accounts.mint.key.as_ref(),
         ];
@@ -38,46 +37,41 @@ impl AssociatedTokenProgram {
                 accounts.token_program.key,
                 accounts.ata.key,
                 accounts.mint.key,
-                args.wallet,
+                accounts.wallet.key,
             )?,
-            TokenProgram::Token2022 => {
-                Instruction {
-                    program_id: ASSOCIATED_TOKEN_PROGRAM_ID,
-                    accounts: vec![
-                        AccountMeta::new(*accounts.payer.key, accounts.payer.is_signer),
-                        AccountMeta::new(*accounts.ata.key, false),
-                        AccountMeta::new_readonly(*args.wallet, false),
-                        AccountMeta::new_readonly(*accounts.mint.key, false),
-                        AccountMeta::new_readonly(*accounts.system_program.key, false),
-                        AccountMeta::new_readonly(*accounts.token_program.key, false),
-                        // AccountMeta::new_readonly(sysvar::rent::id(), false),
-                    ],
-                    data: vec![0],
-                }
-            }
+            TokenProgram::Token2022 => Instruction {
+                program_id: ASSOCIATED_TOKEN_PROGRAM_ID,
+                accounts: vec![
+                    AccountMeta::new(*accounts.payer.key, accounts.payer.is_signer),
+                    AccountMeta::new(*accounts.ata.key, false),
+                    AccountMeta::new_readonly(*accounts.wallet.key, false),
+                    AccountMeta::new_readonly(*accounts.mint.key, false),
+                    AccountMeta::new_readonly(*accounts.system_program.key, false),
+                    AccountMeta::new_readonly(*accounts.token_program.key, false),
+                ],
+                data: vec![0],
+            },
         };
 
         invoke(
             &ix,
             &[
                 accounts.payer.clone(),
+                accounts.wallet.clone(),
                 accounts.ata.clone(),
                 accounts.mint.clone(),
                 accounts.system_program.clone(),
                 accounts.token_program.clone(),
                 accounts.associated_token_program.clone(),
             ],
-        )?;
-
-        Ok(())
+        )
     }
 
     pub fn init_if_needed<'a, 'info>(
         accounts: InitAssociatedTokenProgramAccounts<'a, 'info>,
-        args: InitAssociatedTokenProgramArgs<'a>,
     ) -> ProgramResult {
         if UninitializedAccount::check(accounts.ata).is_ok() {
-            Self::init(accounts, args)?;
+            Self::init(accounts)?;
         }
 
         Ok(())
@@ -87,24 +81,29 @@ impl AssociatedTokenProgram {
         ata: &AccountInfo<'info>,
         wallet: &Pubkey,
         mint: &Pubkey,
-        token_program: &Pubkey,
+        token_program_id: &Pubkey,
     ) -> ProgramResult {
         let (expected_ata, _) = Pubkey::find_program_address(
-            &[wallet.as_ref(), token_program.as_ref(), mint.as_ref()],
+            &[wallet.as_ref(), token_program_id.as_ref(), mint.as_ref()],
             &ASSOCIATED_TOKEN_PROGRAM_ID,
         );
 
         if ata.key != &expected_ata {
-            msg!("Invalid ATA seeds {}", ata.key);
+            msg!(
+                "Invalid ATA seeds. Actual {}, Expected {}, Wallet {}",
+                ata.key,
+                &expected_ata,
+                wallet
+            );
             return Err(ProgramError::InvalidSeeds);
         }
 
-        if ata.owner != token_program {
+        if ata.owner != token_program_id {
             msg!("Invalid ATA account {}", ata.key);
             return Err(ProgramError::InvalidAccountOwner);
         }
 
-        let expected_len = if token_program == &TOKEN_2022_PROGRAM_ID {
+        let expected_len = if token_program_id == &TOKEN_2022_PROGRAM_ID {
             TOKEN_ACCOUNT_2022_MIN_LEN..=usize::MAX
         } else {
             TOKEN_ACCOUNT_LEN..=TOKEN_ACCOUNT_LEN
@@ -121,13 +120,10 @@ impl AssociatedTokenProgram {
 
 pub struct InitAssociatedTokenProgramAccounts<'a, 'info> {
     pub payer: &'a AccountInfo<'info>,
+    pub wallet: &'a AccountInfo<'info>,
     pub mint: &'a AccountInfo<'info>,
     pub token_program: &'a AccountInfo<'info>,
     pub associated_token_program: &'a AccountInfo<'info>,
     pub system_program: &'a AccountInfo<'info>,
     pub ata: &'a AccountInfo<'info>,
-}
-
-pub struct InitAssociatedTokenProgramArgs<'a> {
-    pub wallet: &'a Pubkey,
 }

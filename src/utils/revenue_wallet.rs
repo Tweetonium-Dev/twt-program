@@ -1,9 +1,8 @@
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult};
 
 use crate::utils::{
     AssociatedTokenAccount, AssociatedTokenAccountCheck, AssociatedTokenProgram,
-    InitAssociatedTokenProgramAccounts, InitAssociatedTokenProgramArgs, TokenProgram,
-    TokenTransferAccounts, TokenTransferArgs,
+    InitAssociatedTokenProgramAccounts, TokenProgram, TokenTransferAccounts, TokenTransferArgs,
 };
 
 pub struct RevenueWallet;
@@ -13,23 +12,19 @@ impl RevenueWallet {
         accounts: RevenueWalletAccounts<'a, 'info>,
         args: RevenueWalletArgs,
     ) -> ProgramResult {
-        AssociatedTokenProgram::init_if_needed(
-            InitAssociatedTokenProgramAccounts {
-                payer: accounts.payer,
-                mint: accounts.mint,
-                token_program: accounts.token_program,
-                associated_token_program: accounts.associated_token_program,
-                system_program: accounts.system_program,
-                ata: accounts.payer_ata,
-            },
-            InitAssociatedTokenProgramArgs {
-                wallet: accounts.wallet,
-            },
-        )?;
+        AssociatedTokenProgram::init_if_needed(InitAssociatedTokenProgramAccounts {
+            payer: accounts.payer,
+            wallet: accounts.wallet,
+            mint: accounts.mint,
+            token_program: accounts.token_program,
+            associated_token_program: accounts.associated_token_program,
+            system_program: accounts.system_program,
+            ata: accounts.destination_ata,
+        })?;
 
         AssociatedTokenAccount::check(
-            accounts.payer_ata,
-            accounts.wallet,
+            accounts.destination_ata,
+            accounts.wallet.key,
             accounts.mint.key,
             accounts.token_program.key,
         )?;
@@ -54,8 +49,8 @@ impl RevenueWallet {
 pub struct RevenueWalletAccounts<'a, 'info> {
     pub payer_ata: &'a AccountInfo<'info>,
     pub destination_ata: &'a AccountInfo<'info>,
-    pub wallet: &'a Pubkey,
     pub payer: &'a AccountInfo<'info>,
+    pub wallet: &'a AccountInfo<'info>,
     pub mint: &'a AccountInfo<'info>,
     pub token_program: &'a AccountInfo<'info>,
     pub associated_token_program: &'a AccountInfo<'info>,
