@@ -36,29 +36,34 @@ pub enum TweetoniumInstruction {
     )]
     #[account(
         1,
+        name = "nft_authority",
+        desc = "PDA that have authority control of nft mint, updates, and burn."
+    )]
+    #[account(
+        2,
         signer,
         writable,
         name = "nft_collection",
         desc = "MPL Core Collection account that groups NFTs under this project."
     )]
     #[account(
-        2,
+        3,
         writable,
         name = "config_pda",
         desc = "Uninitialize config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
     )]
     #[account(
-        3,
+        4,
         name = "token_mint",
         desc = "Must be valid mint (82 or 90+ bytes), owned by SPL Token or Token-2022."
     )]
     #[account(
-        4,
+        5,
         name = "system_program",
         desc = "System Program — required for PDA creation and rent."
     )]
     #[account(
-        5,
+        6,
         name = "mpl_core",
         desc = "Metaplex Core program — must be the official MPL Core program."
     )]
@@ -68,32 +73,37 @@ pub enum TweetoniumInstruction {
         0,
         signer,
         name = "admin",
-        desc = "The config authority — must sign and match `config.admin`."
+        desc = "Authority that will control config updates (e.g. admin wallet)."
     )]
     #[account(
         1,
-        writable,
-        name = "nft_collection",
-        desc = "MPL Core Collection account that groups NFTs under this project. Must be initialized before config creation."
+        name = "nft_authority",
+        desc = "PDA that have authority control of nft mint, updates, and burn."
     )]
     #[account(
         2,
+        writable,
+        name = "nft_collection",
+        desc = "MPL Core Collection account that groups NFTs under this project."
+    )]
+    #[account(
+        3,
         writable,
         name = "config_pda",
         desc = "Uninitialize config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
     )]
     #[account(
-        3,
+        4,
         name = "token_mint",
         desc = "Must be valid mint (82 or 90+ bytes), owned by SPL Token or Token-2022."
     )]
     #[account(
-        4,
+        5,
         name = "system_program",
         desc = "System Program — required for PDA creation and rent."
     )]
     #[account(
-        5,
+        6,
         name = "mpl_core",
         desc = "Metaplex Core program — must be the official MPL Core program."
     )]
@@ -139,6 +149,7 @@ pub enum TweetoniumInstruction {
     #[account(
         7,
         signer,
+        writable,
         name = "nft_asset",
         desc = "Uninitialize NFT asset (MPL Core) — the NFT being minted."
     )]
@@ -208,7 +219,7 @@ pub enum TweetoniumInstruction {
     #[account(
         5,
         writable,
-        name = "user_mint_pda",
+        name = "user_minted_pda",
         desc = "Uninitialize user mint pda with seeds [program_id, payer, token_mint, nft_collection, \"user_mint\"]"
     )]
     #[account(6, name = "nft_authority", desc = "Controls: update all NFTs.")]
@@ -221,6 +232,7 @@ pub enum TweetoniumInstruction {
     #[account(
         8,
         signer,
+        writable,
         name = "nft_asset",
         desc = "Uninitialize NFT asset (MPL Core) — the NFT being minted."
     )]
@@ -232,56 +244,86 @@ pub enum TweetoniumInstruction {
     #[account(
         10,
         writable,
+        name = "revenue_wallet_0",
+        desc = "Revenue wallet #0 — corresponds to config.revenue_wallet(0)."
+    )]
+    #[account(
+        11,
+        writable,
         name = "revenue_wallet_ata_0",
         desc = "ATA for revenue wallet #0 — receives share from mint price."
     )]
     #[account(
-        11,
+        12,
+        writable,
+        name = "revenue_wallet_1",
+        desc = "Revenue wallet #1 — corresponds to config.revenue_wallet(1)."
+    )]
+    #[account(
+        13,
         writable,
         name = "revenue_wallet_ata_1",
         desc = "ATA for revenue wallet #1 — receives share from mint price."
     )]
     #[account(
-        12,
+        14,
+        writable,
+        name = "revenue_wallet_2",
+        desc = "Revenue wallet #2 — corresponds to config.revenue_wallet(2)."
+    )]
+    #[account(
+        15,
         writable,
         name = "revenue_wallet_ata_2",
         desc = "ATA for revenue wallet #2 — receives share from mint price."
     )]
     #[account(
-        13,
+        16,
+        writable,
+        name = "revenue_wallet_3",
+        desc = "Revenue wallet #3 — corresponds to config.revenue_wallet(3)."
+    )]
+    #[account(
+        17,
         writable,
         name = "revenue_wallet_ata_3",
         desc = "ATA for revenue wallet #3 — receives share from mint price."
     )]
     #[account(
-        14,
+        18,
+        writable,
+        name = "revenue_wallet_4",
+        desc = "Revenue wallet #4 — corresponds to config.revenue_wallet(4)."
+    )]
+    #[account(
+        19,
         writable,
         name = "revenue_wallet_ata_4",
         desc = "ATA for revenue wallet #4 — receives share from mint price."
     )]
     #[account(
-        15,
+        20,
         writable,
         name = "protocol_wallet",
         desc = "Protocol wallet — receives the configurable SOL protocol fee."
     )]
     #[account(
-        16,
+        21,
         name = "token_program",
         desc = "SPL Token Program (legacy) or Token-2022 Program."
     )]
     #[account(
-        17,
+        22,
         name = "associated_token_program",
         desc = "Associated Token Program"
     )]
     #[account(
-        18,
+        23,
         name = "system_program",
         desc = "System Program — required for PDA creation and rent."
     )]
     #[account(
-        19,
+        24,
         name = "mpl_core",
         desc = "Metaplex Core program — must be the official MPL Core program."
     )]
@@ -320,7 +362,7 @@ pub enum TweetoniumInstruction {
     #[account(
         5,
         writable,
-        name = "user_mint_pda",
+        name = "user_minted_pda",
         desc = "Uninitialize user mint pda with seeds [program_id, payer, token_mint, nft_collection, \"user_mint\"]"
     )]
     #[account(6, name = "nft_authority", desc = "Controls: update all NFTs.")]
@@ -333,6 +375,7 @@ pub enum TweetoniumInstruction {
     #[account(
         8,
         signer,
+        writable,
         name = "nft_asset",
         desc = "Uninitialize NFT asset (MPL Core) — the NFT being minted."
     )]
@@ -344,56 +387,86 @@ pub enum TweetoniumInstruction {
     #[account(
         10,
         writable,
+        name = "revenue_wallet_0",
+        desc = "Revenue wallet #0 — corresponds to config.revenue_wallet(0)."
+    )]
+    #[account(
+        11,
+        writable,
         name = "revenue_wallet_ata_0",
         desc = "ATA for revenue wallet #0 — receives share from mint price."
     )]
     #[account(
-        11,
+        12,
+        writable,
+        name = "revenue_wallet_1",
+        desc = "Revenue wallet #1 — corresponds to config.revenue_wallet(1)."
+    )]
+    #[account(
+        13,
         writable,
         name = "revenue_wallet_ata_1",
         desc = "ATA for revenue wallet #1 — receives share from mint price."
     )]
     #[account(
-        12,
+        14,
+        writable,
+        name = "revenue_wallet_2",
+        desc = "Revenue wallet #2 — corresponds to config.revenue_wallet(2)."
+    )]
+    #[account(
+        15,
         writable,
         name = "revenue_wallet_ata_2",
         desc = "ATA for revenue wallet #2 — receives share from mint price."
     )]
     #[account(
-        13,
+        16,
+        writable,
+        name = "revenue_wallet_3",
+        desc = "Revenue wallet #3 — corresponds to config.revenue_wallet(3)."
+    )]
+    #[account(
+        17,
         writable,
         name = "revenue_wallet_ata_3",
         desc = "ATA for revenue wallet #3 — receives share from mint price."
     )]
     #[account(
-        14,
+        18,
+        writable,
+        name = "revenue_wallet_4",
+        desc = "Revenue wallet #4 — corresponds to config.revenue_wallet(4)."
+    )]
+    #[account(
+        19,
         writable,
         name = "revenue_wallet_ata_4",
         desc = "ATA for revenue wallet #4 — receives share from mint price."
     )]
     #[account(
-        15,
+        20,
         writable,
         name = "protocol_wallet",
         desc = "Protocol wallet — receives the configurable SOL protocol fee."
     )]
     #[account(
-        16,
+        21,
         name = "token_program",
         desc = "SPL Token Program (legacy) or Token-2022 Program."
     )]
     #[account(
-        17,
+        22,
         name = "associated_token_program",
         desc = "Associated Token Program"
     )]
     #[account(
-        18,
+        23,
         name = "system_program",
         desc = "System Program — required for PDA creation and rent."
     )]
     #[account(
-        19,
+        24,
         name = "mpl_core",
         desc = "Metaplex Core program — must be the official MPL Core program."
     )]
@@ -413,17 +486,23 @@ pub enum TweetoniumInstruction {
     )]
     #[account(
         2,
+        name = "trait_authority",
+        desc = "PDA that have authority control of trait nft mint, updates, and burn."
+    )]
+    #[account(
+        3,
         signer,
+        writable,
         name = "trait_collection",
         desc = "MPL Core Collection account that groups trait NFTs."
     )]
     #[account(
-        3,
+        4,
         name = "system_program",
         desc = "System Program — required for PDA creation and rent."
     )]
     #[account(
-        4,
+        5,
         name = "mpl_core",
         desc = "Metaplex Core program — must be the official MPL Core program."
     )]
@@ -443,17 +522,22 @@ pub enum TweetoniumInstruction {
     )]
     #[account(
         2,
+        name = "trait_authority",
+        desc = "PDA that have authority control of trait nft mint, updates, and burn."
+    )]
+    #[account(
+        3,
         writable,
         name = "trait_collection",
         desc = "MPL Core Collection account that groups trait NFTs."
     )]
     #[account(
-        3,
+        4,
         name = "system_program",
         desc = "System Program — required for PDA creation and rent."
     )]
     #[account(
-        4,
+        5,
         name = "mpl_core",
         desc = "Metaplex Core program — must be the official MPL Core program."
     )]
@@ -473,29 +557,35 @@ pub enum TweetoniumInstruction {
     )]
     #[account(
         2,
+        name = "trait_authority",
+        desc = "PDA that have authority control of trait nft mint, updates, and burn."
+    )]
+    #[account(
+        3,
         writable,
         name = "trait_collection",
         desc = "MPL Core Collection account that groups trait NFTs."
     )]
     #[account(
-        3,
+        4,
         signer,
+        writable,
         name = "trait_asset",
         desc = "Uninitialize NFT asset (MPL Core) — the NFT being minted."
     )]
     #[account(
-        4,
+        5,
         writable,
         name = "protocol_wallet",
         desc = "Protocol wallet — receives the configurable SOL protocol fee."
     )]
     #[account(
-        5,
+        6,
         name = "system_program",
         desc = "System Program — required for PDA creation and rent."
     )]
     #[account(
-        6,
+        7,
         name = "mpl_core",
         desc = "Metaplex Core program — must be the official MPL Core program."
     )]
@@ -520,7 +610,6 @@ pub enum TweetoniumInstruction {
     )]
     #[account(
         3,
-        signer,
         name = "nft_authority",
         desc = "Authority to controls update for all NFTs."
     )]
@@ -531,7 +620,7 @@ pub enum TweetoniumInstruction {
     )]
     #[account(
         5,
-        signer,
+        writable,
         name = "nft_asset",
         desc = "Uninitialize NFT asset (MPL Core) — the NFT being minted."
     )]
@@ -559,58 +648,59 @@ pub enum TweetoniumInstruction {
         name = "payer",
         desc = "User paying the mint price in 'token_mint' and solana."
     )]
+    #[account(1, name = "nft_authority", desc = "Controls: update all NFTs.")]
     #[account(
-        1,
+        2,
         writable,
         name = "nft_collection",
         desc = "MPL Core Collection account that groups NFTs under this project."
     )]
     #[account(
-        2,
+        3,
         writable,
         name = "nft_asset",
         desc = "Uninitialize NFT asset (MPL Core) — the NFT being minted."
     )]
     #[account(
-        3,
+        4,
         writable,
         name = "vault_pda",
         desc = "Uninitialize vault pda with seeds [program_id, payer, token_mint, nft_collection, \"vault\"]"
     )]
     #[account(
-        4,
+        5,
         writable,
         name = "vault_ata",
         desc = "Associated Token Account (ATA) of the vault PDA."
     )]
     #[account(
-        5,
+        6,
         writable,
         name = "payer_ata",
         desc = "Admin's ATA for 'token_mint' — source of payment."
     )]
     #[account(
-        6,
+        7,
         name = "config_pda",
         desc = "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
     )]
     #[account(
-        7,
+        8,
         name = "token_mint",
         desc = "Token mint — the token being escrowed (e.g. ZDLT)"
     )]
     #[account(
-        8,
+        9,
         name = "token_program",
         desc = "SPL Token Program (legacy) or Token-2022 Program."
     )]
     #[account(
-        9,
+        10,
         name = "system_program",
         desc = "System Program — required for PDA creation and rent."
     )]
     #[account(
-        10,
+        11,
         name = "mpl_core",
         desc = "Metaplex Core program — must be the official MPL Core program."
     )]
