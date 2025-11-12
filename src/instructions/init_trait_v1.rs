@@ -58,8 +58,6 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitTraitV1Accounts<'a, 'i
         WritableAccount::check(trait_collection)?;
 
         UninitializedAccount::check(trait_collection)?;
-        // FIXME: Uncomment this on mainnet
-        // UninitializedAccount::check(trait_pda)?;
 
         SystemProgram::check(system_program)?;
         MplCoreProgram::check(mpl_core)?;

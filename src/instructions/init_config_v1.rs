@@ -61,8 +61,6 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
         WritableAccount::check(config_pda)?;
 
         UninitializedAccount::check(nft_collection)?;
-        // FIXME: Uncomment this on mainnet
-        // UninitializedAccount::check(config_pda)?;
 
         MintAccount::check(token_mint)?;
         SystemProgram::check(system_program)?;
@@ -133,8 +131,7 @@ impl<'a, 'info> InitConfigV1<'a, 'info> {
         ];
         let decimals = TokenProgram::get_decimal(self.accounts.token_mint)?;
 
-        // FIXME: Make this Config::init_if_needed() at mainnet.
-        Config::init(
+        Config::init_if_needed(
             InitConfigAccounts {
                 pda: self.accounts.config_pda,
             },
