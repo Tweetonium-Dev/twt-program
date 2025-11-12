@@ -7,6 +7,9 @@ mod revenue_wallet;
 mod system_program;
 mod token_program;
 
+#[cfg(test)]
+pub mod mock;
+
 pub use account_check::*;
 pub use associated_token_program::*;
 pub use mpl_core_program::*;
