@@ -217,3 +217,213 @@ impl AssociatedTokenAccountCheck for AssociatedTokenAccount {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::utils::ASSOCIATED_TOKEN_PROGRAM_ID;
+
+    use super::*;
+
+    // --- Test Helpers ---
+
+    const PROGRAM_ID: Pubkey = crate::ID;
+
+    const WRONG_PROGRAM_ID: Pubkey = Pubkey::new_from_array([2u8; 32]);
+
+    fn mock_account_info(
+        is_signer: bool,
+        is_writable: bool,
+        owner: Pubkey,
+        data_len: usize,
+    ) -> AccountInfo<'static> {
+        crate::utils::mock::mock_account(
+            Pubkey::new_unique(),
+            is_signer,
+            is_writable,
+            1,
+            data_len,
+            owner,
+        )
+    }
+
+    fn mock_account_info_from_key(
+        key: Pubkey,
+        is_signer: bool,
+        is_writable: bool,
+        owner: Pubkey,
+        data_len: usize,
+    ) -> AccountInfo<'static> {
+        crate::utils::mock::mock_account(key, is_signer, is_writable, 1, data_len, owner)
+    }
+
+    fn mock_uninitialized_account_info() -> AccountInfo<'static> {
+        crate::utils::mock::mock_account(
+            Pubkey::new_unique(),
+            false,
+            true,
+            0,
+            0,
+            Pubkey::new_unique(),
+        )
+    }
+
+    // --- Test Cases ---
+
+    #[test]
+    fn test_signer_account() {
+        let acc = mock_account_info(true, false, Pubkey::new_unique(), 0);
+        assert!(SignerAccount::check(&acc).is_ok());
+
+        let acc = mock_account_info(false, false, Pubkey::new_unique(), 0);
+        assert_eq!(
+            SignerAccount::check(&acc).unwrap_err(),
+            ProgramError::MissingRequiredSignature
+        );
+    }
+
+    #[test]
+    fn test_uninitialized_account() {
+        let acc = mock_uninitialized_account_info();
+        assert!(UninitializedAccount::check(&acc).is_ok());
+
+        let acc = mock_account_info(false, false, Pubkey::new_unique(), 10);
+        assert_eq!(
+            UninitializedAccount::check(&acc).unwrap_err(),
+            ProgramError::AccountAlreadyInitialized
+        );
+    }
+
+    #[test]
+    fn test_writable_account() {
+        let acc = mock_account_info(false, true, Pubkey::new_unique(), 0);
+        assert!(WritableAccount::check(&acc).is_ok());
+
+        let acc = mock_account_info(false, false, Pubkey::new_unique(), 10);
+        assert_eq!(
+            WritableAccount::check(&acc).unwrap_err(),
+            ProgramError::InvalidAccountData
+        );
+    }
+
+    #[test]
+    fn test_mint_account_with_token_program() {
+        let acc = mock_account_info(false, false, TOKEN_PROGRAM_ID, MINT_LEN);
+        assert!(MintAccount::check(&acc).is_ok());
+
+        let acc = mock_account_info(false, false, TOKEN_PROGRAM_ID, MINT_LEN + 1);
+        assert_eq!(
+            MintAccount::check(&acc).unwrap_err(),
+            ProgramError::InvalidAccountData
+        );
+
+        let acc = mock_account_info(false, false, TOKEN_2022_PROGRAM_ID, MINT_2022_MIN_LEN);
+        assert!(MintAccount::check(&acc).is_ok());
+
+        let acc = mock_account_info(false, false, TOKEN_2022_PROGRAM_ID, MINT_2022_MIN_LEN + 1);
+        assert_eq!(
+            MintAccount::check(&acc).unwrap_err(),
+            ProgramError::InvalidAccountData
+        );
+
+        let acc = mock_account_info(false, false, Pubkey::new_unique(), MINT_LEN);
+        assert_eq!(
+            MintAccount::check(&acc).unwrap_err(),
+            ProgramError::InvalidAccountOwner
+        );
+    }
+
+    #[test]
+    fn test_token_account_check() {
+        let acc = mock_account_info(false, false, TOKEN_PROGRAM_ID, TOKEN_ACCOUNT_LEN);
+        assert!(TokenAccount::check(&acc).is_ok());
+
+        let acc = mock_account_info(false, false, TOKEN_PROGRAM_ID, TOKEN_ACCOUNT_LEN + 1);
+        assert_eq!(
+            TokenAccount::check(&acc).unwrap_err(),
+            ProgramError::InvalidAccountData
+        );
+
+        let acc = mock_account_info(
+            false,
+            false,
+            TOKEN_2022_PROGRAM_ID,
+            TOKEN_ACCOUNT_2022_MIN_LEN,
+        );
+        assert!(TokenAccount::check(&acc).is_ok());
+
+        let acc = mock_account_info(
+            false,
+            false,
+            TOKEN_PROGRAM_ID,
+            TOKEN_ACCOUNT_2022_MIN_LEN + 1,
+        );
+        assert_eq!(
+            TokenAccount::check(&acc).unwrap_err(),
+            ProgramError::InvalidAccountData
+        );
+
+        let acc = mock_account_info(false, false, Pubkey::new_unique(), TOKEN_ACCOUNT_LEN);
+        assert_eq!(
+            TokenAccount::check(&acc).unwrap_err(),
+            ProgramError::InvalidAccountOwner
+        );
+    }
+
+    #[test]
+    fn test_config_account() {
+        let acc = mock_account_info(false, false, PROGRAM_ID, Config::LEN);
+        assert!(ConfigAccount::check(&acc).is_ok());
+
+        let acc = mock_account_info(false, false, PROGRAM_ID, Config::LEN + 1);
+        assert_eq!(
+            ConfigAccount::check(&acc).unwrap_err(),
+            ProgramError::InvalidAccountData
+        );
+
+        let acc = mock_account_info(false, false, WRONG_PROGRAM_ID, Config::LEN);
+        assert_eq!(
+            ConfigAccount::check(&acc).unwrap_err(),
+            ProgramError::InvalidAccountOwner
+        );
+    }
+
+    #[test]
+    fn test_vault_account() {
+        let acc = mock_account_info(false, false, PROGRAM_ID, Vault::LEN);
+        assert!(VaultAccount::check(&acc).is_ok());
+
+        let acc = mock_account_info(false, false, PROGRAM_ID, Vault::LEN + 1);
+        assert_eq!(
+            VaultAccount::check(&acc).unwrap_err(),
+            ProgramError::InvalidAccountData
+        );
+
+        let acc = mock_account_info(false, false, WRONG_PROGRAM_ID, Vault::LEN);
+        assert_eq!(
+            VaultAccount::check(&acc).unwrap_err(),
+            ProgramError::InvalidAccountOwner
+        );
+    }
+
+    #[test]
+    fn test_associated_token_account() {
+        let wallet = Pubkey::new_unique();
+        let mint = Pubkey::new_unique();
+        let token_program_id = TOKEN_PROGRAM_ID;
+
+        let (expected_ata, _) = Pubkey::find_program_address(
+            &[wallet.as_ref(), token_program_id.as_ref(), mint.as_ref()],
+            &ASSOCIATED_TOKEN_PROGRAM_ID,
+        );
+
+        let acc = mock_account_info_from_key(
+            expected_ata,
+            false,
+            true,
+            token_program_id,
+            TOKEN_ACCOUNT_LEN,
+        );
+
+        assert!(AssociatedTokenAccount::check(&acc, &wallet, &mint, &token_program_id).is_ok());
+    }
+}
