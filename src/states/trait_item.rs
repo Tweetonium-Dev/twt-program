@@ -201,9 +201,8 @@ pub struct UpdateTraitItemArgs {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::mock::{default_pubkeys, mock_pubkeys, mock_u16s};
-
     use super::*;
+    use crate::utils::mock::{default_pubkeys, mock_pubkeys, mock_u16s};
 
     #[test]
     fn test_load_mut_valid() {

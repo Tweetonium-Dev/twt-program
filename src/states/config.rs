@@ -456,9 +456,8 @@ pub struct UpdateConfigArgs {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::mock::{default_pubkeys, mock_pubkeys, mock_u16s, mock_u64s};
-
     use super::*;
+    use crate::utils::mock::{default_pubkeys, mock_pubkeys, mock_u16s, mock_u64s};
 
     // --- Test Helpers ---
 
