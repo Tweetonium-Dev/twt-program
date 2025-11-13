@@ -3,6 +3,7 @@ use solana_program::{
     pubkey::Pubkey, rent::Rent, system_instruction, sysvar::Sysvar,
 };
 
+#[derive(Debug)]
 pub struct Pda<'a, 'info> {
     pub payer: &'a AccountInfo<'info>,
     pub pda: &'a AccountInfo<'info>,
@@ -89,4 +90,59 @@ pub struct InitPdaArgs<'a> {
     pub seeds: &'a [&'a [u8]],
     pub space: usize,
     pub program_id: &'a Pubkey,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::mock::mock_account;
+
+    #[test]
+    fn test_valid_new_pda() {
+        let payer = mock_account(Pubkey::new_unique(), false, false, 1, 0, Pubkey::default());
+        let system_program = mock_account(Pubkey::default(), false, false, 1, 0, Pubkey::default());
+
+        let seeds = &[b"test", payer.key.as_ref(), system_program.key.as_ref()];
+        let (expected_ata, _) = Pubkey::find_program_address(seeds, &crate::ID);
+        let pda = mock_account(expected_ata, false, true, 1, 0, crate::ID);
+
+        let accounts = InitPdaAccounts {
+            payer: &payer,
+            pda: &pda,
+            system_program: &system_program,
+        };
+        let args = InitPdaArgs {
+            seeds,
+            space: 0,
+            program_id: &crate::ID,
+        };
+
+        assert!(Pda::new(accounts, args).is_ok());
+    }
+
+    #[test]
+    fn test_invalid_new_pda() {
+        let payer = mock_account(Pubkey::new_unique(), false, false, 1, 0, Pubkey::default());
+        let system_program = mock_account(Pubkey::default(), false, false, 1, 0, Pubkey::default());
+
+        let seeds = &[b"test", payer.key.as_ref(), system_program.key.as_ref()];
+        let (expected_ata, _) = Pubkey::find_program_address(seeds, &crate::ID);
+        let pda = mock_account(expected_ata, false, true, 1, 0, crate::ID);
+
+        let accounts = InitPdaAccounts {
+            payer: &payer,
+            pda: &pda,
+            system_program: &system_program,
+        };
+        let args = InitPdaArgs {
+            seeds: &[],
+            space: 0,
+            program_id: &crate::ID,
+        };
+
+        assert_eq!(
+            Pda::new(accounts, args).unwrap_err(),
+            ProgramError::InvalidSeeds
+        );
+    }
 }

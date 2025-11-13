@@ -43,3 +43,27 @@ pub fn mock_account(
         Epoch::default(),
     )
 }
+
+pub fn mock_account_with_data(
+    key: Pubkey,
+    is_signer: bool,
+    is_writable: bool,
+    lamports: u64,
+    data: Vec<u8>,
+    owner: Pubkey,
+) -> AccountInfo<'static> {
+    let lamports = Box::new(lamports);
+    let data = data.into_boxed_slice();
+    let owner = Box::new(owner);
+
+    AccountInfo::new(
+        Box::leak(Box::new(key)),
+        is_signer,
+        is_writable,
+        Box::leak(lamports),
+        Box::leak(data),
+        Box::leak(owner),
+        false,
+        Epoch::default(),
+    )
+}

@@ -246,3 +246,39 @@ pub struct BurnMplCoreAssetAccounts<'a, 'info> {
     pub mpl_core: &'a AccountInfo<'info>,
     pub system_program: &'a AccountInfo<'info>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::mock::{default_pubkeys, mock_account, mock_u16s};
+
+    #[test]
+    fn test_get_royalties_basic() {
+        let mut recipients = default_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
+        recipients[0] = Pubkey::new_unique();
+        recipients[1] = Pubkey::new_unique();
+
+        let mut bps = mock_u16s::<MAX_ROYALTY_RECIPIENTS>(0);
+        bps[0] = 1000;
+        bps[1] = 500;
+
+        let result = MplCoreProgram::get_royalties(2, recipients, bps);
+        assert!(result.is_some());
+
+        let royalties = result.unwrap();
+        assert_eq!(royalties.creators.len(), 2);
+        assert_eq!(royalties.basis_points, 1500);
+    }
+
+    #[test]
+    fn test_check_mpl_core_program() {
+        let acc = mock_account(mpl_core::ID, false, false, 1, 0, Pubkey::default());
+        assert!(MplCoreProgram::check(&acc).is_ok());
+
+        let acc = mock_account(Pubkey::new_unique(), false, false, 1, 0, Pubkey::default());
+        assert_eq!(
+            MplCoreProgram::check(&acc).unwrap_err(),
+            ProgramError::IncorrectProgramId
+        );
+    }
+}

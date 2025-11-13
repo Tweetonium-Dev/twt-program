@@ -127,3 +127,164 @@ pub struct InitAssociatedTokenProgramAccounts<'a, 'info> {
     pub system_program: &'a AccountInfo<'info>,
     pub ata: &'a AccountInfo<'info>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::{mock::mock_account, TOKEN_PROGRAM_ID};
+
+    #[test]
+    fn test_init_if_needed_skips_initialized() {
+        let wallet = Pubkey::new_unique();
+        let mint = Pubkey::new_unique();
+        let token_program_id = TOKEN_PROGRAM_ID;
+
+        let (expected_ata, _) = Pubkey::find_program_address(
+            &[wallet.as_ref(), token_program_id.as_ref(), mint.as_ref()],
+            &ASSOCIATED_TOKEN_PROGRAM_ID,
+        );
+
+        let ata = mock_account(
+            expected_ata,
+            false,
+            true,
+            1,
+            TOKEN_ACCOUNT_LEN - 5,
+            token_program_id,
+        );
+
+        let payer = mock_account(Pubkey::new_unique(), true, true, 1, 0, Pubkey::new_unique());
+        let wallet = mock_account(
+            Pubkey::new_unique(),
+            false,
+            false,
+            1,
+            0,
+            Pubkey::new_unique(),
+        );
+        let mint = mock_account(
+            Pubkey::new_unique(),
+            false,
+            false,
+            1,
+            0,
+            Pubkey::new_unique(),
+        );
+        let token_program =
+            mock_account(TOKEN_PROGRAM_ID, false, false, 1, 0, Pubkey::new_unique());
+        let system_program =
+            mock_account(Pubkey::default(), false, false, 1, 0, Pubkey::new_unique());
+        let associated_token_program = mock_account(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            false,
+            false,
+            1,
+            0,
+            Pubkey::new_unique(),
+        );
+
+        let accounts = InitAssociatedTokenProgramAccounts {
+            payer: &payer,
+            wallet: &wallet,
+            mint: &mint,
+            token_program: &token_program,
+            associated_token_program: &associated_token_program,
+            system_program: &system_program,
+            ata: &ata,
+        };
+
+        assert!(AssociatedTokenProgram::init_if_needed(accounts).is_ok());
+    }
+
+    #[test]
+    fn test_check_valid_ata() {
+        let wallet = Pubkey::new_unique();
+        let mint = Pubkey::new_unique();
+        let token_program_id = TOKEN_PROGRAM_ID;
+
+        let (expected_ata, _) = Pubkey::find_program_address(
+            &[wallet.as_ref(), token_program_id.as_ref(), mint.as_ref()],
+            &ASSOCIATED_TOKEN_PROGRAM_ID,
+        );
+
+        let ata_acc = mock_account(
+            expected_ata,
+            false,
+            true,
+            1,
+            TOKEN_ACCOUNT_LEN,
+            token_program_id,
+        );
+
+        assert!(AssociatedTokenProgram::check(&ata_acc, &wallet, &mint, &token_program_id).is_ok());
+    }
+
+    #[test]
+    fn test_check_invalid_seeds() {
+        let wallet = Pubkey::new_unique();
+        let mint = Pubkey::new_unique();
+        let token_program_id = TOKEN_PROGRAM_ID;
+        let wrong_key = Pubkey::new_unique();
+
+        let ata_acc = mock_account(
+            wrong_key,
+            false,
+            true,
+            1,
+            TOKEN_ACCOUNT_LEN,
+            token_program_id,
+        );
+
+        assert_eq!(
+            AssociatedTokenProgram::check(&ata_acc, &wallet, &mint, &token_program_id).unwrap_err(),
+            ProgramError::InvalidSeeds,
+        );
+    }
+
+    #[test]
+    fn test_check_invalid_owner() {
+        let wallet = Pubkey::new_unique();
+        let mint = Pubkey::new_unique();
+        let token_program_id = TOKEN_PROGRAM_ID;
+
+        let (expected_ata, _) = Pubkey::find_program_address(
+            &[wallet.as_ref(), token_program_id.as_ref(), mint.as_ref()],
+            &ASSOCIATED_TOKEN_PROGRAM_ID,
+        );
+
+        let wrong_owner = Pubkey::new_unique();
+
+        let ata_acc = mock_account(expected_ata, false, true, 1, TOKEN_ACCOUNT_LEN, wrong_owner);
+
+        assert_eq!(
+            AssociatedTokenProgram::check(&ata_acc, &wallet, &mint, &token_program_id).unwrap_err(),
+            ProgramError::InvalidAccountOwner,
+        );
+    }
+
+    #[test]
+    fn test_check_invalid_data_length() {
+        let wallet = Pubkey::new_unique();
+        let mint = Pubkey::new_unique();
+        let token_program_id = TOKEN_PROGRAM_ID;
+
+        let (expected_ata, _) = Pubkey::find_program_address(
+            &[wallet.as_ref(), token_program_id.as_ref(), mint.as_ref()],
+            &ASSOCIATED_TOKEN_PROGRAM_ID,
+        );
+
+        let ata_acc = mock_account(
+            expected_ata,
+            false,
+            true,
+            1,
+            TOKEN_ACCOUNT_LEN - 5,
+            token_program_id,
+        );
+
+        assert_eq!(
+            AssociatedTokenProgram::check(&ata_acc, &wallet, &mint, &token_program_id).unwrap_err(),
+            ProgramError::InvalidAccountData,
+        );
+    }
+}

@@ -220,9 +220,8 @@ impl AssociatedTokenAccountCheck for AssociatedTokenAccount {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::ASSOCIATED_TOKEN_PROGRAM_ID;
-
     use super::*;
+    use crate::utils::ASSOCIATED_TOKEN_PROGRAM_ID;
 
     // --- Test Helpers ---
 

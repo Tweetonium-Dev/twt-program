@@ -96,3 +96,73 @@ impl AccountCheck for SystemProgram {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use solana_program::pubkey::Pubkey;
+
+    // --- Test Helpers ---
+
+    fn mock_account_info(key: Pubkey, lamports: u64, data_len: usize) -> AccountInfo<'static> {
+        crate::utils::mock::mock_account(key, false, true, lamports, data_len, Pubkey::new_unique())
+    }
+
+    // --- Test Cases ---
+
+    #[test]
+    fn test_close_account_pda_transfers_lamports_and_clears_data() {
+        let key = Pubkey::new_unique();
+        let dest_key = Pubkey::new_unique();
+
+        let account = mock_account_info(key, 10_000, 16);
+        let destination = mock_account_info(dest_key, 5_000, 0);
+
+        let result = SystemProgram::close_account_pda(&account, &destination);
+
+        assert!(result.is_ok());
+        assert_eq!(
+            **account.lamports.borrow(),
+            0,
+            "account lamports should now be 0"
+        );
+        assert_eq!(
+            **destination.lamports.borrow(),
+            15_000,
+            "destination should receive 10_000 lamports more"
+        );
+        assert!(
+            account.data.borrow().iter().all(|b| *b == 0),
+            "data should be zeroed"
+        );
+    }
+
+    #[test]
+    fn test_close_account_pda_noop_when_zero_balance() {
+        let key = Pubkey::new_unique();
+        let dest_key = Pubkey::new_unique();
+
+        let account = mock_account_info(key, 0, 8);
+        let destination = mock_account_info(dest_key, 0, 0);
+
+        let result = SystemProgram::close_account_pda(&account, &destination);
+
+        assert!(result.is_ok());
+        assert_eq!(**account.lamports.borrow(), 0);
+        assert_eq!(**destination.lamports.borrow(), 0);
+    }
+
+    #[test]
+    fn test_check_valid_system_program() {
+        let account = mock_account_info(system_program::ID, 0, 0);
+        assert!(SystemProgram::check(&account).is_ok());
+    }
+
+    #[test]
+    fn test_check_invalid_system_program() {
+        let account = mock_account_info(Pubkey::new_unique(), 0, 0);
+        let result = SystemProgram::check(&account);
+        assert!(result.is_err());
+        assert_eq!(result.err(), Some(ProgramError::IncorrectProgramId));
+    }
+}
