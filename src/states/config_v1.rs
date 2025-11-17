@@ -98,11 +98,17 @@ pub struct ConfigV1 {
     /// - If `Clock::get().unix_timestamp >= vesting_unlock_ts`, NFT owners can burn and claim escrow.
     pub vesting_unlock_ts: i64,
 
-    /// The SOL protocol fee (in lamports) charged on each mint.
+    /// The SOL protocol fee (in lamports) charged on each NFT mint.
     ///
     /// - Transferred to the protocol’s treasury wallet.
     /// - Example: `500_000` lamports = 0.0005 SOL.
-    pub mint_fee_lamports: u64,
+    pub mint_nft_fee_lamports: u64,
+
+    /// The SOL protocol fee (in lamports) charged on each NFT update.
+    ///
+    /// - Transferred to the protocol’s treasury wallet.
+    /// - Example: `500_000` lamports = 0.0005 SOL.
+    pub update_nft_fee_lamports: u64,
 
     /// The total mint price per NFT, denominated in the payment mint (e.g. ZDLT).
     ///
@@ -163,7 +169,8 @@ impl ConfigV1 {
         config.user_minted = args.user_minted;
         config.vesting_mode = args.vesting_mode;
         config.vesting_unlock_ts = args.vesting_unlock_ts;
-        config.mint_fee_lamports = args.mint_fee_lamports;
+        config.mint_nft_fee_lamports = args.mint_nft_fee_lamports;
+        config.update_nft_fee_lamports = args.update_nft_fee_lamports;
         config.mint_price_total = args.mint_price_total;
         config.escrow_amount = args.escrow_amount;
         config.num_revenue_wallets = args.num_revenue_wallets;
@@ -210,8 +217,13 @@ impl ConfigV1 {
 
 impl ConfigV1 {
     #[inline(always)]
-    pub fn is_free_mint_fee(&self) -> bool {
-        self.mint_fee_lamports == 0
+    pub fn is_free_mint_nft_fee(&self) -> bool {
+        self.mint_nft_fee_lamports == 0
+    }
+
+    #[inline(always)]
+    pub fn is_free_update_nft_fee(&self) -> bool {
+        self.update_nft_fee_lamports == 0
     }
 
     #[inline(always)]
@@ -406,7 +418,8 @@ impl ConfigV1 {
         self.max_mint_per_vip_user = args.max_mint_per_vip_user;
         self.vesting_mode = args.vesting_mode;
         self.vesting_unlock_ts = args.vesting_unlock_ts;
-        self.mint_fee_lamports = args.mint_fee_lamports;
+        self.mint_nft_fee_lamports = args.mint_nft_fee_lamports;
+        self.update_nft_fee_lamports = args.update_nft_fee_lamports;
         self.mint_price_total = args.mint_price_total;
         self.escrow_amount = args.escrow_amount;
         self.num_revenue_wallets = args.num_revenue_wallets;
@@ -431,7 +444,8 @@ pub struct InitConfigArgs {
     pub user_minted: u64,
     pub vesting_mode: VestingMode,
     pub vesting_unlock_ts: i64,
-    pub mint_fee_lamports: u64,
+    pub mint_nft_fee_lamports: u64,
+    pub update_nft_fee_lamports: u64,
     pub mint_price_total: u64,
     pub escrow_amount: u64,
     pub num_revenue_wallets: u8,
@@ -446,7 +460,8 @@ pub struct UpdateConfigArgs {
     pub max_mint_per_vip_user: u64,
     pub vesting_mode: VestingMode,
     pub vesting_unlock_ts: i64,
-    pub mint_fee_lamports: u64,
+    pub mint_nft_fee_lamports: u64,
+    pub update_nft_fee_lamports: u64,
     pub mint_price_total: u64,
     pub escrow_amount: u64,
     pub num_revenue_wallets: u8,
@@ -468,18 +483,25 @@ mod tests {
     // --- Test Cases ---
 
     #[test]
-    fn test_free_mint_fee() {
+    fn test_free_mint_nft_fee() {
         let buf = zero_config();
         let cfg = ConfigV1::load(&buf).expect("load should succeed");
-        assert!(cfg.is_free_mint_fee());
+        assert!(cfg.is_free_mint_nft_fee());
+    }
+
+    #[test]
+    fn test_free_update_nft_fee() {
+        let buf = zero_config();
+        let cfg = ConfigV1::load(&buf).expect("load should succeed");
+        assert!(cfg.is_free_update_nft_fee());
     }
 
     #[test]
     fn test_need_pay_mint_fee() {
         let mut buf = zero_config();
         let cfg = ConfigV1::load_mut(&mut buf).expect("load_mut should succeed");
-        cfg.mint_fee_lamports = 100;
-        assert!(!cfg.is_free_mint_fee());
+        cfg.mint_nft_fee_lamports = 100;
+        assert!(!cfg.is_free_mint_nft_fee());
     }
 
     #[test]
@@ -766,7 +788,8 @@ mod tests {
             max_mint_per_vip_user: 9,
             vesting_mode: VestingMode::Permanent,
             vesting_unlock_ts: 123456789,
-            mint_fee_lamports: 42,
+            mint_nft_fee_lamports: 42,
+            update_nft_fee_lamports: 42,
             mint_price_total: 1000,
             escrow_amount: 100,
             num_revenue_wallets: 1,
@@ -781,7 +804,7 @@ mod tests {
         assert_eq!(cfg.max_mint_per_user, 7);
         assert_eq!(cfg.vesting_mode, VestingMode::Permanent);
         assert_eq!(cfg.vesting_unlock_ts, 123456789);
-        assert_eq!(cfg.mint_fee_lamports, 42);
+        assert_eq!(cfg.mint_nft_fee_lamports, 42);
         assert_eq!(cfg.mint_price_total, 1000);
         assert_eq!(cfg.escrow_amount, 100);
         assert_eq!(cfg.num_revenue_wallets, 1);

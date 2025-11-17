@@ -394,7 +394,7 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
     }
 
     fn pay_protocol_fee(&self, config: &ConfigV1) -> ProgramResult {
-        if config.is_free_mint_fee() {
+        if config.is_free_mint_nft_fee() {
             return Ok(());
         }
 
@@ -404,7 +404,7 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
             self.accounts.payer,
             self.accounts.protocol_wallet,
             self.accounts.system_program,
-            config.mint_fee_lamports,
+            config.mint_nft_fee_lamports,
         )?;
 
         msg!("Success transfer mint fee sol");

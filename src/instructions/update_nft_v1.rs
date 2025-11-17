@@ -117,7 +117,7 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
     }
 
     fn pay_protocol_fee(&self, config: &ConfigV1) -> ProgramResult {
-        if config.mint_fee_lamports == 0 {
+        if config.is_free_update_nft_fee() {
             return Ok(());
         }
 
@@ -125,7 +125,7 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
             self.accounts.payer,
             self.accounts.protocol_wallet,
             self.accounts.system_program,
-            config.mint_fee_lamports,
+            config.update_nft_fee_lamports,
         )
     }
 
