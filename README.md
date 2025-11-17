@@ -169,7 +169,7 @@ make build
 `AUTH`: Wallet that will pay and own tweetonium program
 
 ```sh
-make deploy AUTH=~/.config/solana/id.json
+make deploy AUTH=~/your/deployment/wallet/path
 ```
 
 ### Release
@@ -177,7 +177,7 @@ make deploy AUTH=~/.config/solana/id.json
 `AUTH`: Wallet that will pay and own tweetonium program
 
 ```sh
-make release AUTH=~/.config/solana/id.json
+make release AUTH=~/your/deployment/wallet/path
 ```
 
 ### Generate IDL
@@ -193,7 +193,7 @@ make idl
 `DEST`: Client code base path
 
 ```sh
-make send DEST=~/your/development/code/base/path
+make send DEST=~/your/dapp/code/base/path
 ```
 
 ## Makefile Commands
