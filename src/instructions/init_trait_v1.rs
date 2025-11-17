@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{InitTraitItemAccounts, InitTraitItemArgs, TraitAuthority, TraitItem},
+    states::{InitTraitItemAccounts, InitTraitItemArgs, TraitAuthorityV1, TraitItem},
     utils::{
         AccountCheck, InitMplCoreCollectionAccounts, InitMplCoreCollectionArgs, InitPdaAccounts,
         InitPdaArgs, MplCoreProgram, Pda, ProcessInstruction, SignerAccount, SystemProgram,
@@ -166,7 +166,7 @@ impl<'a, 'info>
 
         Pda::validate(
             accounts.trait_authority,
-            &[TraitAuthority::SEED],
+            &[TraitAuthorityV1::SEED],
             program_id,
         )?;
 

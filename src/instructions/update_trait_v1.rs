@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{TraitAuthority, TraitItem, UpdateTraitItemArgs},
+    states::{TraitAuthorityV1, TraitItem, UpdateTraitItemArgs},
     utils::{
         AccountCheck, MplCoreProgram, Pda, ProcessInstruction, SignerAccount, SystemProgram,
         UpdateMplCoreCollectionAccounts, UpdateMplCoreCollectionArgs, WritableAccount,
@@ -129,7 +129,7 @@ impl<'a, 'info> UpdateTraitV1<'a, 'info> {
                 name: self.instruction_data.trait_name,
                 uri: self.instruction_data.trait_uri,
             },
-            &[&[TraitAuthority::SEED, &[self.trait_authority_bump]]],
+            &[&[TraitAuthorityV1::SEED, &[self.trait_authority_bump]]],
         )
     }
 }
@@ -159,7 +159,7 @@ impl<'a, 'info>
 
         let (_, trait_authority_bump) = Pda::validate(
             accounts.trait_authority,
-            &[TraitAuthority::SEED],
+            &[TraitAuthorityV1::SEED],
             program_id,
         )?;
 

@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{TraitAuthority, TraitItem},
+    states::{TraitAuthorityV1, TraitItem},
     utils::{
         AccountCheck, CreateMplCoreAssetAccounts, CreateMplCoreAssetArgs, MplCoreProgram, Pda,
         ProcessInstruction, SignerAccount, SystemProgram, UninitializedAccount, WritableAccount,
@@ -138,7 +138,7 @@ impl<'a, 'info> MintTraitV1<'a, 'info> {
                 name: self.instruction_data.trait_name,
                 uri: self.instruction_data.trait_uri,
             },
-            &[&[TraitAuthority::SEED, &[self.trait_authority_bump]]],
+            &[&[TraitAuthorityV1::SEED, &[self.trait_authority_bump]]],
         )?;
 
         trait_item.increment_user_minted()?;
@@ -173,7 +173,7 @@ impl<'a, 'info>
 
         let (_, trait_authority_bump) = Pda::validate(
             accounts.trait_authority,
-            &[TraitAuthority::SEED],
+            &[TraitAuthorityV1::SEED],
             program_id,
         )?;
 

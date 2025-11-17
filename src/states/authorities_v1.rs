@@ -6,8 +6,8 @@ impl NftAuthorityV1 {
 }
 
 #[derive(Debug)]
-pub struct TraitAuthority;
+pub struct TraitAuthorityV1;
 
-impl TraitAuthority {
-    pub const SEED: &[u8; 15] = b"trait_authority";
+impl TraitAuthorityV1 {
+    pub const SEED: &[u8; 18] = b"trait_authority_v1";
 }
