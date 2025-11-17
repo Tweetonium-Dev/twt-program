@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{ConfigV1, InitConfigAccounts, InitConfigArgs, NftAuthority, VestingMode},
+    states::{ConfigV1, InitConfigAccounts, InitConfigArgs, NftAuthorityV1, VestingMode},
     utils::{
         AccountCheck, InitMplCoreCollectionAccounts, InitMplCoreCollectionArgs, InitPdaAccounts,
         InitPdaArgs, MintAccount, MplCoreProgram, Pda, ProcessInstruction, SignerAccount,
@@ -205,7 +205,7 @@ impl<'a, 'info>
     ) -> Result<Self, Self::Error> {
         let accounts = InitConfigV1Accounts::try_from(accounts)?;
 
-        Pda::validate(accounts.nft_authority, &[NftAuthority::SEED], program_id)?;
+        Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
 
         Ok(Self {
             accounts,

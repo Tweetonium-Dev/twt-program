@@ -1,12 +1,12 @@
-mod authorities;
-mod config;
+mod authorities_v1;
+mod config_v1;
 mod trait_item;
 mod user_minted;
 mod vault;
 mod vesting;
 
-pub use authorities::*;
-pub use config::*;
+pub use authorities_v1::*;
+pub use config_v1::*;
 pub use trait_item::*;
 pub use user_minted::*;
 pub use vault::*;

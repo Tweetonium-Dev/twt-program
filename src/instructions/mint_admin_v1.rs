@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{ConfigV1, InitVaultAccounts, InitVaultArgs, NftAuthority, Vault},
+    states::{ConfigV1, InitVaultAccounts, InitVaultArgs, NftAuthorityV1, Vault},
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, AssociatedTokenProgram,
         ConfigAccount, CreateMplCoreAssetAccounts, CreateMplCoreAssetArgs,
@@ -257,7 +257,7 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
                 name: self.instruction_data.nft_name,
                 uri: self.instruction_data.nft_uri,
             },
-            &[&[NftAuthority::SEED, &[self.nft_authority_bump]]],
+            &[&[NftAuthorityV1::SEED, &[self.nft_authority_bump]]],
         )?;
 
         config.increment_admin_minted()?;
@@ -295,7 +295,7 @@ impl<'a, 'info>
         )?;
 
         let (_, nft_authority_bump) =
-            Pda::validate(accounts.nft_authority, &[NftAuthority::SEED], program_id)?;
+            Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
 
         Ok(Self {
             accounts,

@@ -4,7 +4,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{ConfigV1, NftAuthority, Vault, VestingMode},
+    states::{ConfigV1, NftAuthorityV1, Vault, VestingMode},
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck,
         BurnMplCoreAssetAccounts, ConfigAccount, MintAccount, MplCoreProgram, Pda,
@@ -164,7 +164,7 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
                 mpl_core: self.accounts.mpl_core,
                 system_program: self.accounts.system_program,
             },
-            &[&[NftAuthority::SEED, &[self.nft_authority_bump]]],
+            &[&[NftAuthorityV1::SEED, &[self.nft_authority_bump]]],
         )
     }
 
@@ -224,7 +224,7 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)> for BurnAndRefun
         let accounts = BurnAndRefundV1Accounts::try_from(accounts)?;
 
         let (_, nft_authority_bump) =
-            Pda::validate(accounts.nft_authority, &[NftAuthority::SEED], program_id)?;
+            Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
 
         Pda::validate(
             accounts.config_pda,

@@ -6,7 +6,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{ConfigV1, NftAuthority},
+    states::{ConfigV1, NftAuthorityV1},
     utils::{
         AccountCheck, ConfigAccount, MintAccount, MplCoreProgram, Pda, ProcessInstruction,
         SignerAccount, SystemProgram, UpdateMplCoreAssetAccounts, UpdateMplCoreAssetArgs,
@@ -143,7 +143,7 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
                 name: self.instruction_data.nft_name,
                 uri: self.instruction_data.nft_uri,
             },
-            &[&[NftAuthority::SEED, &[self.nft_authority_bump]]],
+            &[&[NftAuthorityV1::SEED, &[self.nft_authority_bump]]],
         )
     }
 }
@@ -177,7 +177,7 @@ impl<'a, 'info>
         )?;
 
         let (_, nft_authority_bump) =
-            Pda::validate(accounts.nft_authority, &[NftAuthority::SEED], program_id)?;
+            Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
 
         Ok(Self {
             accounts,
