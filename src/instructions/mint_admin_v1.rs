@@ -249,7 +249,7 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
                 payer: self.accounts.admin,
                 asset: self.accounts.nft_asset,
                 collection: self.accounts.nft_collection,
-                update_authority: Some(self.accounts.nft_authority),
+                authority: Some(self.accounts.nft_authority),
                 mpl_core: self.accounts.mpl_core,
                 system_program: self.accounts.system_program,
             },

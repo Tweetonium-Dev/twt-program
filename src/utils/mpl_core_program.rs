@@ -3,7 +3,10 @@ use mpl_core::{
         BurnV1CpiBuilder, CreateCollectionV2CpiBuilder, CreateV2CpiBuilder,
         UpdateCollectionPluginV1CpiBuilder, UpdateCollectionV1CpiBuilder, UpdateV1CpiBuilder,
     },
-    types::{Creator, Plugin, PluginAuthority, PluginAuthorityPair, Royalties, RuleSet},
+    types::{
+        Creator, PermanentBurnDelegate, Plugin, PluginAuthority, PluginAuthorityPair, Royalties,
+        RuleSet,
+    },
 };
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
@@ -74,19 +77,23 @@ impl MplCoreProgram {
             .name(args.name)
             .uri(args.uri);
 
+        let mut plugins: Vec<PluginAuthorityPair> = vec![PluginAuthorityPair {
+            plugin: Plugin::PermanentBurnDelegate(PermanentBurnDelegate {}),
+            authority: Some(PluginAuthority::UpdateAuthority),
+        }];
+
         if let Some(royalties) = Self::get_royalties(
             args.num_royalty_recipients,
             args.royalty_recipients,
             args.royalty_shares_bps,
         ) {
-            let royalties_plugin = PluginAuthorityPair {
+            plugins.push(PluginAuthorityPair {
                 plugin: Plugin::Royalties(royalties),
                 authority: Some(PluginAuthority::UpdateAuthority),
-            };
-            cpi.plugins(vec![royalties_plugin]);
+            });
         }
 
-        cpi.invoke()
+        cpi.plugins(plugins).invoke()
     }
 
     pub fn update_collection<'a, 'info>(
@@ -129,7 +136,7 @@ impl MplCoreProgram {
             .asset(accounts.asset)
             .collection(Some(accounts.collection))
             .payer(accounts.payer)
-            .authority(accounts.update_authority)
+            .authority(accounts.authority)
             .owner(Some(accounts.payer))
             .system_program(accounts.system_program)
             .name(args.name)
@@ -214,7 +221,7 @@ pub struct CreateMplCoreAssetAccounts<'a, 'info> {
     pub payer: &'a AccountInfo<'info>,
     pub asset: &'a AccountInfo<'info>,
     pub collection: &'a AccountInfo<'info>,
-    pub update_authority: Option<&'a AccountInfo<'info>>,
+    pub authority: Option<&'a AccountInfo<'info>>,
     pub mpl_core: &'a AccountInfo<'info>,
     pub system_program: &'a AccountInfo<'info>,
 }

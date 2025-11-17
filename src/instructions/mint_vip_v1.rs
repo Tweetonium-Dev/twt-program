@@ -415,7 +415,7 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
                 payer: self.accounts.payer,
                 asset: self.accounts.nft_asset,
                 collection: self.accounts.nft_collection,
-                update_authority: Some(self.accounts.nft_authority),
+                authority: Some(self.accounts.nft_authority),
                 mpl_core: self.accounts.mpl_core,
                 system_program: self.accounts.system_program,
             },

@@ -130,7 +130,7 @@ impl<'a, 'info> MintTraitV1<'a, 'info> {
                 payer: self.accounts.payer,
                 asset: self.accounts.trait_asset,
                 collection: self.accounts.trait_collection,
-                update_authority: Some(self.accounts.trait_authority),
+                authority: Some(self.accounts.trait_authority),
                 mpl_core: self.accounts.mpl_core,
                 system_program: self.accounts.system_program,
             },
