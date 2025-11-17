@@ -70,7 +70,7 @@ Used for team allocations, DAO mints, and reserved supply.
 - Optional mint fee (SOL).
 - Creates an MPL Core NFT Asset.
 
-## 4. VIP User Mint — MintVipV1
+### 4. VIP User Mint — MintVipV1
 
 Same flow as user mint but:
 
@@ -83,7 +83,7 @@ Same flow as user mint but:
 - Optional mint fee (SOL).
 - Creates an MPL Core NFT Asset.
 
-## 5. Public User Mint — MintUserV1
+### 5. Public User Mint — MintUserV1
 
 Standard mint for public users.
 
@@ -96,7 +96,7 @@ Standard mint for public users.
 - Optional mint fee (SOL).
 - Creates an MPL Core NFT Asset.
 
-## 6. Burn & Refund — BurnAndRefundV1
+### 6. Burn & Refund — BurnAndRefundV1
 
 User burns NFT and:
 
@@ -107,7 +107,7 @@ User burns NFT and:
 - Emits refund event.
 - Refund behavior depends on `VestingMode`.
 
-## 7. Force Unlock Vesting — ForceUnlockVestingV1
+### 7. Force Unlock Vesting — ForceUnlockVestingV1
 
 Admin-only override:
 
@@ -115,7 +115,7 @@ Admin-only override:
 - Used for emergency unlock.
 - Only unlocks one project (NFT collection + token mint).
 
-## 8. Update NFT — UpdateNftV1
+### 8. Update NFT — UpdateNftV1
 
 NFT owner can update:
 
@@ -125,7 +125,7 @@ NFT owner can update:
 
 Uses NFT authority PDA to sign session authority mutation.
 
-## 9. Traits Architecture (V1)
+### 9. Traits Architecture (V1)
 
 The codebase uses modular trait-based architecture:
 
@@ -161,7 +161,7 @@ Traits allow consistent business logic across multiple instruction files.
 
 ### Build
 
-```bash
+```sh
 make build
 ```
 
@@ -169,7 +169,7 @@ make build
 
 `AUTH`: Wallet that will pay and own tweetonium program
 
-```bash
+```sh
 make deploy AUTH=~/.config/solana/id.json
 ```
 
@@ -177,13 +177,13 @@ make deploy AUTH=~/.config/solana/id.json
 
 `AUTH`: Wallet that will pay and own tweetonium program
 
-```bash
+```sh
 make release AUTH=~/.config/solana/id.json
 ```
 
 ### Generate IDL
 
-```bash
+```sh
 make idl
 ```
 
@@ -193,7 +193,7 @@ make idl
 
 `DEST`: Client code base path
 
-```bash
+```sh
 make send DEST=~/your/development/code/base/path
 ```
 
@@ -201,7 +201,7 @@ make send DEST=~/your/development/code/base/path
 
 ## Makefile Commands
 
-```bash
+```sh
 make build                          # Debug build
 make deploy AUTH=...                # Deploy with upgrade authority
 make release AUTH=...               # Build and deploy with upgrade authority
