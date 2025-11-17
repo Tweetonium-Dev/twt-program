@@ -2,10 +2,10 @@
   <img src="./assets/icon.png" width="1500" alt="Tweetonium Logo" />
 </p>
 
-# Tweetonium Program – Solana NFT Mint, Escrow, Vesting & Refund Protocol
+# Tweetonium – Solana NFT Mint, Escrow, Vesting & Refund Protocol
 
-[![Solana](https://img.shields.io/badge/Solana-14F195?logo=solana&logoColor=white)](https://solana.com)
 [![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![Solana](https://img.shields.io/badge/Solana-14F195?logo=solana&logoColor=white)](https://solana.com)
 [![MPL Core](https://img.shields.io/badge/Metaplex-MPL%20Core-6C5CE7?logo=metaplex)](https://developers.metaplex.com/core)
 
 **Tweetonium** is an upgradeable Solana program that enables secure NFT minting with token-based payments, configurable vesting, per-wallet mint guards, and burn-to-refund mechanics — built using MPL Core, Shank, and pure Rust (no Anchor).
