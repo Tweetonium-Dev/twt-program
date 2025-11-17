@@ -196,8 +196,6 @@ make idl
 make send DEST=~/your/development/code/base/path
 ```
 
-> **IDL output**: ./idl/tweetonium.json
-
 ## Makefile Commands
 
 ```sh
