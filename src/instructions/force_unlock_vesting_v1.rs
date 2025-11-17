@@ -4,7 +4,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, VestingMode},
+    states::{ConfigV1, VestingMode},
     utils::{
         AccountCheck, ConfigAccount, MintAccount, Pda, ProcessInstruction, SignerAccount,
         WritableAccount,
@@ -62,7 +62,7 @@ pub struct ForceUnlockVestingV1<'a, 'info> {
 }
 
 impl<'a, 'info> ForceUnlockVestingV1<'a, 'info> {
-    fn check_vesting(&self, config: &Config) -> ProgramResult {
+    fn check_vesting(&self, config: &ConfigV1) -> ProgramResult {
         if config.admin != *self.accounts.admin.key {
             msg!("Unauthorized: only the config authority may trigger vesting unlocks.");
             return Err(ProgramError::IllegalOwner);
@@ -81,7 +81,7 @@ impl<'a, 'info> ForceUnlockVestingV1<'a, 'info> {
         }
     }
 
-    fn unlock_vesting(&self, config: &mut Config) -> ProgramResult {
+    fn unlock_vesting(&self, config: &mut ConfigV1) -> ProgramResult {
         let now = Clock::get()?.unix_timestamp;
 
         if config.vesting_unlock_ts <= now {
@@ -115,7 +115,7 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)>
         Pda::validate(
             accounts.config_pda,
             &[
-                Config::SEED,
+                ConfigV1::SEED,
                 accounts.nft_collection.key.as_ref(),
                 accounts.token_mint.key.as_ref(),
             ],
@@ -129,7 +129,7 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)>
 impl<'a, 'info> ProcessInstruction for ForceUnlockVestingV1<'a, 'info> {
     fn process(self) -> ProgramResult {
         let mut config_data = self.accounts.config_pda.data.borrow_mut();
-        let config = Config::load_mut(&mut config_data)?;
+        let config = ConfigV1::load_mut(&mut config_data)?;
 
         self.check_vesting(config)?;
         self.unlock_vesting(config)

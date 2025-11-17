@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, InitConfigAccounts, InitConfigArgs, NftAuthority, VestingMode},
+    states::{ConfigV1, InitConfigAccounts, InitConfigArgs, NftAuthority, VestingMode},
     utils::{
         AccountCheck, InitMplCoreCollectionAccounts, InitMplCoreCollectionArgs, InitPdaAccounts,
         InitPdaArgs, MintAccount, MplCoreProgram, Pda, ProcessInstruction, SignerAccount,
@@ -108,14 +108,14 @@ pub struct InitConfigV1<'a, 'info> {
 
 impl<'a, 'info> InitConfigV1<'a, 'info> {
     fn check_config_data(&self) -> ProgramResult {
-        Config::check_revenue_wallets(
+        ConfigV1::check_revenue_wallets(
             self.instruction_data.mint_price_total,
             self.instruction_data.escrow_amount,
             self.instruction_data.num_revenue_wallets,
             self.instruction_data.revenue_wallets,
             self.instruction_data.revenue_shares,
         )?;
-        Config::check_nft_royalties(
+        ConfigV1::check_nft_royalties(
             self.instruction_data.num_royalty_recipients,
             self.instruction_data.royalty_recipients,
             self.instruction_data.royalty_shares_bps,
@@ -125,13 +125,13 @@ impl<'a, 'info> InitConfigV1<'a, 'info> {
     fn init_config(&self) -> ProgramResult {
         // let mut config_data = self.accounts.config_pda.try_borrow_mut_data()?;
         let seeds: &[&[u8]] = &[
-            Config::SEED,
+            ConfigV1::SEED,
             self.accounts.nft_collection.key.as_ref(),
             self.accounts.token_mint.key.as_ref(),
         ];
         let decimals = TokenProgram::get_decimal(self.accounts.token_mint)?;
 
-        Config::init_if_needed(
+        ConfigV1::init_if_needed(
             InitConfigAccounts {
                 pda: self.accounts.config_pda,
             },
@@ -161,7 +161,7 @@ impl<'a, 'info> InitConfigV1<'a, 'info> {
             },
             InitPdaArgs {
                 seeds,
-                space: Config::LEN,
+                space: ConfigV1::LEN,
                 program_id: self.program_id,
             },
         )

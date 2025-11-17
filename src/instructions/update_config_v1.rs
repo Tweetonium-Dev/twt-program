@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, NftAuthority, UpdateConfigArgs, VestingMode},
+    states::{ConfigV1, NftAuthority, UpdateConfigArgs, VestingMode},
     utils::{
         AccountCheck, MintAccount, MplCoreProgram, Pda, ProcessInstruction, SignerAccount,
         SystemProgram, UpdateMplCoreCollectionAccounts, UpdateMplCoreCollectionArgs,
@@ -106,14 +106,14 @@ pub struct UpdateConfigV1<'a, 'info> {
 
 impl<'a, 'info> UpdateConfigV1<'a, 'info> {
     fn check_config_data(&self) -> ProgramResult {
-        Config::check_revenue_wallets(
+        ConfigV1::check_revenue_wallets(
             self.instruction_data.mint_price_total,
             self.instruction_data.escrow_amount,
             self.instruction_data.num_revenue_wallets,
             self.instruction_data.revenue_wallets,
             self.instruction_data.revenue_shares,
         )?;
-        Config::check_nft_royalties(
+        ConfigV1::check_nft_royalties(
             self.instruction_data.num_royalty_recipients,
             self.instruction_data.royalty_recipients,
             self.instruction_data.royalty_shares_bps,
@@ -142,7 +142,7 @@ impl<'a, 'info> UpdateConfigV1<'a, 'info> {
 
     fn update_config(&self) -> ProgramResult {
         let mut config_data = self.accounts.config_pda.try_borrow_mut_data()?;
-        let config = Config::load_mut(config_data.as_mut())?;
+        let config = ConfigV1::load_mut(config_data.as_mut())?;
 
         if config.admin != *self.accounts.admin.key {
             msg!("Unauthorized authority for config update");
@@ -188,7 +188,7 @@ impl<'a, 'info>
         Pda::validate(
             accounts.config_pda,
             &[
-                Config::SEED,
+                ConfigV1::SEED,
                 accounts.nft_collection.key.as_ref(),
                 accounts.token_mint.key.as_ref(),
             ],

@@ -4,7 +4,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, Vault},
+    states::{ConfigV1, Vault},
     utils::{
         AssociatedTokenProgram, MINT_2022_MIN_LEN, MINT_LEN, TOKEN_2022_PROGRAM_ID,
         TOKEN_ACCOUNT_2022_MIN_LEN, TOKEN_ACCOUNT_LEN, TOKEN_PROGRAM_ID,
@@ -162,10 +162,10 @@ impl AccountCheck for ConfigAccount {
             return Err(ProgramError::InvalidAccountOwner);
         }
 
-        if account.data_len() != Config::LEN {
+        if account.data_len() != ConfigV1::LEN {
             msg!(
                 "ConfigAccount: invalid data length (expected {}, found {}) for account {}",
-                Config::LEN,
+                ConfigV1::LEN,
                 account.data_len(),
                 account.key
             );
@@ -370,16 +370,16 @@ mod tests {
 
     #[test]
     fn test_config_account() {
-        let acc = mock_account_info(false, false, PROGRAM_ID, Config::LEN);
+        let acc = mock_account_info(false, false, PROGRAM_ID, ConfigV1::LEN);
         assert!(ConfigAccount::check(&acc).is_ok());
 
-        let acc = mock_account_info(false, false, PROGRAM_ID, Config::LEN + 1);
+        let acc = mock_account_info(false, false, PROGRAM_ID, ConfigV1::LEN + 1);
         assert_eq!(
             ConfigAccount::check(&acc).unwrap_err(),
             ProgramError::InvalidAccountData
         );
 
-        let acc = mock_account_info(false, false, WRONG_PROGRAM_ID, Config::LEN);
+        let acc = mock_account_info(false, false, WRONG_PROGRAM_ID, ConfigV1::LEN);
         assert_eq!(
             ConfigAccount::check(&acc).unwrap_err(),
             ProgramError::InvalidAccountOwner

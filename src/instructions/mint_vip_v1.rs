@@ -6,7 +6,7 @@ use solana_program::{
 
 use crate::{
     states::{
-        Config, InitUserMintedAccounts, InitUserMintedArgs, InitVaultAccounts, InitVaultArgs,
+        ConfigV1, InitUserMintedAccounts, InitUserMintedArgs, InitVaultAccounts, InitVaultArgs,
         NftAuthority, UserMinted, Vault,
     },
     utils::{
@@ -189,7 +189,7 @@ pub struct MintVipV1<'a, 'info> {
 }
 
 impl<'a, 'info> MintVipV1<'a, 'info> {
-    fn check_mint_eligibility(&self, config: &Config) -> ProgramResult {
+    fn check_mint_eligibility(&self, config: &ConfigV1) -> ProgramResult {
         let max_supply = config.max_supply;
         let released = config.released;
         let admin_minted = config.admin_minted;
@@ -245,7 +245,7 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
         )
     }
 
-    fn store_to_vault(&self, config: &Config) -> ProgramResult {
+    fn store_to_vault(&self, config: &ConfigV1) -> ProgramResult {
         if !config.need_vault() {
             return Ok(());
         }
@@ -307,7 +307,7 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
         Ok(())
     }
 
-    fn pay_to_all_revenue_wallets(&self, config: &Config) -> ProgramResult {
+    fn pay_to_all_revenue_wallets(&self, config: &ConfigV1) -> ProgramResult {
         let num_wallets = config.num_revenue_wallets as usize;
 
         if num_wallets == 0 {
@@ -396,7 +396,7 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
         Ok(())
     }
 
-    fn pay_protocol_fee(&self, config: &Config) -> ProgramResult {
+    fn pay_protocol_fee(&self, config: &ConfigV1) -> ProgramResult {
         if config.is_free_mint_fee() {
             return Ok(());
         }
@@ -409,7 +409,7 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
         )
     }
 
-    fn mint_nft(self, config: &mut Config, user_minted: &mut UserMinted) -> ProgramResult {
+    fn mint_nft(self, config: &mut ConfigV1, user_minted: &mut UserMinted) -> ProgramResult {
         MplCoreProgram::create(
             CreateMplCoreAssetAccounts {
                 payer: self.accounts.payer,
@@ -454,7 +454,7 @@ impl<'a, 'info>
         Pda::validate(
             accounts.config_pda,
             &[
-                Config::SEED,
+                ConfigV1::SEED,
                 accounts.nft_collection.key.as_ref(),
                 accounts.token_mint.key.as_ref(),
             ],
@@ -476,7 +476,7 @@ impl<'a, 'info>
 impl<'a, 'info> ProcessInstruction for MintVipV1<'a, 'info> {
     fn process(self) -> ProgramResult {
         let mut config_data = self.accounts.config_pda.try_borrow_mut_data()?;
-        let config = Config::load_mut(config_data.as_mut())?;
+        let config = ConfigV1::load_mut(config_data.as_mut())?;
 
         self.init_user_mint_if_needed()?;
 

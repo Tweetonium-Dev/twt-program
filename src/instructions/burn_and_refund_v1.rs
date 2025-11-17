@@ -4,7 +4,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, NftAuthority, Vault, VestingMode},
+    states::{ConfigV1, NftAuthority, Vault, VestingMode},
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck,
         BurnMplCoreAssetAccounts, ConfigAccount, MintAccount, MplCoreProgram, Pda,
@@ -117,7 +117,7 @@ pub struct BurnAndRefundV1<'a, 'info> {
 }
 
 impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
-    fn check_vesting(&self, config: &Config, vault: &Vault) -> ProgramResult {
+    fn check_vesting(&self, config: &ConfigV1, vault: &Vault) -> ProgramResult {
         let clock = Clock::get()?;
 
         if vault.owner != *self.accounts.payer.key {
@@ -168,7 +168,7 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
         )
     }
 
-    fn refund_token(&self, config: &Config, balance: u64) -> ProgramResult {
+    fn refund_token(&self, config: &ConfigV1, balance: u64) -> ProgramResult {
         let signers_seeds: &[&[&[u8]]] = &[&[
             Vault::SEED,
             self.accounts.nft_asset.key.as_ref(),
@@ -229,7 +229,7 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)> for BurnAndRefun
         Pda::validate(
             accounts.config_pda,
             &[
-                Config::SEED,
+                ConfigV1::SEED,
                 accounts.nft_collection.key.as_ref(),
                 accounts.token_mint.key.as_ref(),
             ],
@@ -258,7 +258,7 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)> for BurnAndRefun
 impl<'a, 'info> ProcessInstruction for BurnAndRefundV1<'a, 'info> {
     fn process(self) -> ProgramResult {
         let config_data = self.accounts.config_pda.try_borrow_data()?;
-        let config = Config::load(config_data.as_ref())?;
+        let config = ConfigV1::load(config_data.as_ref())?;
 
         let amount = {
             let vault_data = self.accounts.vault_pda.try_borrow_data()?;

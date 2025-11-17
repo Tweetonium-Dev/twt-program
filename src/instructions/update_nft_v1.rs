@@ -6,7 +6,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, NftAuthority},
+    states::{ConfigV1, NftAuthority},
     utils::{
         AccountCheck, ConfigAccount, MintAccount, MplCoreProgram, Pda, ProcessInstruction,
         SignerAccount, SystemProgram, UpdateMplCoreAssetAccounts, UpdateMplCoreAssetArgs,
@@ -116,7 +116,7 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
         Ok(())
     }
 
-    fn pay_protocol_fee(&self, config: &Config) -> ProgramResult {
+    fn pay_protocol_fee(&self, config: &ConfigV1) -> ProgramResult {
         if config.mint_fee_lamports == 0 {
             return Ok(());
         }
@@ -169,7 +169,7 @@ impl<'a, 'info>
         Pda::validate(
             accounts.config_pda,
             &[
-                Config::SEED,
+                ConfigV1::SEED,
                 accounts.nft_collection.key.as_ref(),
                 accounts.token_mint.key.as_ref(),
             ],
@@ -190,7 +190,7 @@ impl<'a, 'info>
 impl<'a, 'info> ProcessInstruction for UpdateNftV1<'a, 'info> {
     fn process(self) -> ProgramResult {
         let config_data = self.accounts.config_pda.data.borrow_mut();
-        let config = Config::load(&config_data)?;
+        let config = ConfigV1::load(&config_data)?;
 
         self.check_ownership()?;
         self.pay_protocol_fee(config)?;

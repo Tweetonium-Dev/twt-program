@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{Config, InitVaultAccounts, InitVaultArgs, NftAuthority, Vault},
+    states::{ConfigV1, InitVaultAccounts, InitVaultArgs, NftAuthority, Vault},
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, AssociatedTokenProgram,
         ConfigAccount, CreateMplCoreAssetAccounts, CreateMplCoreAssetArgs,
@@ -141,7 +141,7 @@ pub struct MintAdminV1<'a, 'info> {
 }
 
 impl<'a, 'info> MintAdminV1<'a, 'info> {
-    fn check_mint_eligibility(&self, config: &Config) -> ProgramResult {
+    fn check_mint_eligibility(&self, config: &ConfigV1) -> ProgramResult {
         let max_supply = config.max_supply;
         let released = config.released;
         let admin_supply = max_supply - released;
@@ -170,7 +170,7 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
         Ok(())
     }
 
-    fn store_to_vault(&self, config: &Config) -> ProgramResult {
+    fn store_to_vault(&self, config: &ConfigV1) -> ProgramResult {
         if !config.need_vault() {
             return Ok(());
         }
@@ -230,7 +230,7 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
         )
     }
 
-    fn pay_protocol_fee(&self, config: &Config) -> ProgramResult {
+    fn pay_protocol_fee(&self, config: &ConfigV1) -> ProgramResult {
         if config.is_free_mint_fee() {
             return Ok(());
         }
@@ -243,7 +243,7 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
         )
     }
 
-    fn mint_nft(self, config: &mut Config) -> ProgramResult {
+    fn mint_nft(self, config: &mut ConfigV1) -> ProgramResult {
         MplCoreProgram::create(
             CreateMplCoreAssetAccounts {
                 payer: self.accounts.admin,
@@ -287,7 +287,7 @@ impl<'a, 'info>
         Pda::validate(
             accounts.config_pda,
             &[
-                Config::SEED,
+                ConfigV1::SEED,
                 accounts.nft_collection.key.as_ref(),
                 accounts.token_mint.key.as_ref(),
             ],
@@ -309,7 +309,7 @@ impl<'a, 'info>
 impl<'a, 'info> ProcessInstruction for MintAdminV1<'a, 'info> {
     fn process(self) -> ProgramResult {
         let mut config_data = self.accounts.config_pda.try_borrow_mut_data()?;
-        let config = Config::load_mut(config_data.as_mut())?;
+        let config = ConfigV1::load_mut(config_data.as_mut())?;
 
         self.check_mint_eligibility(config)?;
         self.store_to_vault(config)?;
