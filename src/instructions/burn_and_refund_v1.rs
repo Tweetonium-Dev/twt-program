@@ -4,7 +4,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{ConfigV1, NftAuthorityV1, Vault, VestingMode},
+    states::{ConfigV1, NftAuthorityV1, VaultV1, VestingMode},
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck,
         BurnMplCoreAssetAccounts, ConfigAccount, MintAccount, MplCoreProgram, Pda,
@@ -117,7 +117,7 @@ pub struct BurnAndRefundV1<'a, 'info> {
 }
 
 impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
-    fn check_vesting(&self, config: &ConfigV1, vault: &Vault) -> ProgramResult {
+    fn check_vesting(&self, config: &ConfigV1, vault: &VaultV1) -> ProgramResult {
         let clock = Clock::get()?;
 
         if vault.owner != *self.accounts.payer.key {
@@ -170,7 +170,7 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
 
     fn refund_token(&self, config: &ConfigV1, balance: u64) -> ProgramResult {
         let signers_seeds: &[&[&[u8]]] = &[&[
-            Vault::SEED,
+            VaultV1::SEED,
             self.accounts.nft_asset.key.as_ref(),
             self.accounts.nft_collection.key.as_ref(),
             self.accounts.token_mint.key.as_ref(),
@@ -196,7 +196,7 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
 
     fn close_vault(&self) -> ProgramResult {
         let vault_seeds: &[&[u8]] = &[
-            Vault::SEED,
+            VaultV1::SEED,
             self.accounts.nft_asset.key.as_ref(),
             self.accounts.nft_collection.key.as_ref(),
             self.accounts.token_mint.key.as_ref(),
@@ -239,7 +239,7 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)> for BurnAndRefun
         let (_, vault_bump) = Pda::validate(
             accounts.vault_pda,
             &[
-                Vault::SEED,
+                VaultV1::SEED,
                 accounts.nft_asset.key.as_ref(),
                 accounts.nft_collection.key.as_ref(),
                 accounts.token_mint.key.as_ref(),
@@ -262,7 +262,7 @@ impl<'a, 'info> ProcessInstruction for BurnAndRefundV1<'a, 'info> {
 
         let amount = {
             let vault_data = self.accounts.vault_pda.try_borrow_data()?;
-            let vault = Vault::load(vault_data.as_ref())?;
+            let vault = VaultV1::load(vault_data.as_ref())?;
             self.check_vesting(config, vault)?;
             vault.amount
         };

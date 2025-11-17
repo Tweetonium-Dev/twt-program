@@ -15,7 +15,7 @@ use crate::utils::{AccountCheck, InitPdaAccounts, InitPdaArgs, Pda, Uninitialize
 /// PDA seed: `[program_id, config_pda, payer, "vault"]`
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
-pub struct Vault {
+pub struct VaultV1 {
     /// The wallet that owns this vault and its escrowed tokens.
     /// Must match the `payer` in the `mint_and_vault_v1` instruction.
     pub owner: Pubkey,
@@ -45,12 +45,12 @@ pub struct Vault {
     pub bump: [u8; 1],
 }
 
-impl Vault {
+impl VaultV1 {
     pub const LEN: usize = size_of::<Self>();
-    pub const SEED: &[u8; 5] = b"vault";
+    pub const SEED: &[u8; 8] = b"vault_v1";
 }
 
-impl Vault {
+impl VaultV1 {
     #[inline(always)]
     pub fn init<'a, 'info>(
         accounts: InitVaultAccounts,
@@ -130,7 +130,7 @@ mod tests {
     // --- Test Helpers ---
 
     fn zero_vault() -> Vec<u8> {
-        vec![0u8; Vault::LEN]
+        vec![0u8; VaultV1::LEN]
     }
 
     // --- Test Cases ---
@@ -138,14 +138,14 @@ mod tests {
     #[test]
     fn test_vault_load_and_load_mut() {
         let mut data = zero_vault();
-        let vault_mut = Vault::load_mut(&mut data).unwrap();
+        let vault_mut = VaultV1::load_mut(&mut data).unwrap();
         vault_mut.owner = Pubkey::new_unique();
         vault_mut.nft = Pubkey::new_unique();
         vault_mut.amount = 42;
         vault_mut.is_unlocked = 1;
         vault_mut.bump = [123];
 
-        let vault_ref = Vault::load(&data).unwrap();
+        let vault_ref = VaultV1::load(&data).unwrap();
 
         assert_eq!(vault_ref.amount, 42);
         assert!(vault_ref.is_unlocked());
@@ -154,21 +154,21 @@ mod tests {
 
     #[test]
     fn test_vault_load_invalid_length() {
-        let mut bad = vec![0u8; Vault::LEN - 1];
-        assert!(Vault::load(&bad).is_err());
-        assert!(Vault::load_mut(&mut bad).is_err());
+        let mut bad = vec![0u8; VaultV1::LEN - 1];
+        assert!(VaultV1::load(&bad).is_err());
+        assert!(VaultV1::load_mut(&mut bad).is_err());
     }
 
     #[test]
     fn test_vault_is_unlocked() {
-        let locked = Vault {
+        let locked = VaultV1 {
             owner: Pubkey::new_unique(),
             nft: Pubkey::new_unique(),
             amount: 10,
             is_unlocked: 0,
             bump: [0],
         };
-        let unlocked = Vault {
+        let unlocked = VaultV1 {
             is_unlocked: 1,
             ..locked
         };

@@ -7,7 +7,7 @@ use solana_program::{
 use crate::{
     states::{
         ConfigV1, InitUserMintedAccounts, InitUserMintedArgs, InitVaultAccounts, InitVaultArgs,
-        NftAuthorityV1, UserMintedV1, Vault,
+        NftAuthorityV1, UserMintedV1, VaultV1,
     },
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, AssociatedTokenProgram,
@@ -251,13 +251,13 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
         }
 
         let seeds: &[&[u8]] = &[
-            Vault::SEED,
+            VaultV1::SEED,
             self.accounts.nft_asset.key.as_ref(),
             self.accounts.nft_collection.key.as_ref(),
             self.accounts.token_mint.key.as_ref(),
         ];
 
-        Vault::init_if_needed(
+        VaultV1::init_if_needed(
             InitVaultAccounts {
                 pda: self.accounts.vault_pda,
             },
@@ -274,7 +274,7 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
             },
             InitPdaArgs {
                 seeds,
-                space: Vault::LEN,
+                space: VaultV1::LEN,
                 program_id: self.program_id,
             },
         )?;

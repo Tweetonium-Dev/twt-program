@@ -4,7 +4,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{ConfigV1, Vault},
+    states::{ConfigV1, VaultV1},
     utils::{
         AssociatedTokenProgram, MINT_2022_MIN_LEN, MINT_LEN, TOKEN_2022_PROGRAM_ID,
         TOKEN_ACCOUNT_2022_MIN_LEN, TOKEN_ACCOUNT_LEN, TOKEN_PROGRAM_ID,
@@ -189,10 +189,10 @@ impl AccountCheck for VaultAccount {
             return Err(ProgramError::InvalidAccountOwner);
         }
 
-        if account.data_len() != Vault::LEN {
+        if account.data_len() != VaultV1::LEN {
             msg!(
                 "VaultAccount: invalid data length (expected {}, found {}) for account {}",
-                Vault::LEN,
+                VaultV1::LEN,
                 account.data_len(),
                 account.key
             );
@@ -388,16 +388,16 @@ mod tests {
 
     #[test]
     fn test_vault_account() {
-        let acc = mock_account_info(false, false, PROGRAM_ID, Vault::LEN);
+        let acc = mock_account_info(false, false, PROGRAM_ID, VaultV1::LEN);
         assert!(VaultAccount::check(&acc).is_ok());
 
-        let acc = mock_account_info(false, false, PROGRAM_ID, Vault::LEN + 1);
+        let acc = mock_account_info(false, false, PROGRAM_ID, VaultV1::LEN + 1);
         assert_eq!(
             VaultAccount::check(&acc).unwrap_err(),
             ProgramError::InvalidAccountData
         );
 
-        let acc = mock_account_info(false, false, WRONG_PROGRAM_ID, Vault::LEN);
+        let acc = mock_account_info(false, false, WRONG_PROGRAM_ID, VaultV1::LEN);
         assert_eq!(
             VaultAccount::check(&acc).unwrap_err(),
             ProgramError::InvalidAccountOwner
