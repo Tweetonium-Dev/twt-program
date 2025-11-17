@@ -119,12 +119,13 @@ pub struct BurnAndRefundV1<'a, 'info> {
 impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
     fn check_vesting(&self, config: &ConfigV1, vault: &VaultV1) -> ProgramResult {
         let clock = Clock::get()?;
+        let asset = MplCoreProgram::get_asset(self.accounts.nft_asset)?;
 
-        if vault.owner != *self.accounts.payer.key {
+        if asset.base.owner != *self.accounts.payer.key {
             msg!(
-                "Unauthorized: vault owner does not match payer. Payer {}, vault owner {}",
+                "Payer is not the current owner of the NFT. Owner: {}, Payer: {}",
+                asset.base.owner,
                 self.accounts.payer.key,
-                vault.owner
             );
             return Err(ProgramError::IllegalOwner);
         }

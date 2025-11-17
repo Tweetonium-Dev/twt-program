@@ -7,6 +7,7 @@ use mpl_core::{
         Creator, PermanentBurnDelegate, Plugin, PluginAuthority, PluginAuthorityPair, Royalties,
         RuleSet,
     },
+    Asset,
 };
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
@@ -18,6 +19,13 @@ use crate::{states::MAX_ROYALTY_RECIPIENTS, utils::AccountCheck};
 pub struct MplCoreProgram;
 
 impl MplCoreProgram {
+    pub fn get_asset<'info>(account: &AccountInfo<'info>) -> Result<Asset, ProgramError> {
+        let data = account.try_borrow_data()?;
+        let asset =
+            Asset::deserialize(data.as_ref()).map_err(|_| ProgramError::InvalidAccountData)?;
+        Ok(*asset)
+    }
+
     pub fn get_royalties(
         num_royalty_recipients: u8,
         royalty_recipients: [Pubkey; MAX_ROYALTY_RECIPIENTS],
@@ -258,9 +266,68 @@ pub struct BurnMplCoreAssetAccounts<'a, 'info> {
 mod tests {
     use super::*;
     use crate::utils::mock::{default_pubkeys, mock_account, mock_u16s};
+    use borsh::BorshSerialize;
+    use mpl_core::{
+        accounts::BaseAssetV1,
+        types::{Key, UpdateAuthority},
+    };
+
+    // --- Test Helpers ---
+
+    fn mock_account_info(key: Pubkey, data: Vec<u8>) -> AccountInfo<'static> {
+        crate::utils::mock::mock_account_with_data(key, false, true, 0, data, Pubkey::new_unique())
+    }
+
+    fn mock_mpl_asset(owner: Pubkey, name: &str, uri: &str) -> AccountInfo<'static> {
+        let base = BaseAssetV1 {
+            key: Key::AssetV1,
+            owner,
+            update_authority: UpdateAuthority::Collection(Pubkey::new_unique()),
+            name: name.to_string(),
+            uri: uri.to_string(),
+            seq: None,
+        };
+
+        let data = base.try_to_vec().expect("serialize BaseAssetV1");
+
+        crate::utils::mock::mock_account_with_data(
+            Pubkey::new_unique(),
+            false,
+            true,
+            1,
+            data,
+            mpl_core::ID,
+        )
+    }
+
+    // --- Test Cases ---
 
     #[test]
-    fn test_get_royalties_basic() {
+    fn test_get_asset_success() {
+        let owner = Pubkey::new_unique();
+        let name = "Test NFT";
+        let uri = "https://example.com";
+        let account = mock_mpl_asset(owner, name, uri);
+
+        let asset = MplCoreProgram::get_asset(&account).expect("Failed to get asset");
+        assert_eq!(asset.base.owner, owner);
+        assert_eq!(asset.base.name, name);
+        assert_eq!(asset.base.uri, uri);
+    }
+
+    #[test]
+    fn test_get_asset_invalid_data() {
+        let key = Pubkey::new_unique();
+        let data = vec![1, 2, 3, 4];
+        let account = mock_account_info(key, data);
+
+        let result = MplCoreProgram::get_asset(&account);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ProgramError::InvalidAccountData);
+    }
+
+    #[test]
+    fn test_get_royalties() {
         let mut recipients = default_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
         recipients[0] = Pubkey::new_unique();
         recipients[1] = Pubkey::new_unique();

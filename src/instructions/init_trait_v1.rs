@@ -101,7 +101,10 @@ impl<'a, 'info> InitTraitV1<'a, 'info> {
     }
 
     fn init_trait(&self) -> ProgramResult {
-        let seeds: &[&[u8]] = &[TraitItemV1::SEED, self.accounts.trait_collection.key.as_ref()];
+        let seeds: &[&[u8]] = &[
+            TraitItemV1::SEED,
+            self.accounts.trait_collection.key.as_ref(),
+        ];
 
         TraitItemV1::init_if_needed(
             InitTraitItemAccounts {
