@@ -4,7 +4,7 @@
 
 # Solana NFT Mint, Escrow, Vesting & Refund Protocol
 
-[![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/Rust-F74C00?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Solana](https://img.shields.io/badge/Solana-14F195?logo=solana&logoColor=white)](https://solana.com)
 [![MPL Core](https://img.shields.io/badge/Metaplex-MPL%20Core-6C5CE7?logo=metaplex)](https://developers.metaplex.com/core)
 
