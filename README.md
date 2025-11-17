@@ -230,13 +230,6 @@ make send                           # Send IDL to client codebase
 - Multi-wallet revenue distribution
 - Minted NFT with royalties
 
-## Contributing
-
-1. Fork the repo
-2. Create a feature branch
-3. Write tests (TBD)
-4. Submit PR
-
 ## License
 
 MIT © 2025
