@@ -156,7 +156,6 @@ Traits allow consistent business logic across multiple instruction files.
 
 - [Rust](https://rustup.rs)
 - [Solana CLI](https://solana.com/id/docs/intro/installation)
-- `cargo-build-sbf`
 - [shank](https://github.com/metaplex-foundation/shank)
 
 ### Build
