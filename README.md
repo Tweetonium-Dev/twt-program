@@ -129,11 +129,11 @@ Uses NFT authority PDA to sign session authority mutation.
 
 The codebase uses modular trait-based architecture:
 
-| Trait File             | Role                                                 |
-| ---------------------- | ---------------------------------------------------- |
-| **init_trait_v1.rs**   | Shared logic for config initialization               |
-| **mint_trait_v1.rs**   | Shared logic for all mint flows (admin / user / vip) |
-| **update_trait_v1.rs** | Logic for NFT metadata updates                       |
+| Instruction            | Role                                                           |
+| ---------------------- | -------------------------------------------------------------- |
+| **init_trait_v1.rs**   | Shared logic for trait config initialization                   |
+| **update_trait_v1.rs** | Logic for trait config updates                                 |
+| **mint_trait_v1.rs**   | Shared logic for all mint trait flows that follow trait config |
 
 Traits allow consistent business logic across multiple instruction files.
 
@@ -146,8 +146,8 @@ Traits allow consistent business logic across multiple instruction files.
 | `["config_v1", nft_collection, token_mint]`             | Global config & mint rules         |
 | `["vault_v1", nft_asset, nft_collection, token_mint]`   | Per-nft token escrow               |
 | `["user_minted_v1", nft_collection, token_mint, payer]` | Mint guard per wallet              |
-| `["nft_authority_v1"]`                                  | MPL Core update/burn authority     |
-| `["trait_authority_v1"]`                                | Trait update/burn authority        |
+| `["nft_authority_v1"]`                                  | MPL Core update / burn authority   |
+| `["trait_authority_v1"]`                                | Trait update / burn authority      |
 | `["trait_item_v1", trait_collection]`                   | Trait configuration and mint rules |
 
 ## Setup & Development
