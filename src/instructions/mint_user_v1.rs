@@ -7,7 +7,7 @@ use solana_program::{
 use crate::{
     states::{
         ConfigV1, InitUserMintedAccounts, InitUserMintedArgs, InitVaultAccounts, InitVaultArgs,
-        NftAuthorityV1, UserMinted, Vault,
+        NftAuthorityV1, UserMintedV1, Vault,
     },
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, AssociatedTokenProgram,
@@ -218,13 +218,13 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
 
     fn init_user_minted_if_needed(&self) -> ProgramResult {
         let seeds = &[
-            UserMinted::SEED,
+            UserMintedV1::SEED,
             self.accounts.nft_collection.key.as_ref(),
             self.accounts.token_mint.key.as_ref(),
             self.accounts.payer.key.as_ref(),
         ];
 
-        UserMinted::init_if_needed(
+        UserMintedV1::init_if_needed(
             InitUserMintedAccounts {
                 pda: self.accounts.user_minted_pda,
             },
@@ -238,7 +238,7 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
             },
             InitPdaArgs {
                 seeds,
-                space: UserMinted::LEN,
+                space: UserMintedV1::LEN,
                 program_id: self.program_id,
             },
         )
@@ -412,7 +412,7 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
         Ok(())
     }
 
-    fn mint_nft(self, config: &mut ConfigV1, user_minted: &mut UserMinted) -> ProgramResult {
+    fn mint_nft(self, config: &mut ConfigV1, user_minted: &mut UserMintedV1) -> ProgramResult {
         msg!("Create mpl core nft");
         MplCoreProgram::create(
             CreateMplCoreAssetAccounts {
@@ -487,7 +487,7 @@ impl<'a, 'info> ProcessInstruction for MintUserV1<'a, 'info> {
         self.init_user_minted_if_needed()?;
 
         let mut user_minted_data = self.accounts.user_minted_pda.try_borrow_mut_data()?;
-        let user_minted = UserMinted::load_mut(user_minted_data.as_mut())?;
+        let user_minted = UserMintedV1::load_mut(user_minted_data.as_mut())?;
         if user_minted.has_reached_limit(config) {
             msg!("User has minted their allowed supply");
             return Err(ProgramError::Custom(2));

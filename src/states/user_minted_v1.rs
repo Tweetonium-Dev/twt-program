@@ -14,7 +14,7 @@ use crate::{
 /// PDA seed: `[program_id, payer, "minted_user"]`
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
-pub struct UserMinted {
+pub struct UserMintedV1 {
     /// The wallet address of the user.
     /// Must match the `payer` in the `mint_and_vault_v1` instruction.
     pub owner: Pubkey,
@@ -29,12 +29,12 @@ pub struct UserMinted {
     pub minted_count: u64,
 }
 
-impl UserMinted {
+impl UserMintedV1 {
     pub const LEN: usize = size_of::<Self>();
-    pub const SEED: &[u8; 11] = b"user_minted";
+    pub const SEED: &[u8; 14] = b"user_minted_v1";
 }
 
-impl UserMinted {
+impl UserMintedV1 {
     #[inline(always)]
     pub fn init<'a, 'info>(
         accounts: InitUserMintedAccounts<'a, 'info>,
@@ -114,7 +114,7 @@ mod tests {
     // --- Test Helpers ---
 
     fn zero_user_minted() -> Vec<u8> {
-        vec![0u8; UserMinted::LEN]
+        vec![0u8; UserMintedV1::LEN]
     }
 
     fn zero_config() -> Vec<u8> {
@@ -126,7 +126,7 @@ mod tests {
     #[test]
     fn test_user_minted_load_mut_and_increment() {
         let mut data = zero_user_minted();
-        let minted = UserMinted::load_mut(&mut data).unwrap();
+        let minted = UserMintedV1::load_mut(&mut data).unwrap();
 
         // Should initialize to default values
         minted.owner = Pubkey::new_unique();
@@ -148,7 +148,7 @@ mod tests {
         config.max_mint_per_user = 3;
         config.max_mint_per_vip_user = 10;
 
-        let mut user = UserMinted {
+        let mut user = UserMintedV1 {
             owner: Pubkey::new_unique(),
             minted_count: 2,
         };
@@ -166,8 +166,8 @@ mod tests {
 
     #[test]
     fn test_user_minted_invalid_data_length() {
-        let mut short_data = vec![0u8; UserMinted::LEN - 1];
-        let err = UserMinted::load_mut(&mut short_data);
+        let mut short_data = vec![0u8; UserMintedV1::LEN - 1];
+        let err = UserMintedV1::load_mut(&mut short_data);
         assert!(err.is_err());
     }
 }
