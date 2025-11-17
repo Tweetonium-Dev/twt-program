@@ -174,7 +174,7 @@ impl<'a, 'info> InitConfigV1<'a, 'info> {
             InitMplCoreCollectionAccounts {
                 payer: self.accounts.admin,
                 collection: self.accounts.nft_collection,
-                update_authority: self.accounts.nft_authority,
+                update_authority: Some(self.accounts.nft_authority),
                 mpl_core: self.accounts.mpl_core,
                 system_program: self.accounts.system_program,
             },

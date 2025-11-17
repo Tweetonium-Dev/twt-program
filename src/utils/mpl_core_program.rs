@@ -80,7 +80,7 @@ impl MplCoreProgram {
 
         cpi.collection(accounts.collection)
             .payer(accounts.payer)
-            .update_authority(Some(accounts.update_authority))
+            .update_authority(accounts.update_authority)
             .system_program(accounts.system_program)
             .name(args.name)
             .uri(args.uri);
@@ -196,7 +196,7 @@ impl AccountCheck for MplCoreProgram {
 pub struct InitMplCoreCollectionAccounts<'a, 'info> {
     pub payer: &'a AccountInfo<'info>,
     pub collection: &'a AccountInfo<'info>,
-    pub update_authority: &'a AccountInfo<'info>,
+    pub update_authority: Option<&'a AccountInfo<'info>>,
     pub mpl_core: &'a AccountInfo<'info>,
     pub system_program: &'a AccountInfo<'info>,
 }
