@@ -1162,7 +1162,7 @@
   ],
   "accounts": [
     {
-      "name": "Config",
+      "name": "ConfigV1",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1213,7 +1213,11 @@
             "type": "i64"
           },
           {
-            "name": "mintFeeLamports",
+            "name": "mintNftFeeLamports",
+            "type": "u64"
+          },
+          {
+            "name": "updateNftFeeLamports",
             "type": "u64"
           },
           {
@@ -1250,7 +1254,7 @@
       }
     },
     {
-      "name": "TraitItem",
+      "name": "TraitItemV1",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1307,7 +1311,11 @@
             "type": "i64"
           },
           {
-            "name": "mintFeeLamports",
+            "name": "mintNftFeeLamports",
+            "type": "u64"
+          },
+          {
+            "name": "updateNftFeeLamports",
             "type": "u64"
           },
           {
@@ -1515,7 +1523,11 @@
             "type": "i64"
           },
           {
-            "name": "mintFeeLamports",
+            "name": "mintNftFeeLamports",
+            "type": "u64"
+          },
+          {
+            "name": "updateNftFeeLamports",
             "type": "u64"
           },
           {
@@ -1663,6 +1675,6 @@
   ],
   "metadata": {
     "origin": "shank",
-    "address": "8Unce9YGKmoB3cRemsTd6Mn5TeadcmdXe6hrscuvHd6r"
+    "address": "TWTfEU1tgnaErUq4BetvcskjrkV1Hz5K3pgS4ezzytt"
   }
 }
