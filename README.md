@@ -1,5 +1,8 @@
-# Tweetonium – Solana Upgradable NFT Mint and Burn Program
-# Tweetonium – Solana NFT Mint, Escrow, Vesting & Refund Protocol
+<p align="center">
+  <img src="./assets/icon.png" width="1500" alt="Tweetonium Logo" />
+</p>
+
+# Tweetonium Program – Solana NFT Mint, Escrow, Vesting & Refund Protocol
 
 [![Solana](https://img.shields.io/badge/Solana-14F195?logo=solana&logoColor=white)](https://solana.com)
 [![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
@@ -8,25 +11,6 @@
 **Tweetonium** is an upgradeable Solana program that enables secure NFT minting with token-based payments, configurable vesting, per-wallet mint guards, and burn-to-refund mechanics — built using MPL Core, Shank, and pure Rust (no Anchor).
 
 ---
-
-## Key Features
-
-### Burn-to-Refund
-
-### Force Unlock (Admin)
-
-Admin can override vesting and unlock escrow early if necessary.
-
-### Post-Mint NFT Updates
-
-Owner can update NFT metadata (name / URI) with optional SOL fee.
-
-### Mint Guards
-
-- Per-user mint limits
-- Separate limits for VIP users
-- Global supply constraints
-- Admin supply vs user supply enforcement
 
 ## Features
 
