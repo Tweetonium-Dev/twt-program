@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{TraitAuthorityV1, TraitItem},
+    states::{TraitAuthorityV1, TraitItemV1},
     utils::{
         AccountCheck, CreateMplCoreAssetAccounts, CreateMplCoreAssetArgs, MplCoreProgram, Pda,
         ProcessInstruction, SignerAccount, SystemProgram, UninitializedAccount, WritableAccount,
@@ -98,7 +98,7 @@ pub struct MintTraitV1<'a, 'info> {
 }
 
 impl<'a, 'info> MintTraitV1<'a, 'info> {
-    fn check_mint_eligibility(&self, trait_item: &TraitItem) -> ProgramResult {
+    fn check_mint_eligibility(&self, trait_item: &TraitItemV1) -> ProgramResult {
         if !trait_item.stock_available() {
             msg!(
                 "All trait are minted. Allowed supply: {}. Minted {}",
@@ -111,7 +111,7 @@ impl<'a, 'info> MintTraitV1<'a, 'info> {
         Ok(())
     }
 
-    fn pay_protocol_fee(&self, trait_item: &TraitItem) -> ProgramResult {
+    fn pay_protocol_fee(&self, trait_item: &TraitItemV1) -> ProgramResult {
         if trait_item.is_free_mint_fee() {
             return Ok(());
         }
@@ -124,7 +124,7 @@ impl<'a, 'info> MintTraitV1<'a, 'info> {
         )
     }
 
-    fn mint_nft(self, trait_item: &mut TraitItem) -> ProgramResult {
+    fn mint_nft(self, trait_item: &mut TraitItemV1) -> ProgramResult {
         MplCoreProgram::create(
             CreateMplCoreAssetAccounts {
                 payer: self.accounts.payer,
@@ -167,7 +167,7 @@ impl<'a, 'info>
 
         Pda::validate(
             accounts.trait_pda,
-            &[TraitItem::SEED, accounts.trait_collection.key.as_ref()],
+            &[TraitItemV1::SEED, accounts.trait_collection.key.as_ref()],
             program_id,
         )?;
 
@@ -188,7 +188,7 @@ impl<'a, 'info>
 impl<'a, 'info> ProcessInstruction for MintTraitV1<'a, 'info> {
     fn process(self) -> ProgramResult {
         let mut trait_data = self.accounts.trait_pda.try_borrow_mut_data()?;
-        let trait_item = TraitItem::load_mut(trait_data.as_mut())?;
+        let trait_item = TraitItemV1::load_mut(trait_data.as_mut())?;
 
         self.check_mint_eligibility(trait_item)?;
         self.pay_protocol_fee(trait_item)?;

@@ -24,7 +24,7 @@ use crate::{
 /// PDA seed: `[program_id, "config", hashed_nft_symbol, token_mint]`
 #[repr(C)]
 #[derive(Debug, Clone, Copy, ShankAccount)]
-pub struct TraitItem {
+pub struct TraitItemV1 {
     /// The authority that controls configuration updates and protocol-level actions.
     ///
     /// - Must match the signer in `update_trait_v1`.
@@ -51,12 +51,12 @@ pub struct TraitItem {
     pub mint_fee_lamports: u64,
 }
 
-impl TraitItem {
+impl TraitItemV1 {
     pub const LEN: usize = size_of::<Self>();
-    pub const SEED: &[u8; 10] = b"trait_item";
+    pub const SEED: &[u8; 13] = b"trait_item_v1";
 }
 
-impl TraitItem {
+impl TraitItemV1 {
     #[inline(always)]
     pub fn init<'a, 'info>(
         accounts: InitTraitItemAccounts<'a, 'info>,
@@ -105,7 +105,7 @@ impl TraitItem {
     }
 }
 
-impl TraitItem {
+impl TraitItemV1 {
     #[inline(always)]
     pub fn is_free_mint_fee(&self) -> bool {
         self.mint_fee_lamports == 0
@@ -206,20 +206,20 @@ mod tests {
 
     #[test]
     fn test_load_mut_valid() {
-        let mut data = vec![0u8; TraitItem::LEN];
-        assert!(TraitItem::load_mut(&mut data).is_ok());
+        let mut data = vec![0u8; TraitItemV1::LEN];
+        assert!(TraitItemV1::load_mut(&mut data).is_ok());
     }
 
     #[test]
     fn test_load_mut_invalid() {
-        let mut data = vec![0u8; TraitItem::LEN - 1];
-        let err = TraitItem::load_mut(&mut data).unwrap_err();
+        let mut data = vec![0u8; TraitItemV1::LEN - 1];
+        let err = TraitItemV1::load_mut(&mut data).unwrap_err();
         assert_eq!(err, ProgramError::InvalidAccountData);
     }
 
     #[test]
     fn test_free_mint_fee() {
-        let sut = TraitItem {
+        let sut = TraitItemV1 {
             authority: Pubkey::new_unique(),
             max_supply: 10,
             user_minted: 5,
@@ -231,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_pay_mint_fee() {
-        let sut = TraitItem {
+        let sut = TraitItemV1 {
             authority: Pubkey::new_unique(),
             max_supply: 10,
             user_minted: 5,
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn test_stock_available() {
-        let sut = TraitItem {
+        let sut = TraitItemV1 {
             authority: Pubkey::new_unique(),
             max_supply: 10,
             user_minted: 0,
@@ -255,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_stock_unavailable() {
-        let sut = TraitItem {
+        let sut = TraitItemV1 {
             authority: Pubkey::new_unique(),
             max_supply: 10,
             user_minted: 10,
@@ -267,7 +267,7 @@ mod tests {
 
     #[test]
     fn test_increment_user_minted() {
-        let mut sut = TraitItem {
+        let mut sut = TraitItemV1 {
             authority: Pubkey::new_unique(),
             max_supply: 10,
             user_minted: 0,
@@ -288,7 +288,7 @@ mod tests {
         bps[0] = 4000;
         bps[1] = 6000;
 
-        assert!(TraitItem::check_trait_royalties(2, recipients, bps).is_ok());
+        assert!(TraitItemV1::check_trait_royalties(2, recipients, bps).is_ok());
     }
 
     #[test]
@@ -300,7 +300,7 @@ mod tests {
         bps[0] = 100;
 
         let err =
-            TraitItem::check_trait_royalties((MAX_ROYALTY_RECIPIENTS + 1) as u8, recipients, bps)
+            TraitItemV1::check_trait_royalties((MAX_ROYALTY_RECIPIENTS + 1) as u8, recipients, bps)
                 .unwrap_err();
 
         assert_eq!(err, ProgramError::InvalidInstructionData);
@@ -314,14 +314,14 @@ mod tests {
         let mut bps = mock_u16s::<MAX_ROYALTY_RECIPIENTS>(0);
         bps[0] = MAX_BASIS_POINTS + 1;
 
-        let err = TraitItem::check_trait_royalties(1, recipients, bps).unwrap_err();
+        let err = TraitItemV1::check_trait_royalties(1, recipients, bps).unwrap_err();
 
         assert_eq!(err, ProgramError::InvalidInstructionData);
     }
 
     #[test]
     fn test_update() {
-        let mut sut = TraitItem {
+        let mut sut = TraitItemV1 {
             authority: Pubkey::new_unique(),
             max_supply: 10,
             user_minted: 0,

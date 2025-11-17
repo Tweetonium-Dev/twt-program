@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{InitTraitItemAccounts, InitTraitItemArgs, TraitAuthorityV1, TraitItem},
+    states::{InitTraitItemAccounts, InitTraitItemArgs, TraitAuthorityV1, TraitItemV1},
     utils::{
         AccountCheck, InitMplCoreCollectionAccounts, InitMplCoreCollectionArgs, InitPdaAccounts,
         InitPdaArgs, MplCoreProgram, Pda, ProcessInstruction, SignerAccount, SystemProgram,
@@ -93,7 +93,7 @@ pub struct InitTraitV1<'a, 'info> {
 
 impl<'a, 'info> InitTraitV1<'a, 'info> {
     fn check_trait_royalties(&self) -> ProgramResult {
-        TraitItem::check_trait_royalties(
+        TraitItemV1::check_trait_royalties(
             self.instruction_data.num_royalty_recipients,
             self.instruction_data.royalty_recipients,
             self.instruction_data.royalty_shares_bps,
@@ -101,9 +101,9 @@ impl<'a, 'info> InitTraitV1<'a, 'info> {
     }
 
     fn init_trait(&self) -> ProgramResult {
-        let seeds: &[&[u8]] = &[TraitItem::SEED, self.accounts.trait_collection.key.as_ref()];
+        let seeds: &[&[u8]] = &[TraitItemV1::SEED, self.accounts.trait_collection.key.as_ref()];
 
-        TraitItem::init_if_needed(
+        TraitItemV1::init_if_needed(
             InitTraitItemAccounts {
                 pda: self.accounts.trait_pda,
             },
@@ -120,7 +120,7 @@ impl<'a, 'info> InitTraitV1<'a, 'info> {
             },
             InitPdaArgs {
                 seeds,
-                space: TraitItem::LEN,
+                space: TraitItemV1::LEN,
                 program_id: self.program_id,
             },
         )

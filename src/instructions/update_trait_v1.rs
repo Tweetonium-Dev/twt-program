@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{TraitAuthorityV1, TraitItem, UpdateTraitItemArgs},
+    states::{TraitAuthorityV1, TraitItemV1, UpdateTraitItemArgs},
     utils::{
         AccountCheck, MplCoreProgram, Pda, ProcessInstruction, SignerAccount, SystemProgram,
         UpdateMplCoreCollectionAccounts, UpdateMplCoreCollectionArgs, WritableAccount,
@@ -89,7 +89,7 @@ pub struct UpdateTraitV1<'a, 'info> {
 
 impl<'a, 'info> UpdateTraitV1<'a, 'info> {
     fn check_trait_royalties(&self) -> ProgramResult {
-        TraitItem::check_trait_royalties(
+        TraitItemV1::check_trait_royalties(
             self.instruction_data.num_royalty_recipients,
             self.instruction_data.royalty_recipients,
             self.instruction_data.royalty_shares_bps,
@@ -98,7 +98,7 @@ impl<'a, 'info> UpdateTraitV1<'a, 'info> {
 
     fn update_trait(&self) -> ProgramResult {
         let mut trait_data = self.accounts.trait_pda.try_borrow_mut_data()?;
-        let trait_item = TraitItem::load_mut(trait_data.as_mut())?;
+        let trait_item = TraitItemV1::load_mut(trait_data.as_mut())?;
 
         if trait_item.authority != *self.accounts.authority.key {
             msg!("Unauthorized authority for trait update");
@@ -153,7 +153,7 @@ impl<'a, 'info>
 
         Pda::validate(
             accounts.trait_pda,
-            &[TraitItem::SEED, accounts.trait_collection.key.as_ref()],
+            &[TraitItemV1::SEED, accounts.trait_collection.key.as_ref()],
             program_id,
         )?;
 
