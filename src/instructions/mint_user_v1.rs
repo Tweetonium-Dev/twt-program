@@ -29,7 +29,7 @@ pub struct MintUserV1Accounts<'a, 'info> {
     /// Must be readable, owned by program.
     pub config_pda: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, payer, token_mint, nft_collection, "vault"]` — stores `Vault` state.
+    /// PDA: `[program_id, token_mint, nft_collection, nft_asset "vault"]` — stores `Vault` state.
     /// Must be writable if updating vault balance.
     pub vault_pda: &'a AccountInfo<'info>,
 
@@ -251,9 +251,9 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
 
         let seeds: &[&[u8]] = &[
             Vault::SEED,
+            self.accounts.nft_asset.key.as_ref(),
             self.accounts.nft_collection.key.as_ref(),
             self.accounts.token_mint.key.as_ref(),
-            self.accounts.payer.key.as_ref(),
         ];
 
         Vault::init_if_needed(

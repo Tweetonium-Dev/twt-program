@@ -29,7 +29,7 @@ pub struct UpdateConfigV1Accounts<'a, 'info> {
     /// Determines the project scope for mint rules, royalties, and limits.
     pub nft_collection: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, token_mint, "config"]` — stores `Config` struct.
+    /// PDA: `[program_id, token_mint, nft_collection, "config"]` — stores `Config` struct.
     /// Must be uninitialized, writable, owned by this program.
     pub config_pda: &'a AccountInfo<'info>,
 

@@ -20,7 +20,7 @@ pub struct UpdateNftV1Accounts<'a, 'info> {
     /// Must be signer if required by MPL Core.
     pub payer: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, token_mint, "config"]` — stores global config.
+    /// PDA: `[program_id, token_mint, nft_collection, "config"]` — stores global config.
     /// Must be readable, owned by program.
     pub config_pda: &'a AccountInfo<'info>,
 

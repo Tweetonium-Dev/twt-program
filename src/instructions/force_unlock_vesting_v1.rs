@@ -17,7 +17,7 @@ pub struct ForceUnlockVestingV1Accounts<'a, 'info> {
     /// Must match `config.admin`.
     pub admin: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, token_mint, "config"]` — stores global config.
+    /// PDA: `[program_id, token_mint, nft_collection,, "config"]` — stores global config.
     /// Must be writable.
     pub config_pda: &'a AccountInfo<'info>,
 

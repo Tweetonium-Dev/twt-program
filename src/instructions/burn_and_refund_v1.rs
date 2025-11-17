@@ -33,7 +33,7 @@ pub struct BurnAndRefundV1Accounts<'a, 'info> {
     /// Must be valid MPL Core asset.
     pub nft_asset: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, "vault"]` — escrow state.
+    /// PDA: `[program_id, token_mint, nft_collection, nft_asset, "vault"]` — escrow state.
     /// Must be readable.
     pub vault_pda: &'a AccountInfo<'info>,
 
@@ -45,7 +45,7 @@ pub struct BurnAndRefundV1Accounts<'a, 'info> {
     /// Must be writable, owned by `token_program`.
     pub payer_ata: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, token_mint, "config"]` — for price/refund logic.
+    /// PDA: `[program_id, token_mint, nft_collection, "config"]` — for price/refund logic.
     /// Must be readable.
     pub config_pda: &'a AccountInfo<'info>,
 
@@ -171,9 +171,9 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
     fn refund_token(&self, config: &Config, balance: u64) -> ProgramResult {
         let signers_seeds: &[&[&[u8]]] = &[&[
             Vault::SEED,
+            self.accounts.nft_asset.key.as_ref(),
             self.accounts.nft_collection.key.as_ref(),
             self.accounts.token_mint.key.as_ref(),
-            self.accounts.payer.key.as_ref(),
             &[self.vault_bump],
         ]];
 
@@ -191,17 +191,15 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
                 decimals: config.mint_decimals,
             },
             signers_seeds,
-        )?;
-
-        Ok(())
+        )
     }
 
     fn close_vault(&self) -> ProgramResult {
         let vault_seeds: &[&[u8]] = &[
             Vault::SEED,
+            self.accounts.nft_asset.key.as_ref(),
             self.accounts.nft_collection.key.as_ref(),
             self.accounts.token_mint.key.as_ref(),
-            self.accounts.payer.key.as_ref(),
             &[self.vault_bump],
         ];
 
@@ -213,9 +211,7 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
             vault_seeds,
         )?;
 
-        SystemProgram::close_account_pda(self.accounts.vault_pda, self.accounts.payer)?;
-
-        Ok(())
+        SystemProgram::close_account_pda(self.accounts.vault_pda, self.accounts.payer)
     }
 }
 
@@ -244,9 +240,9 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)> for BurnAndRefun
             accounts.vault_pda,
             &[
                 Vault::SEED,
+                accounts.nft_asset.key.as_ref(),
                 accounts.nft_collection.key.as_ref(),
                 accounts.token_mint.key.as_ref(),
-                accounts.payer.key.as_ref(),
             ],
             program_id,
         )?;

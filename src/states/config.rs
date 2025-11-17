@@ -106,8 +106,8 @@ pub struct Config {
 
     /// The total mint price per NFT, denominated in the payment mint (e.g. ZDLT).
     ///
-    /// - Represents the **full price**, before splitting between vaults and DAO wallets.
-    /// - Example: `30_000 * 10^6` = 30,000.000000 ZDLT.
+    /// - Represents the **full price**, before splitting between vaults and revenue wallets.
+    /// - Example: (store to vault: 15k) + (sum(revenue_shares): 15k) = 30k mint price total.
     pub mint_price_total: u64,
 
     /// The escrowed amount (portion of `mint_price_total`) held in a user-specific vault.
