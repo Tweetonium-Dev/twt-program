@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="./assets/icon.png" width="1500" alt="Tweetonium Logo" />
+  <img src="./assets/icon.png" width="1500" alt="Tweetonium" />
 </p>
 
-# Tweetonium – Solana NFT Mint, Escrow, Vesting & Refund Protocol
+# Solana NFT Mint, Escrow, Vesting & Refund Protocol
 
 [![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Solana](https://img.shields.io/badge/Solana-14F195?logo=solana&logoColor=white)](https://solana.com)
