@@ -43,8 +43,16 @@ jobs:
         with:
           version: ${{ env.SOLANA_VERSION }}
 
+      # 👉 Add Solana rustc & cargo to PATH
+      - name: Add Solana Rust to PATH
+        run: |
+          echo "$HOME/.local/share/solana/install/active_release/bin" \
+            >> $GITHUB_PATH
+          rustc --version
+          cargo --version
+
       # Build native
-      - name: Build (native)
+      - name: Build
         run: cargo build-sbf
 
       # Formatter
