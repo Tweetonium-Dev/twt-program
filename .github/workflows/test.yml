@@ -43,13 +43,17 @@ jobs:
         with:
           version: ${{ env.SOLANA_VERSION }}
 
-      # 👉 Add Solana rustc & cargo to PATH
-      - name: Add Solana Rust to PATH
+      # Add Solana rustc & cargo to PATH
+      - name: Add Solana Cargo to PATH
         run: |
           echo "$HOME/.local/share/solana/install/active_release/bin" \
             >> $GITHUB_PATH
           rustc --version
           cargo --version
+
+      # Fix lockfile for Solana SBF
+      - name: Rewrite lockfile for SBF
+        run: $HOME/.local/share/solana/install/active_release/bin/cargo update
 
       # Build native
       - name: Build
@@ -64,7 +68,7 @@ jobs:
         run: cargo clippy
 
       # Tests
-      - name: Run unit tests
+      - name: Run tests
         run: cargo test
 
       # Coverage
