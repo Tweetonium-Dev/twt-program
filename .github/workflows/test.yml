@@ -1,0 +1,83 @@
+---
+name: Solana CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  RUST_TOOLCHAIN: stable
+  SOLANA_VERSION: "2.0.15"
+
+jobs:
+  build-test:
+    name: Build + Tests + Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install Rust
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
+
+      # Cache cargo
+      - name: Cache cargo registry + git
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      # Install Solana Toolchain
+      - name: Install Solana
+        run: |
+          sh -c "$(curl -sSfL \
+            https://release.solana.com/v${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" \
+            >> $GITHUB_PATH
+          solana --version
+
+      # Install Tarpaulin
+      - name: Install Tarpaulin
+        run: cargo install cargo-tarpaulin --locked
+
+      # Build native
+      - name: Build (native)
+        run: make build
+
+      # Formatter
+      - name: Run format
+        run: make fmt
+
+      # Clippy
+      - name: Run clippy
+        run: make lint
+
+      # Tests
+      - name: Run unit tests
+        run: make test
+
+      # Coverage
+      - name: Coverage (Tarpaulin)
+        run: |
+          cargo tarpaulin \
+            --workspace \
+            --all-features \
+            --exclude-files "target/*" \
+            --fail-under 80 \
+            --out Html
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: tarpaulin-report.html

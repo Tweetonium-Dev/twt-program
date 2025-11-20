@@ -1,5 +1,7 @@
 # Compiled
 /target
+tarpaulin-report.*
+build_rs_cov.profraw
 
 # macOS
 .DS_Store
