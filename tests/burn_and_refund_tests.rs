@@ -7,7 +7,10 @@ use solana_sdk::{account::Account, signature::Keypair, signer::Signer, transacti
 use tweetonium::{
     process_instruction,
     states::{ConfigV1, NftAuthorityV1, VaultV1, VestingMode},
-    utils::{mock_base_asset, mock_mint, mock_mint_2022, mock_token_account, mock_token_account_2022, noop_processor, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID},
+    utils::{
+        mock_base_asset, mock_mint, mock_mint_2022, mock_token_account, mock_token_account_2022,
+        noop_processor, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID,
+    },
 };
 
 #[tokio::test]
@@ -46,11 +49,7 @@ async fn test_burn_and_refund_v1() {
     );
 
     let (config_pda, _) = Pubkey::find_program_address(
-        &[
-            ConfigV1::SEED,
-            nft_collection.as_ref(),
-            token_mint.as_ref(),
-        ],
+        &[ConfigV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
         &program_id,
     );
 
@@ -154,7 +153,7 @@ async fn test_burn_and_refund_v1() {
             data: mock_base_asset(payer_pubkey, "Test NFT", "https://example.com"),
             owner: mpl_core_id,
             executable: false,
-           rent_epoch: 0,
+            rent_epoch: 0,
         },
     );
 

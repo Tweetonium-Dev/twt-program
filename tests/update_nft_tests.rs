@@ -10,7 +10,8 @@ use tweetonium::{
     process_instruction,
     states::{ConfigV1, NftAuthorityV1, VestingMode},
     utils::{
-        mock_base_asset, mock_mint, mock_mint_2022, noop_processor, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID
+        mock_base_asset, mock_mint, mock_mint_2022, noop_processor, TOKEN_2022_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
     },
 };
 
@@ -42,11 +43,7 @@ async fn test_update_nft() {
     let (nft_authority, _) = Pubkey::find_program_address(&[NftAuthorityV1::SEED], &program_id);
 
     let (config_pda, _) = Pubkey::find_program_address(
-        &[
-            ConfigV1::SEED,
-            nft_collection.as_ref(),
-            token_mint.as_ref(),
-        ],
+        &[ConfigV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
         &program_id,
     );
 
@@ -132,7 +129,11 @@ async fn test_update_nft() {
         nft_asset,
         Account {
             lamports,
-            data: mock_base_asset(payer_pubkey, "Update NFT", "https://example.com/new-nft.json"),
+            data: mock_base_asset(
+                payer_pubkey,
+                "Update NFT",
+                "https://example.com/new-nft.json",
+            ),
             owner: mpl_core_id,
             executable: false,
             rent_epoch: 0,
@@ -176,12 +177,8 @@ async fn test_update_nft() {
         data,
     };
 
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer_pubkey),
-        &[&payer],
-        recent_blockhash,
-    );
+    let tx =
+        Transaction::new_signed_with_payer(&[ix], Some(&payer_pubkey), &[&payer], recent_blockhash);
 
     let result = banks_client.process_transaction(tx).await;
 
@@ -216,11 +213,7 @@ async fn test_update_nft_2022() {
     let (nft_authority, _) = Pubkey::find_program_address(&[NftAuthorityV1::SEED], &program_id);
 
     let (config_pda, _) = Pubkey::find_program_address(
-        &[
-            ConfigV1::SEED,
-            nft_collection.as_ref(),
-            token_mint.as_ref(),
-        ],
+        &[ConfigV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
         &program_id,
     );
 
@@ -306,7 +299,11 @@ async fn test_update_nft_2022() {
         nft_asset,
         Account {
             lamports,
-            data: mock_base_asset(payer_pubkey, "Update NFT", "https://example.com/new-nft.json"),
+            data: mock_base_asset(
+                payer_pubkey,
+                "Update NFT",
+                "https://example.com/new-nft.json",
+            ),
             owner: mpl_core_id,
             executable: false,
             rent_epoch: 0,
@@ -350,12 +347,8 @@ async fn test_update_nft_2022() {
         data,
     };
 
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer_pubkey),
-        &[&payer],
-        recent_blockhash,
-    );
+    let tx =
+        Transaction::new_signed_with_payer(&[ix], Some(&payer_pubkey), &[&payer], recent_blockhash);
 
     let result = banks_client.process_transaction(tx).await;
 

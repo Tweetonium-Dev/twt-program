@@ -60,11 +60,7 @@ async fn test_mint_admin() {
     );
 
     let (config_pda, _) = Pubkey::find_program_address(
-        &[
-            ConfigV1::SEED,
-            nft_collection.as_ref(),
-            token_mint.as_ref(),
-        ],
+        &[ConfigV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
         &program_id,
     );
 
@@ -275,11 +271,7 @@ async fn test_mint_admin_2022() {
     );
 
     let (config_pda, _) = Pubkey::find_program_address(
-        &[
-            ConfigV1::SEED,
-            nft_collection.as_ref(),
-            token_mint.as_ref(),
-        ],
+        &[ConfigV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
         &program_id,
     );
 

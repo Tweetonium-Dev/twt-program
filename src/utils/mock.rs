@@ -139,11 +139,7 @@ pub fn mock_mint_2022(decimals: u8, mint_authority: Pubkey) -> Vec<u8> {
     data
 }
 
-pub fn mock_token_account(
-    mint: &Pubkey,
-    owner: &Pubkey,
-    amount: u64
-) -> Vec<u8> {
+pub fn mock_token_account(mint: &Pubkey, owner: &Pubkey, amount: u64) -> Vec<u8> {
     let mut data = vec![0u8; TOKEN_ACCOUNT_LEN];
 
     // mint
@@ -173,12 +169,8 @@ pub fn mock_token_account(
     data
 }
 
-pub fn mock_token_account_2022(
-    mint: &Pubkey,
-    owner: &Pubkey,
-    amount: u64,
-) -> Vec<u8> {
-let mut data = vec![0u8; TOKEN_ACCOUNT_2022_MIN_LEN]; // 165 + TLV min (2 bytes) = 167
+pub fn mock_token_account_2022(mint: &Pubkey, owner: &Pubkey, amount: u64) -> Vec<u8> {
+    let mut data = vec![0u8; TOKEN_ACCOUNT_2022_MIN_LEN]; // 165 + TLV min (2 bytes) = 167
 
     // Offset 0..32: mint Pubkey
     data[0..32].copy_from_slice(mint.as_ref());
@@ -209,17 +201,13 @@ let mut data = vec![0u8; TOKEN_ACCOUNT_2022_MIN_LEN]; // 165 + TLV min (2 bytes)
     data[129..133].copy_from_slice(&0u32.to_le_bytes());
 
     // === TLV: one zero-length extension (makes total 167) ===
-    data[165] = 0;  // ExtensionType (0 = unused/reserved)
-    data[166] = 0;  // length = 0
+    data[165] = 0; // ExtensionType (0 = unused/reserved)
+    data[166] = 0; // length = 0
 
     data
 }
 
-pub fn mock_base_asset(
-    owner: Pubkey, 
-    name: &str, 
-    uri: &str
-) -> Vec<u8> {
+pub fn mock_base_asset(owner: Pubkey, name: &str, uri: &str) -> Vec<u8> {
     let base = BaseAssetV1 {
         key: Key::AssetV1,
         owner,

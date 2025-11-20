@@ -1,8 +1,10 @@
 use mpl_core::{
-    accounts::BaseAssetV1, instructions::{
+    accounts::BaseAssetV1,
+    instructions::{
         BurnV1CpiBuilder, CreateCollectionV2CpiBuilder, CreateV2CpiBuilder,
         UpdateCollectionPluginV1CpiBuilder, UpdateCollectionV1CpiBuilder, UpdateV1CpiBuilder,
-    }, types::{
+    },
+    types::{
         Creator, PermanentBurnDelegate, Plugin, PluginAuthority, PluginAuthorityPair, Royalties,
         RuleSet,
     },
@@ -19,8 +21,7 @@ pub struct MplCoreProgram;
 impl MplCoreProgram {
     pub fn get_asset_owner<'info>(account: &AccountInfo<'info>) -> Result<Pubkey, ProgramError> {
         let data = account.try_borrow_data()?;
-        let base = BaseAssetV1::from_bytes(&data)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+        let base = BaseAssetV1::from_bytes(&data).map_err(|_| ProgramError::InvalidAccountData)?;
         Ok(base.owner)
     }
 
@@ -263,7 +264,10 @@ pub struct BurnMplCoreAssetAccounts<'a, 'info> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::{mock::{default_pubkeys, mock_account, mock_u16s}, mock_base_asset};
+    use crate::utils::{
+        mock::{default_pubkeys, mock_account, mock_u16s},
+        mock_base_asset,
+    };
 
     // --- Test Helpers ---
 
