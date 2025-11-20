@@ -45,19 +45,19 @@ jobs:
 
       # Build native
       - name: Build (native)
-        run: make build
+        run: cargo build-sbf
 
       # Formatter
       - name: Run format
-        run: make fmt
+        run: cargo fmt
 
       # Clippy
       - name: Run clippy
-        run: make lint
+        run: cargo clippy
 
       # Tests
       - name: Run unit tests
-        run: make test
+        run: cargo test
 
       # Coverage
       - name: Coverage (Tarpaulin)
