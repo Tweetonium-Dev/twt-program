@@ -43,8 +43,7 @@ async fn test_mint_admin() {
     let nft_asset = Keypair::new();
     let nft_asset_pubkey = nft_asset.pubkey();
 
-    let token_mint = Keypair::new();
-    let token_mint_pubkey = token_mint.pubkey();
+    let token_mint = Pubkey::new_unique();
 
     let protocol_wallet = Pubkey::new_unique();
 
@@ -55,7 +54,7 @@ async fn test_mint_admin() {
         &[
             admin_pubkey.as_ref(),
             token_program_id.as_ref(),
-            token_mint_pubkey.as_ref(),
+            token_mint.as_ref(),
         ],
         &associated_token_program_id,
     );
@@ -64,7 +63,7 @@ async fn test_mint_admin() {
         &[
             ConfigV1::SEED,
             nft_collection.as_ref(),
-            token_mint_pubkey.as_ref(),
+            token_mint.as_ref(),
         ],
         &program_id,
     );
@@ -74,7 +73,7 @@ async fn test_mint_admin() {
             VaultV1::SEED,
             nft_asset_pubkey.as_ref(),
             nft_collection.as_ref(),
-            token_mint_pubkey.as_ref(),
+            token_mint.as_ref(),
         ],
         &program_id,
     );
@@ -83,14 +82,14 @@ async fn test_mint_admin() {
         &[
             vault_pda.as_ref(),
             token_program_id.as_ref(),
-            token_mint_pubkey.as_ref(),
+            token_mint.as_ref(),
         ],
         &associated_token_program_id,
     );
 
     let cfg = ConfigV1 {
         admin: admin_pubkey,
-        mint: token_mint_pubkey,
+        mint: token_mint,
         mint_decimals: 6,
         max_supply: 10_000,
         released: 5_000,
@@ -126,7 +125,7 @@ async fn test_mint_admin() {
         admin_ata,
         Account {
             lamports,
-            data: mock_token_account(&token_mint_pubkey, &admin_pubkey, 0),
+            data: mock_token_account(&token_mint, &admin_pubkey, 0),
             owner: token_program_id,
             executable: false,
             rent_epoch: 0,
@@ -167,7 +166,7 @@ async fn test_mint_admin() {
     );
 
     program_test.add_account(
-        token_mint_pubkey,
+        token_mint,
         Account {
             lamports,
             data: mock_mint(6, admin_pubkey),
@@ -209,7 +208,7 @@ async fn test_mint_admin() {
             AccountMeta::new_readonly(nft_authority, false),
             AccountMeta::new(nft_collection, false),
             AccountMeta::new(nft_asset_pubkey, true),
-            AccountMeta::new_readonly(token_mint_pubkey, false),
+            AccountMeta::new_readonly(token_mint, false),
             AccountMeta::new_readonly(token_program_id, false),
             AccountMeta::new_readonly(associated_token_program_id, false),
             AccountMeta::new(protocol_wallet, false),
@@ -259,8 +258,7 @@ async fn test_mint_admin_2022() {
     let nft_asset = Keypair::new();
     let nft_asset_pubkey = nft_asset.pubkey();
 
-    let token_mint = Keypair::new();
-    let token_mint_pubkey = token_mint.pubkey();
+    let token_mint = Pubkey::new_unique();
 
     let protocol_wallet = Pubkey::new_unique();
 
@@ -271,7 +269,7 @@ async fn test_mint_admin_2022() {
         &[
             admin_pubkey.as_ref(),
             token_program_id.as_ref(),
-            token_mint_pubkey.as_ref(),
+            token_mint.as_ref(),
         ],
         &associated_token_program_id,
     );
@@ -280,7 +278,7 @@ async fn test_mint_admin_2022() {
         &[
             ConfigV1::SEED,
             nft_collection.as_ref(),
-            token_mint_pubkey.as_ref(),
+            token_mint.as_ref(),
         ],
         &program_id,
     );
@@ -290,7 +288,7 @@ async fn test_mint_admin_2022() {
             VaultV1::SEED,
             nft_asset_pubkey.as_ref(),
             nft_collection.as_ref(),
-            token_mint_pubkey.as_ref(),
+            token_mint.as_ref(),
         ],
         &program_id,
     );
@@ -299,14 +297,14 @@ async fn test_mint_admin_2022() {
         &[
             vault_pda.as_ref(),
             token_program_id.as_ref(),
-            token_mint_pubkey.as_ref(),
+            token_mint.as_ref(),
         ],
         &associated_token_program_id,
     );
 
     let cfg = ConfigV1 {
         admin: admin_pubkey,
-        mint: token_mint_pubkey,
+        mint: token_mint,
         mint_decimals: 6,
         max_supply: 10_000,
         released: 5_000,
@@ -342,7 +340,7 @@ async fn test_mint_admin_2022() {
         admin_ata,
         Account {
             lamports: 1,
-            data: mock_token_account_2022(&token_mint_pubkey, &admin_pubkey, 0),
+            data: mock_token_account_2022(&token_mint, &admin_pubkey, 0),
             owner: token_program_id,
             executable: false,
             rent_epoch: 0,
@@ -383,7 +381,7 @@ async fn test_mint_admin_2022() {
     );
 
     program_test.add_account(
-        token_mint_pubkey,
+        token_mint,
         Account {
             lamports,
             data: mock_mint_2022(6, admin_pubkey),
@@ -425,7 +423,7 @@ async fn test_mint_admin_2022() {
             AccountMeta::new_readonly(nft_authority, false),
             AccountMeta::new(nft_collection, false),
             AccountMeta::new(nft_asset_pubkey, true),
-            AccountMeta::new_readonly(token_mint_pubkey, false),
+            AccountMeta::new_readonly(token_mint, false),
             AccountMeta::new_readonly(token_program_id, false),
             AccountMeta::new_readonly(associated_token_program_id, false),
             AccountMeta::new(protocol_wallet, false),
