@@ -1,13 +1,11 @@
 use mpl_core::{
-    instructions::{
+    accounts::BaseAssetV1, instructions::{
         BurnV1CpiBuilder, CreateCollectionV2CpiBuilder, CreateV2CpiBuilder,
         UpdateCollectionPluginV1CpiBuilder, UpdateCollectionV1CpiBuilder, UpdateV1CpiBuilder,
-    },
-    types::{
+    }, types::{
         Creator, PermanentBurnDelegate, Plugin, PluginAuthority, PluginAuthorityPair, Royalties,
         RuleSet,
     },
-    Asset,
 };
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
@@ -19,11 +17,11 @@ use crate::{states::MAX_ROYALTY_RECIPIENTS, utils::AccountCheck};
 pub struct MplCoreProgram;
 
 impl MplCoreProgram {
-    pub fn get_asset<'info>(account: &AccountInfo<'info>) -> Result<Asset, ProgramError> {
+    pub fn get_asset_owner<'info>(account: &AccountInfo<'info>) -> Result<Pubkey, ProgramError> {
         let data = account.try_borrow_data()?;
-        let asset =
-            Asset::deserialize(data.as_ref()).map_err(|_| ProgramError::InvalidAccountData)?;
-        Ok(*asset)
+        let base = BaseAssetV1::from_bytes(&data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+        Ok(base.owner)
     }
 
     pub fn get_royalties(
@@ -265,12 +263,7 @@ pub struct BurnMplCoreAssetAccounts<'a, 'info> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::mock::{default_pubkeys, mock_account, mock_u16s};
-    use borsh::BorshSerialize;
-    use mpl_core::{
-        accounts::BaseAssetV1,
-        types::{Key, UpdateAuthority},
-    };
+    use crate::utils::{mock::{default_pubkeys, mock_account, mock_u16s}, mock_base_asset};
 
     // --- Test Helpers ---
 
@@ -279,23 +272,12 @@ mod tests {
     }
 
     fn mock_mpl_asset(owner: Pubkey, name: &str, uri: &str) -> AccountInfo<'static> {
-        let base = BaseAssetV1 {
-            key: Key::AssetV1,
-            owner,
-            update_authority: UpdateAuthority::Collection(Pubkey::new_unique()),
-            name: name.to_string(),
-            uri: uri.to_string(),
-            seq: None,
-        };
-
-        let data = base.try_to_vec().expect("serialize BaseAssetV1");
-
         crate::utils::mock::mock_account_with_data(
             Pubkey::new_unique(),
             false,
             true,
             1,
-            data,
+            mock_base_asset(owner, name, uri),
             mpl_core::ID,
         )
     }
@@ -309,10 +291,8 @@ mod tests {
         let uri = "https://example.com";
         let account = mock_mpl_asset(owner, name, uri);
 
-        let asset = MplCoreProgram::get_asset(&account).expect("Failed to get asset");
-        assert_eq!(asset.base.owner, owner);
-        assert_eq!(asset.base.name, name);
-        assert_eq!(asset.base.uri, uri);
+        let asset_owner = MplCoreProgram::get_asset_owner(&account).expect("Failed to get asset");
+        assert_eq!(asset_owner, owner);
     }
 
     #[test]
@@ -321,7 +301,7 @@ mod tests {
         let data = vec![1, 2, 3, 4];
         let account = mock_account_info(key, data);
 
-        let result = MplCoreProgram::get_asset(&account);
+        let result = MplCoreProgram::get_asset_owner(&account);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), ProgramError::InvalidAccountData);
     }

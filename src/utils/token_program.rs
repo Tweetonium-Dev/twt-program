@@ -3,14 +3,13 @@ use solana_program::{
     entrypoint::ProgramResult,
     instruction::{AccountMeta, Instruction},
     msg,
-    program::{invoke, invoke_signed},
+    program::invoke_signed,
     program_error::ProgramError,
     pubkey,
     pubkey::Pubkey,
 };
-use spl_token::instruction::transfer;
 
-pub const TOKEN_PROGRAM_ID: Pubkey = spl_token::ID;
+pub const TOKEN_PROGRAM_ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 pub const TOKEN_2022_PROGRAM_ID: Pubkey = pubkey!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 
 pub const MINT_LEN: usize = 82;
@@ -84,44 +83,23 @@ impl TokenProgram {
 
     pub fn transfer<'a, 'info>(
         accounts: TokenTransferAccounts<'a, 'info>,
-        args: TokenTransferArgs<'a>,
+        args: TokenTransferArgs,
     ) -> ProgramResult {
         Self::transfer_signed(accounts, args, &[])
     }
 
     pub fn transfer_signed<'a, 'info>(
         accounts: TokenTransferAccounts<'a, 'info>,
-        args: TokenTransferArgs<'a>,
+        args: TokenTransferArgs,
         signers_seeds: &[&[&[u8]]],
     ) -> ProgramResult {
         match Self::detect_token_program(accounts.token_program)? {
             Self::Token => {
-                let ix = transfer(
-                    &TOKEN_PROGRAM_ID,
-                    accounts.source.key,
-                    accounts.destination.key,
-                    accounts.authority.key,
-                    args.signer_pubkeys,
-                    args.amount,
-                )?;
-
-                invoke(
-                    &ix,
-                    &[
-                        accounts.source.clone(),
-                        accounts.destination.clone(),
-                        accounts.authority.clone(),
-                        accounts.token_program.clone(),
-                    ],
-                )?;
-            }
-            Self::Token2022 => {
-                let ix = Self::token_2022_transfer_checked_ix(
+                let ix = Self::token_transfer_checked_ix(
                     *accounts.source.key,
                     *accounts.mint.key,
                     *accounts.destination.key,
                     *accounts.authority.key,
-                    args.signer_pubkeys,
                     args.amount,
                     args.decimals,
                 );
@@ -136,11 +114,60 @@ impl TokenProgram {
                         accounts.token_program.clone(),
                     ],
                     signers_seeds,
-                )?;
+                )
             }
-        };
+            Self::Token2022 => {
+                let ix = Self::token_2022_transfer_checked_ix(
+                    *accounts.source.key,
+                    *accounts.mint.key,
+                    *accounts.destination.key,
+                    *accounts.authority.key,
+                    args.amount,
+                    args.decimals,
+                );
 
-        Ok(())
+                msg!("invoke tf 2022 instruction");
+
+                invoke_signed(
+                    &ix,
+                    &[
+                        accounts.source.clone(),
+                        accounts.mint.clone(),
+                        accounts.destination.clone(),
+                        accounts.authority.clone(),
+                        accounts.token_program.clone(),
+                    ],
+                    signers_seeds,
+                )
+            }
+        }
+    }
+
+    fn token_transfer_checked_ix(
+        source: Pubkey,
+        mint: Pubkey,
+        destination: Pubkey,
+        authority: Pubkey,
+        amount: u64,
+        decimals: u8,
+    ) -> Instruction {
+        let mut data = Vec::with_capacity(10);
+        data.push(12);
+        data.extend_from_slice(&amount.to_le_bytes());
+        data.push(decimals);
+
+        let accounts = vec![
+            AccountMeta::new(source, false),
+            AccountMeta::new_readonly(mint, false),
+            AccountMeta::new(destination, false),
+            AccountMeta::new_readonly(authority, true),
+        ];
+
+        Instruction {
+            program_id: TOKEN_PROGRAM_ID,
+            accounts,
+            data,
+        }
     }
 
     fn token_2022_transfer_checked_ix(
@@ -148,7 +175,6 @@ impl TokenProgram {
         mint: Pubkey,
         destination: Pubkey,
         authority: Pubkey,
-        signer_pubkeys: &[&Pubkey],
         amount: u64,
         decimals: u8,
     ) -> Instruction {
@@ -158,15 +184,12 @@ impl TokenProgram {
         data.extend_from_slice(&amount.to_le_bytes());
         data.push(decimals);
 
-        let mut accounts = vec![
+        let accounts = vec![
             AccountMeta::new(source, false),
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new(destination, false),
             AccountMeta::new_readonly(authority, true),
         ];
-        for signer in signer_pubkeys {
-            accounts.push(AccountMeta::new_readonly(**signer, true));
-        }
 
         Instruction {
             program_id: TOKEN_2022_PROGRAM_ID,
@@ -184,8 +207,7 @@ pub struct TokenTransferAccounts<'a, 'info> {
     pub token_program: &'a AccountInfo<'info>,
 }
 
-pub struct TokenTransferArgs<'a> {
-    pub signer_pubkeys: &'a [&'a Pubkey],
+pub struct TokenTransferArgs {
     pub amount: u64,
     pub decimals: u8,
 }
@@ -275,18 +297,8 @@ mod tests {
         let mint = Pubkey::new_unique();
         let dst = Pubkey::new_unique();
         let auth = Pubkey::new_unique();
-        let signer1 = Pubkey::new_unique();
-        let signer2 = Pubkey::new_unique();
 
-        let ix = TokenProgram::token_2022_transfer_checked_ix(
-            src,
-            mint,
-            dst,
-            auth,
-            &[&signer1, &signer2],
-            9999,
-            6,
-        );
+        let ix = TokenProgram::token_2022_transfer_checked_ix(src, mint, dst, auth, 9999, 6);
 
         // Check program id
         assert_eq!(ix.program_id, TOKEN_2022_PROGRAM_ID);
@@ -302,7 +314,5 @@ mod tests {
         assert_eq!(ix.accounts[1].pubkey, mint);
         assert_eq!(ix.accounts[2].pubkey, dst);
         assert_eq!(ix.accounts[3].pubkey, auth);
-        assert_eq!(ix.accounts[4].pubkey, signer1);
-        assert_eq!(ix.accounts[5].pubkey, signer2);
     }
 }

@@ -19,6 +19,10 @@ pub struct InitConfigV1Accounts<'a, 'info> {
     /// Must be a signer.
     pub admin: &'a AccountInfo<'info>,
 
+    /// PDA: `["config_v1", nft_collection, token_mint, program_id]` — stores global config.
+    /// Must be uninitialized, writable, owned by this program.
+    pub config_pda: &'a AccountInfo<'info>,
+
     /// PDA: `[program_id, "nft_authority"]`
     /// Controls: update/burn all NFTs.
     /// Only program can sign
@@ -28,10 +32,6 @@ pub struct InitConfigV1Accounts<'a, 'info> {
     /// Must be signer and initialized before nft creation via `CreateV1CpiBuilder`.
     /// Determines the project scope for mint rules, royalties, and limits.
     pub nft_collection: &'a AccountInfo<'info>,
-
-    /// PDA: `[program_id, token_mint, nft_collection, "config"]` — stores `Config` struct.
-    /// Must be uninitialized, writable, owned by this program.
-    pub config_pda: &'a AccountInfo<'info>,
 
     /// Token mint (fungible token used for minting/refunding e.g. ZDLT).
     /// Must be valid mint (82 or 90+ bytes), owned by SPL Token or Token-2022.
@@ -49,7 +49,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [admin, nft_authority, nft_collection, config_pda, token_mint, system_program, mpl_core] =
+        let [admin, config_pda, nft_authority, nft_collection, token_mint, system_program, mpl_core] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);

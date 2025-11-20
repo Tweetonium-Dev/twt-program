@@ -12,15 +12,15 @@ use crate::{
     utils::ProcessInstruction,
 };
 
-mod instructions;
-mod states;
-mod utils;
+pub mod instructions;
+pub mod states;
+pub mod utils;
 
 declare_id!("TWTfEU1tgnaErUq4BetvcskjrkV1Hz5K3pgS4ezzytt");
 
 entrypoint!(process_instruction);
 
-fn process_instruction(
+pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     instruction_data: &[u8],

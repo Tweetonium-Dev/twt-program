@@ -1,5 +1,4 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use mpl_core::Asset;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
     pubkey::Pubkey,
@@ -20,7 +19,7 @@ pub struct UpdateNftV1Accounts<'a, 'info> {
     /// Must be signer if required by MPL Core.
     pub payer: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, token_mint, nft_collection, "config"]` — stores global config.
+    /// PDA: `["config", nft_collection, token_mint, program_id]` — for price/refund logic.
     /// Must be readable, owned by program.
     pub config_pda: &'a AccountInfo<'info>,
 
@@ -104,11 +103,9 @@ pub struct UpdateNftV1<'a, 'info> {
 
 impl<'a, 'info> UpdateNftV1<'a, 'info> {
     fn check_ownership(&self) -> ProgramResult {
-        let asset_data = &self.accounts.nft_asset.data.borrow();
-        let asset =
-            Asset::deserialize(&asset_data[..]).map_err(|_| ProgramError::InvalidAccountData)?;
+        let asset_owner = MplCoreProgram::get_asset_owner(self.accounts.nft_asset)?;
 
-        if asset.base.owner != *self.accounts.payer.key {
+        if asset_owner != *self.accounts.payer.key {
             msg!("Signer is not the NFT owner");
             return Err(ProgramError::InvalidAccountData);
         }
@@ -194,10 +191,6 @@ impl<'a, 'info> ProcessInstruction for UpdateNftV1<'a, 'info> {
 
         self.check_ownership()?;
         self.pay_protocol_fee(config)?;
-        self.update_nft()?;
-
-        msg!("UpdateNft: NFT updated successfully");
-
-        Ok(())
+        self.update_nft()
     }
 }

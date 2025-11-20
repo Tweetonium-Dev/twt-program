@@ -18,11 +18,11 @@ pub struct MintTraitV1Accounts<'a, 'info> {
     /// Must be signer.
     pub payer: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, trait_collection, "config"]` — stores `Config` struct.
+    /// PDA: `["trait_item_v1", trait_collection, program_id]` — stores `TraitItem` struct.
     /// Must be uninitialized, writable, owned by this program.
     pub trait_pda: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, "trait_authority"]`
+    /// PDA: `["trait_authority", program_id]`
     /// Controls: update/burn all trait NFTs.
     /// Only program can sign.
     pub trait_authority: &'a AccountInfo<'info>,
@@ -85,7 +85,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintTraitV1Accounts<'a, 'i
 }
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
-pub struct MinTraitV1InstructionData {
+pub struct MintTraitV1InstructionData {
     pub trait_name: String,
     pub trait_uri: String,
 }
@@ -93,7 +93,7 @@ pub struct MinTraitV1InstructionData {
 #[derive(Debug)]
 pub struct MintTraitV1<'a, 'info> {
     pub accounts: MintTraitV1Accounts<'a, 'info>,
-    pub instruction_data: MinTraitV1InstructionData,
+    pub instruction_data: MintTraitV1InstructionData,
     pub trait_authority_bump: u8,
 }
 
@@ -150,7 +150,7 @@ impl<'a, 'info> MintTraitV1<'a, 'info> {
 impl<'a, 'info>
     TryFrom<(
         &'a [AccountInfo<'info>],
-        MinTraitV1InstructionData,
+        MintTraitV1InstructionData,
         &'a Pubkey,
     )> for MintTraitV1<'a, 'info>
 {
@@ -159,7 +159,7 @@ impl<'a, 'info>
     fn try_from(
         (accounts, instruction_data, program_id): (
             &'a [AccountInfo<'info>],
-            MinTraitV1InstructionData,
+            MintTraitV1InstructionData,
             &'a Pubkey,
         ),
     ) -> Result<Self, Self::Error> {
@@ -192,9 +192,6 @@ impl<'a, 'info> ProcessInstruction for MintTraitV1<'a, 'info> {
 
         self.check_mint_eligibility(trait_item)?;
         self.pay_protocol_fee(trait_item)?;
-        self.mint_nft(trait_item)?;
-
-        msg!("MintTraitV1: Trait NFT minted");
-        Ok(())
+        self.mint_nft(trait_item)
     }
 }

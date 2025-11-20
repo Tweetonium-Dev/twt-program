@@ -25,11 +25,15 @@ pub struct MintUserV1Accounts<'a, 'info> {
     /// Must be signer and owner of `payer_ata`.
     pub payer: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, token_mint, nft_collection, "config"]` — stores global config.
+    /// Payer's ATA for 'token_mint' — source of payment.
+    /// Must be writable, owned by `token_program`.
+    pub payer_ata: &'a AccountInfo<'info>,
+
+    /// PDA: `["config_v1", nft_collection, token_mint, program_id]` — stores global config.
     /// Must be readable, owned by program.
     pub config_pda: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, token_mint, nft_collection, nft_asset "vault"]` — stores `Vault` state.
+    /// PDA: `["vault_v1", nft_asset, nft_collection, token_mint, program_id]` — stores `Vault` state.
     /// Must be writable if updating vault balance.
     pub vault_pda: &'a AccountInfo<'info>,
 
@@ -38,16 +42,12 @@ pub struct MintUserV1Accounts<'a, 'info> {
     /// Must be writable, owned by `token_program`.
     pub vault_ata: &'a AccountInfo<'info>,
 
-    /// Payer's ATA for 'token_mint' — source of payment.
-    /// Must be writable, owned by `token_program`.
-    pub payer_ata: &'a AccountInfo<'info>,
-
-    /// PDA: `[program_id, payer, token_mint, nft_collection, "user_mint"]` — per-user mint flag.
+    /// PDA: `["user_minted_v1", nft_collection, token_mint, payer, program_id]` — per-user mint flag.
     /// Prevents double-minting.
     /// Must be uninitialized or checked for prior mint.
     pub user_minted_pda: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, "nft_authority"]`
+    /// PDA: `["nft_authority_v1", program_id]`
     /// Controls: update/burn all NFTs.
     /// Only program can sign
     pub nft_authority: &'a AccountInfo<'info>,
@@ -116,7 +116,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintUserV1Accounts<'a, 'in
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [payer, config_pda, vault_pda, vault_ata, payer_ata, user_minted_pda, nft_authority, nft_collection, nft_asset, token_mint, revenue_wallet_0, revenue_wallet_ata_0, revenue_wallet_1, revenue_wallet_ata_1, revenue_wallet_2, revenue_wallet_ata_2, revenue_wallet_3, revenue_wallet_ata_3, revenue_wallet_4, revenue_wallet_ata_4, protocol_wallet, token_program, associated_token_program, system_program, mpl_core] =
+        let [payer, payer_ata, config_pda, vault_pda, vault_ata, user_minted_pda, nft_authority, nft_collection, nft_asset, token_mint, revenue_wallet_0, revenue_wallet_ata_0, revenue_wallet_1, revenue_wallet_ata_1, revenue_wallet_2, revenue_wallet_ata_2, revenue_wallet_3, revenue_wallet_ata_3, revenue_wallet_4, revenue_wallet_ata_4, protocol_wallet, token_program, associated_token_program, system_program, mpl_core] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -125,10 +125,10 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintUserV1Accounts<'a, 'in
         SignerAccount::check(payer)?;
         SignerAccount::check(nft_asset)?;
 
+        WritableAccount::check(payer_ata)?;
         WritableAccount::check(config_pda)?;
         WritableAccount::check(vault_pda)?;
         WritableAccount::check(vault_ata)?;
-        WritableAccount::check(payer_ata)?;
         WritableAccount::check(user_minted_pda)?;
         WritableAccount::check(nft_collection)?;
         WritableAccount::check(nft_asset)?;
@@ -145,10 +145,10 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintUserV1Accounts<'a, 'in
 
         Ok(Self {
             payer,
+            payer_ata,
             config_pda,
             vault_pda,
             vault_ata,
-            payer_ata,
             user_minted_pda,
             nft_authority,
             nft_collection,
@@ -256,12 +256,13 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
             self.accounts.token_mint.key.as_ref(),
         ];
 
+        msg!("Init vault");
+
         VaultV1::init_if_needed(
             InitVaultAccounts {
                 pda: self.accounts.vault_pda,
             },
             InitVaultArgs {
-                owner: *self.accounts.payer.key,
                 nft: *self.accounts.nft_asset.key,
                 amount: config.escrow_amount,
                 is_unlocked: false,
@@ -297,7 +298,6 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
                 token_program: self.accounts.token_program,
             },
             TokenTransferArgs {
-                signer_pubkeys: &[],
                 amount: config.escrow_amount,
                 decimals: config.mint_decimals,
             },
@@ -497,13 +497,6 @@ impl<'a, 'info> ProcessInstruction for MintUserV1<'a, 'info> {
         self.store_to_vault(config)?;
         self.pay_to_all_revenue_wallets(config)?;
         self.pay_protocol_fee(config)?;
-        self.mint_nft(config, user_minted)?;
-
-        msg!(
-            "MintUserV1: minted NFT and escrowed {} tokens",
-            config.escrow_amount
-        );
-
-        Ok(())
+        self.mint_nft(config, user_minted)
     }
 }

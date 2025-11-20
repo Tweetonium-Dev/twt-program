@@ -21,11 +21,15 @@ pub struct MintAdminV1Accounts<'a, 'info> {
     /// Must be a signer.
     pub admin: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, token_mint, nft_collection, "config"]` — stores global config.
+    /// Admin's ATA for 'token_mint' — source of payment.
+    /// Must be writable, owned by `token_program`.
+    pub admin_ata: &'a AccountInfo<'info>,
+
+    /// PDA: `["config_v1", nft_collection, token_mint, program_id]` — stores global config.
     /// Must be readable, owned by program.
     pub config_pda: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, token_mint, nft_asset, nft_collection, "vault"]` — stores `Vault` state.
+    /// PDA: `["vault_v1", nft_asset, nft_collection, token_mint, program_id]` — stores `Vault` state.
     /// Must be writable if updating vault balance.
     pub vault_pda: &'a AccountInfo<'info>,
 
@@ -34,11 +38,7 @@ pub struct MintAdminV1Accounts<'a, 'info> {
     /// Must be writable, owned by `token_program`.
     pub vault_ata: &'a AccountInfo<'info>,
 
-    /// Admin's ATA for 'token_mint' — source of payment.
-    /// Must be writable, owned by `token_program`.
-    pub admin_ata: &'a AccountInfo<'info>,
-
-    /// PDA: `[program_id, "nft_authority"]`
+    /// PDA: `["nft_authority_v1", program_id]`
     /// Controls: update/burn all NFTs.
     /// Only program can sign
     pub nft_authority: &'a AccountInfo<'info>,
@@ -81,7 +81,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAdminV1Accounts<'a, 'i
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [admin, config_pda, vault_pda, vault_ata, admin_ata, nft_authority, nft_collection, nft_asset, token_mint, token_program, associated_token_program, protocol_wallet, system_program, mpl_core] =
+        let [admin, admin_ata, config_pda, vault_pda, vault_ata, nft_authority, nft_collection, nft_asset, token_mint, token_program, associated_token_program, protocol_wallet, system_program, mpl_core] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -90,10 +90,10 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAdminV1Accounts<'a, 'i
         SignerAccount::check(admin)?;
         SignerAccount::check(nft_asset)?;
 
+        WritableAccount::check(admin_ata)?;
         WritableAccount::check(config_pda)?;
         WritableAccount::check(vault_pda)?;
         WritableAccount::check(vault_ata)?;
-        WritableAccount::check(admin_ata)?;
         WritableAccount::check(nft_collection)?;
         WritableAccount::check(nft_asset)?;
         WritableAccount::check(protocol_wallet)?;
@@ -109,10 +109,10 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAdminV1Accounts<'a, 'i
 
         Ok(Self {
             admin,
+            admin_ata,
             config_pda,
             vault_pda,
             vault_ata,
-            admin_ata,
             nft_authority,
             nft_collection,
             nft_asset,
@@ -187,7 +187,6 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
                 pda: self.accounts.vault_pda,
             },
             InitVaultArgs {
-                owner: *self.accounts.admin.key,
                 nft: *self.accounts.nft_asset.key,
                 amount: config.escrow_amount,
                 is_unlocked: false,
@@ -223,7 +222,6 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
                 token_program: self.accounts.token_program,
             },
             TokenTransferArgs {
-                signer_pubkeys: &[],
                 amount: config.escrow_amount,
                 decimals: config.mint_decimals,
             },
@@ -314,13 +312,6 @@ impl<'a, 'info> ProcessInstruction for MintAdminV1<'a, 'info> {
         self.check_mint_eligibility(config)?;
         self.store_to_vault(config)?;
         self.pay_protocol_fee(config)?;
-        self.mint_nft(config)?;
-
-        msg!(
-            "MintAdmin: minted NFT and escrowed {} tokens",
-            config.escrow_amount
-        );
-
-        Ok(())
+        self.mint_nft(config)
     }
 }

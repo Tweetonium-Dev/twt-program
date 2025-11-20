@@ -50,7 +50,7 @@ pub enum TweetoniumInstruction {
         3,
         writable,
         name = "config_pda",
-        desc = "Uninitialize config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+        desc = "Uninitialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
     )]
     #[account(
         4,
@@ -77,20 +77,20 @@ pub enum TweetoniumInstruction {
     )]
     #[account(
         1,
+        writable,
+        name = "config_pda",
+        desc = "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+    )]
+    #[account(
+        2,
         name = "nft_authority",
         desc = "PDA that have authority control of nft mint, updates, and burn."
     )]
     #[account(
-        2,
+        3,
         writable,
         name = "nft_collection",
         desc = "MPL Core Collection account that groups NFTs under this project."
-    )]
-    #[account(
-        3,
-        writable,
-        name = "config_pda",
-        desc = "Uninitialize config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
     )]
     #[account(
         4,
@@ -118,26 +118,26 @@ pub enum TweetoniumInstruction {
     #[account(
         1,
         writable,
-        name = "config_pda",
-        desc = "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+        name = "admin_ata",
+        desc = "Admin's ATA for 'token_mint' — source of payment."
     )]
     #[account(
         2,
         writable,
-        name = "vault_pda",
-        desc = "Uninitialize vault pda with seeds [program_id, admin, token_mint, nft_collection, \"vault\"]"
+        name = "config_pda",
+        desc = "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
     )]
     #[account(
         3,
         writable,
-        name = "vault_ata",
-        desc = "Vault PDA's associated token account — holds escrowed 'token_mint' funds."
+        name = "vault_pda",
+        desc = "Uninitialized vault pda with seeds [\"vault_v1\", nft_asset, nft_collection, token_mint, program_id]"
     )]
     #[account(
         4,
         writable,
-        name = "admin_ata",
-        desc = "Admin's ATA for 'token_mint' — source of payment."
+        name = "vault_ata",
+        desc = "Vault PDA's associated token account — holds escrowed 'token_mint' funds."
     )]
     #[account(5, name = "nft_authority", desc = "Controls: update all NFTs.")]
     #[account(
@@ -195,32 +195,32 @@ pub enum TweetoniumInstruction {
     #[account(
         1,
         writable,
-        name = "config_pda",
-        desc = "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+        name = "payer_ata",
+        desc = "Admin's ATA for 'token_mint' — source of payment."
     )]
     #[account(
         2,
         writable,
-        name = "vault_pda",
-        desc = "Uninitialize vault pda with seeds [program_id, payer, token_mint, nft_collection, \"vault\"]"
+        name = "config_pda",
+        desc = "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
     )]
     #[account(
         3,
+        writable,
+        name = "vault_pda",
+        desc = "Uninitialized vault pda with seeds [\"vault_v1\", nft_asset, nft_collection, token_mint, program_id]"
+    )]
+    #[account(
+        4,
         writable,
         name = "vault_ata",
         desc = "Associated Token Account (ATA) of the vault PDA."
     )]
     #[account(
-        4,
-        writable,
-        name = "payer_ata",
-        desc = "Admin's ATA for 'token_mint' — source of payment."
-    )]
-    #[account(
         5,
         writable,
         name = "user_minted_pda",
-        desc = "Uninitialize user mint pda with seeds [program_id, payer, token_mint, nft_collection, \"user_mint\"]"
+        desc = "Uninitialize user mint pda with seeds [\"user_minted_v1\", nft_collection, token_mint, payer, program_id]"
     )]
     #[account(6, name = "nft_authority", desc = "Controls: update all NFTs.")]
     #[account(
@@ -338,32 +338,32 @@ pub enum TweetoniumInstruction {
     #[account(
         1,
         writable,
-        name = "config_pda",
-        desc = "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+        name = "payer_ata",
+        desc = "Admin's ATA for 'token_mint' — source of payment."
     )]
     #[account(
         2,
         writable,
-        name = "vault_pda",
-        desc = "Uninitialize vault pda with seeds [program_id, payer, token_mint, nft_collection, \"vault\"]"
+        name = "config_pda",
+        desc = "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
     )]
     #[account(
         3,
+        writable,
+        name = "vault_pda",
+        desc = "Uninitialized vault pda with seeds [\"vault_v1\", nft_asset, nft_collection, token_mint, program_id]"
+    )]
+    #[account(
+        4,
         writable,
         name = "vault_ata",
         desc = "Associated Token Account (ATA) of the vault PDA."
     )]
     #[account(
-        4,
-        writable,
-        name = "payer_ata",
-        desc = "Admin's ATA for 'token_mint' — source of payment."
-    )]
-    #[account(
         5,
         writable,
         name = "user_minted_pda",
-        desc = "Uninitialize user mint pda with seeds [program_id, payer, token_mint, nft_collection, \"user_mint\"]"
+        desc = "Uninitialize user mint pda with seeds [\"user_minted_v1\", nft_collection, token_mint, payer, program_id]"
     )]
     #[account(6, name = "nft_authority", desc = "Controls: update all NFTs.")]
     #[account(
@@ -482,7 +482,7 @@ pub enum TweetoniumInstruction {
         1,
         writable,
         name = "trait_pda",
-        desc = "Uninitialize config pda with seeds [program_id, trait_collection, \"trait_item\"]"
+        desc = "Uninitialize config pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
     )]
     #[account(
         2,
@@ -518,7 +518,7 @@ pub enum TweetoniumInstruction {
         1,
         writable,
         name = "trait_pda",
-        desc = "Uninitialize config pda with seeds [program_id, trait_collection, \"trait_item\"]"
+        desc = "Initialized config pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
     )]
     #[account(
         2,
@@ -553,7 +553,7 @@ pub enum TweetoniumInstruction {
         1,
         writable,
         name = "trait_pda",
-        desc = "Uninitialize config pda with seeds [program_id, trait_collection, \"trait_item\"]"
+        desc = "Initialized config pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
     )]
     #[account(
         2,
@@ -589,7 +589,7 @@ pub enum TweetoniumInstruction {
         name = "mpl_core",
         desc = "Metaplex Core program — must be the official MPL Core program."
     )]
-    MintTraitV1(MinTraitV1InstructionData),
+    MintTraitV1(MintTraitV1InstructionData),
 
     #[account(
         0,
@@ -601,7 +601,7 @@ pub enum TweetoniumInstruction {
         1,
         writable,
         name = "config_pda",
-        desc = "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+        desc = "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
     )]
     #[account(
         2,
@@ -648,41 +648,41 @@ pub enum TweetoniumInstruction {
         name = "payer",
         desc = "User paying the mint price in 'token_mint' and solana."
     )]
-    #[account(1, name = "nft_authority", desc = "Controls: update all NFTs.")]
     #[account(
-        2,
-        writable,
-        name = "nft_collection",
-        desc = "MPL Core Collection account that groups NFTs under this project."
-    )]
-    #[account(
-        3,
-        writable,
-        name = "nft_asset",
-        desc = "Uninitialize NFT asset (MPL Core) — the NFT being minted."
-    )]
-    #[account(
-        4,
-        writable,
-        name = "vault_pda",
-        desc = "Uninitialize vault pda with seeds [program_id, payer, token_mint, nft_collection, \"vault\"]"
-    )]
-    #[account(
-        5,
-        writable,
-        name = "vault_ata",
-        desc = "Associated Token Account (ATA) of the vault PDA."
-    )]
-    #[account(
-        6,
+        1,
         writable,
         name = "payer_ata",
         desc = "Admin's ATA for 'token_mint' — source of payment."
     )]
     #[account(
-        7,
+        2,
         name = "config_pda",
-        desc = "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+        desc = "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+    )]
+    #[account(
+        3,
+        writable,
+        name = "vault_pda",
+        desc = "Initialized vault pda with seeds [\"vault_v1\", nft_asset, nft_collection, token_mint, program_id]"
+    )]
+    #[account(
+        4,
+        writable,
+        name = "vault_ata",
+        desc = "Associated Token Account (ATA) of the vault PDA."
+    )]
+    #[account(5, name = "nft_authority", desc = "Controls: update all NFTs.")]
+    #[account(
+        6,
+        writable,
+        name = "nft_collection",
+        desc = "MPL Core Collection account that groups NFTs under this project."
+    )]
+    #[account(
+        7,
+        writable,
+        name = "nft_asset",
+        desc = "Uninitialize NFT asset (MPL Core) — the NFT being minted."
     )]
     #[account(
         8,
@@ -716,7 +716,7 @@ pub enum TweetoniumInstruction {
         1,
         writable,
         name = "config_pda",
-        desc = "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+        desc = "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
     )]
     #[account(
         2,

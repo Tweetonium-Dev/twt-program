@@ -19,7 +19,23 @@ pub struct BurnAndRefundV1Accounts<'a, 'info> {
     /// Must be owner of `nft_token_account`.
     pub payer: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, "nft_authority"]`
+    /// User's ATA — receives refund.
+    /// Must be writable, owned by `token_program`.
+    pub payer_ata: &'a AccountInfo<'info>,
+
+    /// PDA: `["config_v1", nft_collection, token_mint, program_id]` — for price/refund logic.
+    /// Must be readable.
+    pub config_pda: &'a AccountInfo<'info>,
+
+    /// PDA: `["vault_v1", nft_asset, nft_collection, token_mint, program_id]` — escrow state.
+    /// Must be readable.
+    pub vault_pda: &'a AccountInfo<'info>,
+
+    /// Vault's ATA — source of refund token_mint.
+    /// Must be writable, owned by `token_program`.
+    pub vault_ata: &'a AccountInfo<'info>,
+
+    /// PDA: `["nft_authority_v1", program_id]`
     /// Controls: update/burn all NFTs.
     /// Only program can sign
     pub nft_authority: &'a AccountInfo<'info>,
@@ -32,22 +48,6 @@ pub struct BurnAndRefundV1Accounts<'a, 'info> {
     /// NFT asset — must be burned.
     /// Must be valid MPL Core asset.
     pub nft_asset: &'a AccountInfo<'info>,
-
-    /// PDA: `[program_id, token_mint, nft_collection, nft_asset, "vault"]` — escrow state.
-    /// Must be readable.
-    pub vault_pda: &'a AccountInfo<'info>,
-
-    /// Vault's ATA — source of refund token_mint.
-    /// Must be writable, owned by `token_program`.
-    pub vault_ata: &'a AccountInfo<'info>,
-
-    /// User's ATA — receives refund.
-    /// Must be writable, owned by `token_program`.
-    pub payer_ata: &'a AccountInfo<'info>,
-
-    /// PDA: `[program_id, token_mint, nft_collection, "config"]` — for price/refund logic.
-    /// Must be readable.
-    pub config_pda: &'a AccountInfo<'info>,
 
     /// Token mint — must match config (e.g. ZDLT.
     /// Must be valid mint.
@@ -69,7 +69,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [payer, nft_authority, nft_collection, nft_asset, vault_pda, vault_ata, payer_ata, config_pda, token_mint, token_program, system_program, mpl_core] =
+        let [payer, payer_ata, config_pda, vault_pda, vault_ata, nft_authority, nft_collection, nft_asset, token_mint, token_program, system_program, mpl_core] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -77,11 +77,11 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
 
         SignerAccount::check(payer)?;
 
-        WritableAccount::check(nft_collection)?;
-        WritableAccount::check(nft_asset)?;
+        WritableAccount::check(payer_ata)?;
         WritableAccount::check(vault_pda)?;
         WritableAccount::check(vault_ata)?;
-        WritableAccount::check(payer_ata)?;
+        WritableAccount::check(nft_collection)?;
+        WritableAccount::check(nft_asset)?;
 
         VaultAccount::check(vault_pda)?;
         ConfigAccount::check(config_pda)?;
@@ -89,18 +89,18 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
         SystemProgram::check(system_program)?;
         MplCoreProgram::check(mpl_core)?;
 
-        AssociatedTokenAccount::check(vault_ata, vault_pda.key, token_mint.key, token_program.key)?;
         AssociatedTokenAccount::check(payer_ata, payer.key, token_mint.key, token_program.key)?;
+        AssociatedTokenAccount::check(vault_ata, vault_pda.key, token_mint.key, token_program.key)?;
 
         Ok(Self {
             payer,
+            payer_ata,
+            config_pda,
+            vault_pda,
+            vault_ata,
             nft_authority,
             nft_collection,
             nft_asset,
-            vault_pda,
-            vault_ata,
-            payer_ata,
-            config_pda,
             token_mint,
             token_program,
             system_program,
@@ -119,12 +119,12 @@ pub struct BurnAndRefundV1<'a, 'info> {
 impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
     fn check_vesting(&self, config: &ConfigV1, vault: &VaultV1) -> ProgramResult {
         let clock = Clock::get()?;
-        let asset = MplCoreProgram::get_asset(self.accounts.nft_asset)?;
+        let asset_owner = MplCoreProgram::get_asset_owner(self.accounts.nft_asset)?;
 
-        if asset.base.owner != *self.accounts.payer.key {
+        if asset_owner != *self.accounts.payer.key {
             msg!(
                 "Payer is not the current owner of the NFT. Owner: {}, Payer: {}",
-                asset.base.owner,
+                asset_owner,
                 self.accounts.payer.key,
             );
             return Err(ProgramError::IllegalOwner);
@@ -187,7 +187,6 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
                 token_program: self.accounts.token_program,
             },
             TokenTransferArgs {
-                signer_pubkeys: &[],
                 amount: balance,
                 decimals: config.mint_decimals,
             },
@@ -270,10 +269,6 @@ impl<'a, 'info> ProcessInstruction for BurnAndRefundV1<'a, 'info> {
 
         self.burn_nft()?;
         self.refund_token(config, amount)?;
-        self.close_vault()?;
-
-        msg!("BurnAndRefund: burned NFT and refunded {} tokens", amount);
-
-        Ok(())
+        self.close_vault()
     }
 }

@@ -34,7 +34,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Uninitialize config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+            "Uninitialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -87,6 +87,14 @@
           ]
         },
         {
+          "name": "configPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+          ]
+        },
+        {
           "name": "nftAuthority",
           "isMut": false,
           "isSigner": false,
@@ -100,14 +108,6 @@
           "isSigner": false,
           "docs": [
             "MPL Core Collection account that groups NFTs under this project."
-          ]
-        },
-        {
-          "name": "configPda",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Uninitialize config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
           ]
         },
         {
@@ -160,11 +160,19 @@
           ]
         },
         {
+          "name": "adminAta",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Admin's ATA for 'token_mint' — source of payment."
+          ]
+        },
+        {
           "name": "configPda",
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+            "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -172,7 +180,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Uninitialize vault pda with seeds [program_id, admin, token_mint, nft_collection, \"vault\"]"
+            "Uninitialized vault pda with seeds [\"vault_v1\", nft_asset, nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -181,14 +189,6 @@
           "isSigner": false,
           "docs": [
             "Vault PDA's associated token account — holds escrowed 'token_mint' funds."
-          ]
-        },
-        {
-          "name": "adminAta",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Admin's ATA for 'token_mint' — source of payment."
           ]
         },
         {
@@ -289,11 +289,19 @@
           ]
         },
         {
+          "name": "payerAta",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Admin's ATA for 'token_mint' — source of payment."
+          ]
+        },
+        {
           "name": "configPda",
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+            "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -301,7 +309,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Uninitialize vault pda with seeds [program_id, payer, token_mint, nft_collection, \"vault\"]"
+            "Uninitialized vault pda with seeds [\"vault_v1\", nft_asset, nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -313,19 +321,11 @@
           ]
         },
         {
-          "name": "payerAta",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Admin's ATA for 'token_mint' — source of payment."
-          ]
-        },
-        {
           "name": "userMintedPda",
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Uninitialize user mint pda with seeds [program_id, payer, token_mint, nft_collection, \"user_mint\"]"
+            "Uninitialize user mint pda with seeds [\"user_minted_v1\", nft_collection, token_mint, payer, program_id]"
           ]
         },
         {
@@ -506,11 +506,19 @@
           ]
         },
         {
+          "name": "payerAta",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Admin's ATA for 'token_mint' — source of payment."
+          ]
+        },
+        {
           "name": "configPda",
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+            "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -518,7 +526,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Uninitialize vault pda with seeds [program_id, payer, token_mint, nft_collection, \"vault\"]"
+            "Uninitialized vault pda with seeds [\"vault_v1\", nft_asset, nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -530,19 +538,11 @@
           ]
         },
         {
-          "name": "payerAta",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Admin's ATA for 'token_mint' — source of payment."
-          ]
-        },
-        {
           "name": "userMintedPda",
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Uninitialize user mint pda with seeds [program_id, payer, token_mint, nft_collection, \"user_mint\"]"
+            "Uninitialize user mint pda with seeds [\"user_minted_v1\", nft_collection, token_mint, payer, program_id]"
           ]
         },
         {
@@ -727,7 +727,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Uninitialize config pda with seeds [program_id, trait_collection, \"trait_item\"]"
+            "Uninitialize config pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
           ]
         },
         {
@@ -792,7 +792,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Uninitialize config pda with seeds [program_id, trait_collection, \"trait_item\"]"
+            "Initialized config pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
           ]
         },
         {
@@ -857,7 +857,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Uninitialize config pda with seeds [program_id, trait_collection, \"trait_item\"]"
+            "Initialized config pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
           ]
         },
         {
@@ -911,9 +911,9 @@
       ],
       "args": [
         {
-          "name": "minTraitV1InstructionData",
+          "name": "mintTraitV1InstructionData",
           "type": {
-            "defined": "MinTraitV1InstructionData"
+            "defined": "MintTraitV1InstructionData"
           }
         }
       ],
@@ -938,7 +938,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+            "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -1023,6 +1023,38 @@
           ]
         },
         {
+          "name": "payerAta",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Admin's ATA for 'token_mint' — source of payment."
+          ]
+        },
+        {
+          "name": "configPda",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+          ]
+        },
+        {
+          "name": "vaultPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Initialized vault pda with seeds [\"vault_v1\", nft_asset, nft_collection, token_mint, program_id]"
+          ]
+        },
+        {
+          "name": "vaultAta",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Associated Token Account (ATA) of the vault PDA."
+          ]
+        },
+        {
           "name": "nftAuthority",
           "isMut": false,
           "isSigner": false,
@@ -1044,38 +1076,6 @@
           "isSigner": false,
           "docs": [
             "Uninitialize NFT asset (MPL Core) — the NFT being minted."
-          ]
-        },
-        {
-          "name": "vaultPda",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Uninitialize vault pda with seeds [program_id, payer, token_mint, nft_collection, \"vault\"]"
-          ]
-        },
-        {
-          "name": "vaultAta",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Associated Token Account (ATA) of the vault PDA."
-          ]
-        },
-        {
-          "name": "payerAta",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Admin's ATA for 'token_mint' — source of payment."
-          ]
-        },
-        {
-          "name": "configPda",
-          "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
           ]
         },
         {
@@ -1133,7 +1133,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Initialized config pda with seeds [program_id, token_mint, nft_collection, \"config\"]"
+            "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -1444,7 +1444,7 @@
       }
     },
     {
-      "name": "MinTraitV1InstructionData",
+      "name": "MintTraitV1InstructionData",
       "type": {
         "kind": "struct",
         "fields": [

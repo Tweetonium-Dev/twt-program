@@ -19,11 +19,11 @@ pub struct InitTraitV1Accounts<'a, 'info> {
     /// Must be a signer.
     pub authority: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, trait_collection, "trait_item"]` — stores `Config` struct.
+    /// PDA: `["trait_item_v1", trait_collection, program_id]` — stores `TraitItem` struct.
     /// Must be uninitialized, writable, owned by this program.
     pub trait_pda: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, "trait_authority"]`
+    /// PDA: `["trait_authority", program_id]`
     /// Controls: update/burn all trait NFTs.
     /// Only program can sign.
     pub trait_authority: &'a AccountInfo<'info>,

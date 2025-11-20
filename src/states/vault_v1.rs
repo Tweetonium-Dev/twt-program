@@ -16,10 +16,6 @@ use crate::utils::{AccountCheck, InitPdaAccounts, InitPdaArgs, Pda, Uninitialize
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct VaultV1 {
-    /// The wallet that owns this vault and its escrowed tokens.
-    /// Must match the `payer` in the `mint_and_vault_v1` instruction.
-    pub owner: Pubkey,
-
     /// The MPL Core NFT asset (mint) that corresponds to this vault.
     /// Used to verify the correct NFT is being burned during `burn_and_refund_v1`.
     pub nft: Pubkey,
@@ -63,7 +59,6 @@ impl VaultV1 {
         let mut bytes = accounts.pda.try_borrow_mut_data()?;
 
         let vault = Self::load_mut(&mut bytes)?;
-        vault.owner = args.owner;
         vault.nft = args.nft;
         vault.amount = args.amount;
         vault.is_unlocked = if args.is_unlocked { 1 } else { 0 };
@@ -107,6 +102,21 @@ impl VaultV1 {
     }
 
     #[inline(always)]
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = vec![0u8; Self::LEN];
+
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                self as *const Self as *const u8,
+                bytes.as_mut_ptr(),
+                Self::LEN,
+            );
+        }
+
+        bytes
+    }
+
+    #[inline(always)]
     pub fn is_unlocked(&self) -> bool {
         self.is_unlocked == 1
     }
@@ -117,7 +127,6 @@ pub struct InitVaultAccounts<'a, 'info> {
 }
 
 pub struct InitVaultArgs {
-    pub owner: Pubkey,
     pub nft: Pubkey,
     pub amount: u64,
     pub is_unlocked: bool,
@@ -139,7 +148,6 @@ mod tests {
     fn test_vault_load_and_load_mut() {
         let mut data = zero_vault();
         let vault_mut = VaultV1::load_mut(&mut data).unwrap();
-        vault_mut.owner = Pubkey::new_unique();
         vault_mut.nft = Pubkey::new_unique();
         vault_mut.amount = 42;
         vault_mut.is_unlocked = 1;
@@ -162,7 +170,6 @@ mod tests {
     #[test]
     fn test_vault_is_unlocked() {
         let locked = VaultV1 {
-            owner: Pubkey::new_unique(),
             nft: Pubkey::new_unique(),
             amount: 10,
             is_unlocked: 0,

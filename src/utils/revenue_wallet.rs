@@ -38,7 +38,6 @@ impl RevenueWallet {
                 token_program: accounts.token_program,
             },
             TokenTransferArgs {
-                signer_pubkeys: &[],
                 amount: args.amount,
                 decimals: args.decimals,
             },

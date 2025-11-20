@@ -103,6 +103,21 @@ impl TraitItemV1 {
 
         Ok(unsafe { &mut *transmute::<*mut u8, *mut Self>(bytes.as_mut_ptr()) })
     }
+
+    #[inline(always)]
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = vec![0u8; Self::LEN];
+
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                self as *const Self as *const u8,
+                bytes.as_mut_ptr(),
+                Self::LEN,
+            );
+        }
+
+        bytes
+    }
 }
 
 impl TraitItemV1 {
@@ -202,7 +217,7 @@ pub struct UpdateTraitItemArgs {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::mock::{default_pubkeys, mock_pubkeys, mock_u16s};
+    use crate::utils::{default_pubkeys, mock_pubkeys, mock_u16s};
 
     #[test]
     fn test_load_mut_valid() {

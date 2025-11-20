@@ -8,11 +8,10 @@ use solana_program::{
     pubkey,
     pubkey::Pubkey,
 };
-use spl_token::instruction::initialize_account3;
 
 use crate::utils::{
-    AccountCheck, Pda, TokenProgram, UninitializedAccount, TOKEN_2022_PROGRAM_ID,
-    TOKEN_ACCOUNT_2022_MIN_LEN, TOKEN_ACCOUNT_LEN,
+    AccountCheck, Pda, UninitializedAccount, TOKEN_2022_PROGRAM_ID, TOKEN_ACCOUNT_2022_MIN_LEN,
+    TOKEN_ACCOUNT_LEN,
 };
 
 pub const ASSOCIATED_TOKEN_PROGRAM_ID: Pubkey =
@@ -32,25 +31,17 @@ impl AssociatedTokenProgram {
 
         Pda::validate(accounts.ata, seeds, &ASSOCIATED_TOKEN_PROGRAM_ID)?;
 
-        let ix = match TokenProgram::detect_token_program(accounts.token_program)? {
-            TokenProgram::Token => initialize_account3(
-                accounts.token_program.key,
-                accounts.ata.key,
-                accounts.mint.key,
-                accounts.wallet.key,
-            )?,
-            TokenProgram::Token2022 => Instruction {
-                program_id: ASSOCIATED_TOKEN_PROGRAM_ID,
-                accounts: vec![
-                    AccountMeta::new(*accounts.payer.key, accounts.payer.is_signer),
-                    AccountMeta::new(*accounts.ata.key, false),
-                    AccountMeta::new_readonly(*accounts.wallet.key, false),
-                    AccountMeta::new_readonly(*accounts.mint.key, false),
-                    AccountMeta::new_readonly(*accounts.system_program.key, false),
-                    AccountMeta::new_readonly(*accounts.token_program.key, false),
-                ],
-                data: vec![0],
-            },
+        let ix = Instruction {
+            program_id: ASSOCIATED_TOKEN_PROGRAM_ID,
+            accounts: vec![
+                AccountMeta::new(*accounts.payer.key, accounts.payer.is_signer),
+                AccountMeta::new(*accounts.ata.key, false),
+                AccountMeta::new_readonly(*accounts.wallet.key, false),
+                AccountMeta::new_readonly(*accounts.mint.key, false),
+                AccountMeta::new_readonly(*accounts.system_program.key, false),
+                AccountMeta::new_readonly(*accounts.token_program.key, false),
+            ],
+            data: vec![0],
         };
 
         invoke(
