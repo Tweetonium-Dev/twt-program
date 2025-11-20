@@ -61,10 +61,17 @@ jobs:
 
       # Coverage
       - name: Coverage (Tarpaulin)
-        uses: xd009642/tarpaulin-action@v0.6.0
+        uses: addnab/docker-run-action@v3
         with:
-          version: "0.30.0"
-          args: "--workspace --all-features --fail-under 80 --out Html"
+          image: xd009642/tarpaulin:latest
+          options: --security-opt seccomp=unconfined
+          run: |
+            cargo tarpaulin \
+              --workspace \
+              --all-features \
+              --exclude-files "target/*" \
+              --fail-under 80 \
+              --out Html
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
