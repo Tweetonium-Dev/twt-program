@@ -39,12 +39,9 @@ jobs:
 
       # Install Solana Toolchain
       - name: Install Solana
-        run: |
-          sh -c "$(curl -sSfL \
-            https://release.solana.com/v${SOLANA_VERSION}/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" \
-            >> $GITHUB_PATH
-          solana --version
+        uses: metaplex-foundation/actions/install-solana@v1
+        with:
+          version: ${{ env.SOLANA_VERSION }}
 
       # Install Tarpaulin
       - name: Install Tarpaulin
@@ -80,4 +77,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: tarpaulin-report.html
+          path: |
+            tarpaulin-report.html
+            tarpaulin-report/
+          if-no-files-found: ignore
