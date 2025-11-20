@@ -40,9 +40,9 @@ cov:
 	@cargo tarpaulin \
 		--workspace \
 		--all-features \
+		--exclude-files "target/*" \
 		--out Html \
-		--fail-under 80 \
-		--exclude-files "target/*"
+		--fail-under 80
 
 # ---- Formatting & Linting ----
 
