@@ -42,9 +42,7 @@ jobs:
       # Install prebuilt Agave CLI (uses official Anza installer; ~15-25s)
       - name: Install Agave CLI (prebuilt)
         run: |
-          sh -c "$(curl \
-            -sSfL https://release.anza.xyz/${AGAVE_VERSION}/install)" -- \
-            --version v${AGAVE_VERSION}
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" \
             >> $GITHUB_PATH
 
