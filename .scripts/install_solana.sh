@@ -10,7 +10,7 @@ URL="https://github.com/anza-xyz/agave/releases/download/v${SOLANA_VERSION}/${TA
 wget "$URL"
 tar -xjf "$TARBALL"
 
-EXTRACTED_DIR="solana-release-x86_64-unknown-linux-gnu"
+EXTRACTED_DIR="solana-release"
 
 # Move to a stable PATH location
 mkdir -p ~/.local/share/solana/install/active_release/bin
