@@ -50,16 +50,13 @@ jobs:
       - name: Verify solana version
         run: solana --version
 
-      - name: Build program (SBF)
-        run: cargo build-sbf
-
-      - name: Run formatter
-        run: cargo fmt
+      - name: Check formatter
+        run: cargo fmt -- --check
 
       - name: Run linter
-        run: cargo clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Run tests + coverage
+      - name: Build + Tests + Coverage
         run: |
           cargo +nightly tarpaulin \
             --workspace \
