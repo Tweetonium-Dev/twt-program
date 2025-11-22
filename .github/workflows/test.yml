@@ -51,37 +51,33 @@ jobs:
       - name: Build program (SBF)
         run: cargo build-sbf
 
-      # Formatter
-      - name: Run format
+      - name: Run formatter
         run: cargo fmt
 
-      # Clippy
-      - name: Run clippy
+      - name: Run linter
         run: cargo clippy
 
-      # Tests
       - name: Run tests
         run: cargo test
 
-      # # Coverage
-      # - name: Coverage (Tarpaulin)
-      #   uses: addnab/docker-run-action@v3
-      #   with:
-      #     image: xd009642/tarpaulin:latest
-      #     options: --security-opt seccomp=unconfined
-      #     run: |
-      #       cargo tarpaulin \
-      #         --workspace \
-      #         --all-features \
-      #         --exclude-files "target/*" \
-      #         --fail-under 80 \
-      #         --out Html
-      #
-      # - name: Upload coverage report
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: coverage-report
-      #     path: |
-      #       tarpaulin-report.html
-      #       tarpaulin-report/
-      #     if-no-files-found: ignore
+      - name: Coverage (Tarpaulin)
+        uses: addnab/docker-run-action@v3
+        with:
+          image: xd009642/tarpaulin:latest
+          options: --security-opt seccomp=unconfined
+          run: |
+            cargo tarpaulin \
+              --workspace \
+              --all-features \
+              --exclude-files "target/*" \
+              --fail-under 80 \
+              --out Html
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            tarpaulin-report.html
+            tarpaulin-report/
+          if-no-files-found: ignore
