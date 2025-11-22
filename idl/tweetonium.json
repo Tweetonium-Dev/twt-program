@@ -14,6 +14,14 @@
           ]
         },
         {
+          "name": "configPda",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Uninitialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+          ]
+        },
+        {
           "name": "nftAuthority",
           "isMut": false,
           "isSigner": false,
@@ -27,14 +35,6 @@
           "isSigner": true,
           "docs": [
             "MPL Core Collection account that groups NFTs under this project."
-          ]
-        },
-        {
-          "name": "configPda",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Uninitialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
           ]
         },
         {
