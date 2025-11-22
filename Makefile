@@ -1,4 +1,4 @@
-.PHONY: build build-release clean update test fmt lint deploy change-authority verify release idl send
+.PHONY: build build-release clean update test cov fmt lint deploy change-authority verify release idl send
 
 # ---- Colors ----
 
@@ -33,6 +33,16 @@ test:
 	@clear
 	@echo "$(CYAN)🔍 [TEST] Running unit tests...$(RESET)"
 	@cargo test
+
+cov:
+	@clear
+	@echo "$(CYAN)🔦 [COVERAGE] Running test coverage...$(RESET)"
+	@cargo tarpaulin \
+		--workspace \
+		--all-features \
+		--exclude-files "target/*" \
+		--out Html \
+		--fail-under 80
 
 # ---- Formatting & Linting ----
 

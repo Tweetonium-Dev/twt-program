@@ -68,9 +68,9 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
 
         Ok(Self {
             admin,
+            config_pda,
             nft_authority,
             nft_collection,
-            config_pda,
             token_mint,
             system_program,
             mpl_core,
@@ -124,7 +124,6 @@ impl<'a, 'info> InitConfigV1<'a, 'info> {
     }
 
     fn init_config(&self) -> ProgramResult {
-        // let mut config_data = self.accounts.config_pda.try_borrow_mut_data()?;
         let seeds: &[&[u8]] = &[
             ConfigV1::SEED,
             self.accounts.nft_collection.key.as_ref(),

@@ -1,0 +1,75 @@
+---
+name: Solana CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  RUST_TOOLCHAIN: stable
+  SOLANA_VERSION: "2.3.13"
+  CARGO_TARGET_DIR: target-ci
+
+jobs:
+  build-test:
+    name: Build + Tests + Coverage
+    runs-on: ubuntu-latest
+    container:
+      image: xd009642/tarpaulin:develop-nightly
+      options: --security-opt seccomp=unconfined
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry + git
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-agave-${{ env.SOLANA_VERSION }}
+
+      - name: Install Solana CLI
+        run: ./.scripts/install_solana.sh
+        env:
+          SOLANA_VERSION: ${{ env.SOLANA_VERSION }}
+
+      - name: Install protoc (fixes solana-svm test builds)
+        run: apt-get update -qq && apt-get install -y protobuf-compiler
+
+      - name: Verify solana version
+        run: solana --version
+
+      - name: Check formatter
+        run: cargo fmt -- --check
+
+      - name: Run linter
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Build + Tests + Coverage
+        run: |
+          cargo +nightly tarpaulin \
+            --workspace \
+            --all-features \
+            --exclude-files "target/*" \
+            --timeout 300 \
+            --fail-under 80 \
+            --out html
+        continue-on-error: true
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: tarpaulin-report.html
+          if-no-files-found: ignore

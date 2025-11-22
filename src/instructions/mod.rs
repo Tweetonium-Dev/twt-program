@@ -36,21 +36,21 @@ pub enum TweetoniumInstruction {
     )]
     #[account(
         1,
+        writable,
+        name = "config_pda",
+        desc = "Uninitialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+    )]
+    #[account(
+        2,
         name = "nft_authority",
         desc = "PDA that have authority control of nft mint, updates, and burn."
     )]
     #[account(
-        2,
+        3,
         signer,
         writable,
         name = "nft_collection",
         desc = "MPL Core Collection account that groups NFTs under this project."
-    )]
-    #[account(
-        3,
-        writable,
-        name = "config_pda",
-        desc = "Uninitialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
     )]
     #[account(
         4,
