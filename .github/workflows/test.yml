@@ -18,18 +18,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Install Rust
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt, clippy
 
-      # Cache cargo
       - name: Cache cargo registry + git
         uses: actions/cache@v4
         with:
@@ -39,54 +36,29 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-agave-${{ env.SOLANA_VERSION }}
 
-      # Install prebuilt Agave CLI (uses official Anza installer; ~15-25s)
-      - name: Install Agave CLI (prebuilt)
+      - name: Install Solana CLI
         run: ./.scripts/install_solana.sh
         env:
           SOLANA_VERSION: ${{ env.SOLANA_VERSION }}
 
-      # Verify exact version match (fails CI if mismatch)
       - name: Verify solana version
         run: solana --version
 
-      # Build the on-chain program (required for ProgramTest)
       - name: Build program (SBF)
         run: cargo build-sbf
 
-      # Install Solana Toolchain
-      # - name: Install Solana
-      #   uses: metaplex-foundation/actions/install-solana@v1
-      #   with:
-      #     version: ${{ env.SOLANA_VERSION }}
+      # Formatter
+      - name: Run format
+        run: cargo fmt
 
-      # Add Solana rustc & cargo to PATH
-      # - name: Add Solana Cargo to PATH
-      #   run: |
-      #     echo "$HOME/.local/share/solana/install/active_release/bin" \
-      #       >> $GITHUB_PATH
-      #     rustc --version
-      #     cargo --version
-      #
-      # # Fix lockfile for Solana SBF
-      # - name: Rewrite lockfile for SBF
-      #   run: $HOME/.local/share/solana/install/active_release/bin/cargo update
-      #
-      # # Build native
-      # - name: Build
-      #   run: cargo build-sbf
-      #
-      # # Formatter
-      # - name: Run format
-      #   run: cargo fmt
-      #
-      # # Clippy
-      # - name: Run clippy
-      #   run: cargo clippy
-      #
-      # # Tests
-      # - name: Run tests
-      #   run: cargo test
-      #
+      # Clippy
+      - name: Run clippy
+        run: cargo clippy
+
+      # Tests
+      - name: Run tests
+        run: cargo test
+
       # # Coverage
       # - name: Coverage (Tarpaulin)
       #   uses: addnab/docker-run-action@v3
