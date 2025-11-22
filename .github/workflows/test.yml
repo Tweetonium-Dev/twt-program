@@ -60,24 +60,18 @@ jobs:
       - name: Run tests
         run: cargo test
 
-      - name: Coverage (Tarpaulin)
-        uses: addnab/docker-run-action@v3
+      - name: Code coverage (Tarpaulin)
+        uses: actions-rs/tarpaulin@v1.0
         with:
-          image: xd009642/tarpaulin:latest
-          options: --security-opt seccomp=unconfined
-          run: |
-            cargo tarpaulin \
-              --workspace \
-              --all-features \
-              --exclude-files "target/*" \
-              --fail-under 80 \
-              --out Html
+          args: >-
+            --workspace
+            --all-features
+            --fail-under 80
+            --out Html
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: |
-            tarpaulin-report.html
-            tarpaulin-report/
+          path: tarpaulin-report.html
           if-no-files-found: ignore
