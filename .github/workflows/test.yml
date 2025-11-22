@@ -42,9 +42,14 @@ jobs:
       # Install prebuilt Agave CLI (uses official Anza installer; ~15-25s)
       - name: Install Agave CLI (prebuilt)
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" \
-            >> $GITHUB_PATH
+          wget https://github.com/anza-xyz/agave/releases/download/v${{ env.AGAVE_VERSION }}/solana-release-x86_64-unknown-linux-gnu.tar.bz2
+          tar -xjf solana-release-x86_64-unknown-linux-gnu.tar.bz2
+          # Move to a stable PATH location
+          mkdir -p ~/.local/share/solana/install/active_release/bin
+          mv solana-release/bin/* ~/.local/share/solana/install/active_release/bin/
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          # Clean up
+          rm -rf solana-release solana-release-*.tar.bz2
 
       # Verify exact version match (fails CI if mismatch)
       - name: Verify solana version
