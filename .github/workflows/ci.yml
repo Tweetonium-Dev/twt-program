@@ -59,13 +59,10 @@ jobs:
       - name: Run linter
         run: cargo clippy
 
-      - name: Run tests
-        run: cargo test
-
-      - name: Generate coverage report
+      - name: Run tests + coverage
         run: |
+          rustup update nightly && rustup default nightly
           cargo +nightly tarpaulin \
-            --verbose \
             --workspace \
             --all-features \
             --exclude-files "target/*" \
