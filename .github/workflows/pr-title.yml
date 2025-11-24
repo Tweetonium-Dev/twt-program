@@ -1,11 +1,12 @@
 ---
 name: Validate PR Title
+
 on:
   pull_request:
     types: [opened, edited, reopened]
 
 jobs:
-  lint:
+  validate-title:
     runs-on: ubuntu-latest
     steps:
       - name: Check PR title
