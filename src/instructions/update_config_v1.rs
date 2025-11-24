@@ -105,6 +105,44 @@ pub struct UpdateConfigV1<'a, 'info> {
     pub nft_authority_bump: u8,
 }
 
+impl<'a, 'info>
+    TryFrom<(
+        &'a [AccountInfo<'info>],
+        UpdateConfigV1InstructionData,
+        &'a Pubkey,
+    )> for UpdateConfigV1<'a, 'info>
+{
+    type Error = ProgramError;
+    fn try_from(
+        (accounts, instruction_data, program_id): (
+            &'a [AccountInfo<'info>],
+            UpdateConfigV1InstructionData,
+            &'a Pubkey,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let accounts = UpdateConfigV1Accounts::try_from(accounts)?;
+
+        Pda::validate(
+            accounts.config_pda,
+            &[
+                ConfigV1::SEED,
+                accounts.nft_collection.key.as_ref(),
+                accounts.token_mint.key.as_ref(),
+            ],
+            program_id,
+        )?;
+
+        let (_, nft_authority_bump) =
+            Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
+
+        Ok(Self {
+            accounts,
+            instruction_data,
+            nft_authority_bump,
+        })
+    }
+}
+
 impl<'a, 'info> UpdateConfigV1<'a, 'info> {
     fn check_config_data(&self) -> ProgramResult {
         ConfigV1::check_revenue_wallets(
@@ -167,44 +205,6 @@ impl<'a, 'info> UpdateConfigV1<'a, 'info> {
         });
 
         Ok(())
-    }
-}
-
-impl<'a, 'info>
-    TryFrom<(
-        &'a [AccountInfo<'info>],
-        UpdateConfigV1InstructionData,
-        &'a Pubkey,
-    )> for UpdateConfigV1<'a, 'info>
-{
-    type Error = ProgramError;
-    fn try_from(
-        (accounts, instruction_data, program_id): (
-            &'a [AccountInfo<'info>],
-            UpdateConfigV1InstructionData,
-            &'a Pubkey,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let accounts = UpdateConfigV1Accounts::try_from(accounts)?;
-
-        Pda::validate(
-            accounts.config_pda,
-            &[
-                ConfigV1::SEED,
-                accounts.nft_collection.key.as_ref(),
-                accounts.token_mint.key.as_ref(),
-            ],
-            program_id,
-        )?;
-
-        let (_, nft_authority_bump) =
-            Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
-
-        Ok(Self {
-            accounts,
-            instruction_data,
-            nft_authority_bump,
-        })
     }
 }
 

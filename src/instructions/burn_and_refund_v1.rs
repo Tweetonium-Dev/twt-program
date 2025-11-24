@@ -116,6 +116,46 @@ pub struct BurnAndRefundV1<'a, 'info> {
     pub vault_bump: u8,
 }
 
+impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)> for BurnAndRefundV1<'a, 'info> {
+    type Error = ProgramError;
+
+    fn try_from(
+        (accounts, program_id): (&'a [AccountInfo<'info>], &'a Pubkey),
+    ) -> Result<Self, Self::Error> {
+        let accounts = BurnAndRefundV1Accounts::try_from(accounts)?;
+
+        let (_, nft_authority_bump) =
+            Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
+
+        Pda::validate(
+            accounts.config_pda,
+            &[
+                ConfigV1::SEED,
+                accounts.nft_collection.key.as_ref(),
+                accounts.token_mint.key.as_ref(),
+            ],
+            program_id,
+        )?;
+
+        let (_, vault_bump) = Pda::validate(
+            accounts.vault_pda,
+            &[
+                VaultV1::SEED,
+                accounts.nft_asset.key.as_ref(),
+                accounts.nft_collection.key.as_ref(),
+                accounts.token_mint.key.as_ref(),
+            ],
+            program_id,
+        )?;
+
+        Ok(Self {
+            accounts,
+            nft_authority_bump,
+            vault_bump,
+        })
+    }
+}
+
 impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
     fn check_vesting(&self, config: &ConfigV1, vault: &VaultV1) -> ProgramResult {
         let clock = Clock::get()?;
@@ -212,46 +252,6 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
         )?;
 
         SystemProgram::close_account_pda(self.accounts.vault_pda, self.accounts.payer)
-    }
-}
-
-impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)> for BurnAndRefundV1<'a, 'info> {
-    type Error = ProgramError;
-
-    fn try_from(
-        (accounts, program_id): (&'a [AccountInfo<'info>], &'a Pubkey),
-    ) -> Result<Self, Self::Error> {
-        let accounts = BurnAndRefundV1Accounts::try_from(accounts)?;
-
-        let (_, nft_authority_bump) =
-            Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
-
-        Pda::validate(
-            accounts.config_pda,
-            &[
-                ConfigV1::SEED,
-                accounts.nft_collection.key.as_ref(),
-                accounts.token_mint.key.as_ref(),
-            ],
-            program_id,
-        )?;
-
-        let (_, vault_bump) = Pda::validate(
-            accounts.vault_pda,
-            &[
-                VaultV1::SEED,
-                accounts.nft_asset.key.as_ref(),
-                accounts.nft_collection.key.as_ref(),
-                accounts.token_mint.key.as_ref(),
-            ],
-            program_id,
-        )?;
-
-        Ok(Self {
-            accounts,
-            nft_authority_bump,
-            vault_bump,
-        })
     }
 }
 

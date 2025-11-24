@@ -187,6 +187,46 @@ pub struct MintUserV1<'a, 'info> {
     pub nft_authority_bump: u8,
 }
 
+impl<'a, 'info>
+    TryFrom<(
+        &'a [AccountInfo<'info>],
+        MintUserV1InstructionData,
+        &'a Pubkey,
+    )> for MintUserV1<'a, 'info>
+{
+    type Error = ProgramError;
+
+    fn try_from(
+        (accounts, instruction_data, program_id): (
+            &'a [AccountInfo<'info>],
+            MintUserV1InstructionData,
+            &'a Pubkey,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let accounts = MintUserV1Accounts::try_from(accounts)?;
+
+        Pda::validate(
+            accounts.config_pda,
+            &[
+                ConfigV1::SEED,
+                accounts.nft_collection.key.as_ref(),
+                accounts.token_mint.key.as_ref(),
+            ],
+            program_id,
+        )?;
+
+        let (_, nft_authority_bump) =
+            Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
+
+        Ok(Self {
+            accounts,
+            instruction_data,
+            program_id,
+            nft_authority_bump,
+        })
+    }
+}
+
 impl<'a, 'info> MintUserV1<'a, 'info> {
     fn check_mint_eligibility(&self, config: &ConfigV1) -> ProgramResult {
         let max_supply = config.max_supply;
@@ -208,7 +248,7 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
             msg!(
                 "Sold out. Allowed supply: {}. Minted: {}",
                 released,
-                user_minted
+                user_minted,
             );
             return Err(ProgramError::Custom(1));
         }
@@ -255,8 +295,6 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
             self.accounts.nft_collection.key.as_ref(),
             self.accounts.token_mint.key.as_ref(),
         ];
-
-        msg!("Init vault");
 
         VaultV1::init_if_needed(
             InitVaultAccounts {
@@ -358,7 +396,7 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
                     "Revenue wallet mismatch at index {}. Expected {}, got {}",
                     index,
                     expected_revenue_wallet,
-                    revenue_wallet.key
+                    revenue_wallet.key,
                 );
                 return Err(ProgramError::InvalidAccountData);
             }
@@ -398,16 +436,12 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
             return Ok(());
         }
 
-        msg!("Transfer mint fee sol");
-
         SystemProgram::transfer(
             self.accounts.payer,
             self.accounts.protocol_wallet,
             self.accounts.system_program,
             config.mint_nft_fee_lamports,
         )?;
-
-        msg!("Success transfer mint fee sol");
 
         Ok(())
     }
@@ -433,49 +467,7 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
         user_minted.increment();
         config.increment_user_minted()?;
 
-        msg!("Success create mpl core nft");
-
         Ok(())
-    }
-}
-
-impl<'a, 'info>
-    TryFrom<(
-        &'a [AccountInfo<'info>],
-        MintUserV1InstructionData,
-        &'a Pubkey,
-    )> for MintUserV1<'a, 'info>
-{
-    type Error = ProgramError;
-
-    fn try_from(
-        (accounts, instruction_data, program_id): (
-            &'a [AccountInfo<'info>],
-            MintUserV1InstructionData,
-            &'a Pubkey,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let accounts = MintUserV1Accounts::try_from(accounts)?;
-
-        Pda::validate(
-            accounts.config_pda,
-            &[
-                ConfigV1::SEED,
-                accounts.nft_collection.key.as_ref(),
-                accounts.token_mint.key.as_ref(),
-            ],
-            program_id,
-        )?;
-
-        let (_, nft_authority_bump) =
-            Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
-
-        Ok(Self {
-            accounts,
-            instruction_data,
-            program_id,
-            nft_authority_bump,
-        })
     }
 }
 

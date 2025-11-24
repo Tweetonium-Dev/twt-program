@@ -97,6 +97,44 @@ pub struct MintTraitV1<'a, 'info> {
     pub trait_authority_bump: u8,
 }
 
+impl<'a, 'info>
+    TryFrom<(
+        &'a [AccountInfo<'info>],
+        MintTraitV1InstructionData,
+        &'a Pubkey,
+    )> for MintTraitV1<'a, 'info>
+{
+    type Error = ProgramError;
+
+    fn try_from(
+        (accounts, instruction_data, program_id): (
+            &'a [AccountInfo<'info>],
+            MintTraitV1InstructionData,
+            &'a Pubkey,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let accounts = MintTraitV1Accounts::try_from(accounts)?;
+
+        Pda::validate(
+            accounts.trait_pda,
+            &[TraitItemV1::SEED, accounts.trait_collection.key.as_ref()],
+            program_id,
+        )?;
+
+        let (_, trait_authority_bump) = Pda::validate(
+            accounts.trait_authority,
+            &[TraitAuthorityV1::SEED],
+            program_id,
+        )?;
+
+        Ok(Self {
+            accounts,
+            instruction_data,
+            trait_authority_bump,
+        })
+    }
+}
+
 impl<'a, 'info> MintTraitV1<'a, 'info> {
     fn check_mint_eligibility(&self, trait_item: &TraitItemV1) -> ProgramResult {
         if !trait_item.stock_available() {
@@ -144,44 +182,6 @@ impl<'a, 'info> MintTraitV1<'a, 'info> {
         trait_item.increment_user_minted()?;
 
         Ok(())
-    }
-}
-
-impl<'a, 'info>
-    TryFrom<(
-        &'a [AccountInfo<'info>],
-        MintTraitV1InstructionData,
-        &'a Pubkey,
-    )> for MintTraitV1<'a, 'info>
-{
-    type Error = ProgramError;
-
-    fn try_from(
-        (accounts, instruction_data, program_id): (
-            &'a [AccountInfo<'info>],
-            MintTraitV1InstructionData,
-            &'a Pubkey,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let accounts = MintTraitV1Accounts::try_from(accounts)?;
-
-        Pda::validate(
-            accounts.trait_pda,
-            &[TraitItemV1::SEED, accounts.trait_collection.key.as_ref()],
-            program_id,
-        )?;
-
-        let (_, trait_authority_bump) = Pda::validate(
-            accounts.trait_authority,
-            &[TraitAuthorityV1::SEED],
-            program_id,
-        )?;
-
-        Ok(Self {
-            accounts,
-            instruction_data,
-            trait_authority_bump,
-        })
     }
 }
 

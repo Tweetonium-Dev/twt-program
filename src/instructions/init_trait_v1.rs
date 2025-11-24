@@ -91,6 +91,38 @@ pub struct InitTraitV1<'a, 'info> {
     pub program_id: &'a Pubkey,
 }
 
+impl<'a, 'info>
+    TryFrom<(
+        &'a [AccountInfo<'info>],
+        InitTraitV1InstructionData,
+        &'a Pubkey,
+    )> for InitTraitV1<'a, 'info>
+{
+    type Error = ProgramError;
+
+    fn try_from(
+        (accounts, instruction_data, program_id): (
+            &'a [AccountInfo<'info>],
+            InitTraitV1InstructionData,
+            &'a Pubkey,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let accounts = InitTraitV1Accounts::try_from(accounts)?;
+
+        Pda::validate(
+            accounts.trait_authority,
+            &[TraitAuthorityV1::SEED],
+            program_id,
+        )?;
+
+        Ok(Self {
+            accounts,
+            instruction_data,
+            program_id,
+        })
+    }
+}
+
 impl<'a, 'info> InitTraitV1<'a, 'info> {
     fn check_trait_royalties(&self) -> ProgramResult {
         TraitItemV1::check_trait_royalties(
@@ -146,38 +178,6 @@ impl<'a, 'info> InitTraitV1<'a, 'info> {
                 uri: self.instruction_data.trait_uri,
             },
         )
-    }
-}
-
-impl<'a, 'info>
-    TryFrom<(
-        &'a [AccountInfo<'info>],
-        InitTraitV1InstructionData,
-        &'a Pubkey,
-    )> for InitTraitV1<'a, 'info>
-{
-    type Error = ProgramError;
-
-    fn try_from(
-        (accounts, instruction_data, program_id): (
-            &'a [AccountInfo<'info>],
-            InitTraitV1InstructionData,
-            &'a Pubkey,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let accounts = InitTraitV1Accounts::try_from(accounts)?;
-
-        Pda::validate(
-            accounts.trait_authority,
-            &[TraitAuthorityV1::SEED],
-            program_id,
-        )?;
-
-        Ok(Self {
-            accounts,
-            instruction_data,
-            program_id,
-        })
     }
 }
 
