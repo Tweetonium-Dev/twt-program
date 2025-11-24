@@ -107,6 +107,34 @@ pub struct InitConfigV1<'a, 'info> {
     pub program_id: &'a Pubkey,
 }
 
+impl<'a, 'info>
+    TryFrom<(
+        &'a [AccountInfo<'info>],
+        InitConfigV1InstructionData,
+        &'a Pubkey,
+    )> for InitConfigV1<'a, 'info>
+{
+    type Error = ProgramError;
+
+    fn try_from(
+        (accounts, instruction_data, program_id): (
+            &'a [AccountInfo<'info>],
+            InitConfigV1InstructionData,
+            &'a Pubkey,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let accounts = InitConfigV1Accounts::try_from(accounts)?;
+
+        Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
+
+        Ok(Self {
+            accounts,
+            instruction_data,
+            program_id,
+        })
+    }
+}
+
 impl<'a, 'info> InitConfigV1<'a, 'info> {
     fn check_config_data(&self) -> ProgramResult {
         ConfigV1::check_revenue_wallets(
@@ -185,34 +213,6 @@ impl<'a, 'info> InitConfigV1<'a, 'info> {
                 uri: self.instruction_data.collection_uri,
             },
         )
-    }
-}
-
-impl<'a, 'info>
-    TryFrom<(
-        &'a [AccountInfo<'info>],
-        InitConfigV1InstructionData,
-        &'a Pubkey,
-    )> for InitConfigV1<'a, 'info>
-{
-    type Error = ProgramError;
-
-    fn try_from(
-        (accounts, instruction_data, program_id): (
-            &'a [AccountInfo<'info>],
-            InitConfigV1InstructionData,
-            &'a Pubkey,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let accounts = InitConfigV1Accounts::try_from(accounts)?;
-
-        Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
-
-        Ok(Self {
-            accounts,
-            instruction_data,
-            program_id,
-        })
     }
 }
 

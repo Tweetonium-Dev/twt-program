@@ -61,6 +61,40 @@ pub struct ForceUnlockVestingV1<'a, 'info> {
     pub accounts: ForceUnlockVestingV1Accounts<'a, 'info>,
 }
 
+impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)>
+    for ForceUnlockVestingV1<'a, 'info>
+{
+    type Error = ProgramError;
+
+    fn try_from(
+        (accounts, program_id): (&'a [AccountInfo<'info>], &'a Pubkey),
+    ) -> Result<Self, Self::Error> {
+        let accounts = ForceUnlockVestingV1Accounts::try_from(accounts)?;
+
+        Pda::validate(
+            accounts.config_pda,
+            &[
+                ConfigV1::SEED,
+                accounts.nft_collection.key.as_ref(),
+                accounts.token_mint.key.as_ref(),
+            ],
+            program_id,
+        )?;
+
+        Ok(Self { accounts })
+    }
+}
+
+impl<'a, 'info> ProcessInstruction for ForceUnlockVestingV1<'a, 'info> {
+    fn process(self) -> ProgramResult {
+        let mut config_data = self.accounts.config_pda.data.borrow_mut();
+        let config = ConfigV1::load_mut(&mut config_data)?;
+
+        self.check_vesting(config)?;
+        self.unlock_vesting(config)
+    }
+}
+
 impl<'a, 'info> ForceUnlockVestingV1<'a, 'info> {
     fn check_vesting(&self, config: &ConfigV1) -> ProgramResult {
         if config.admin != *self.accounts.admin.key {
@@ -99,39 +133,5 @@ impl<'a, 'info> ForceUnlockVestingV1<'a, 'info> {
         );
 
         Ok(())
-    }
-}
-
-impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)>
-    for ForceUnlockVestingV1<'a, 'info>
-{
-    type Error = ProgramError;
-
-    fn try_from(
-        (accounts, program_id): (&'a [AccountInfo<'info>], &'a Pubkey),
-    ) -> Result<Self, Self::Error> {
-        let accounts = ForceUnlockVestingV1Accounts::try_from(accounts)?;
-
-        Pda::validate(
-            accounts.config_pda,
-            &[
-                ConfigV1::SEED,
-                accounts.nft_collection.key.as_ref(),
-                accounts.token_mint.key.as_ref(),
-            ],
-            program_id,
-        )?;
-
-        Ok(Self { accounts })
-    }
-}
-
-impl<'a, 'info> ProcessInstruction for ForceUnlockVestingV1<'a, 'info> {
-    fn process(self) -> ProgramResult {
-        let mut config_data = self.accounts.config_pda.data.borrow_mut();
-        let config = ConfigV1::load_mut(&mut config_data)?;
-
-        self.check_vesting(config)?;
-        self.unlock_vesting(config)
     }
 }

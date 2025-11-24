@@ -101,6 +101,45 @@ pub struct UpdateNftV1<'a, 'info> {
     pub nft_authority_bump: u8,
 }
 
+impl<'a, 'info>
+    TryFrom<(
+        &'a [AccountInfo<'info>],
+        UpdateNftV1InstructionData,
+        &'a Pubkey,
+    )> for UpdateNftV1<'a, 'info>
+{
+    type Error = ProgramError;
+
+    fn try_from(
+        (accounts, instruction_data, program_id): (
+            &'a [AccountInfo<'info>],
+            UpdateNftV1InstructionData,
+            &'a Pubkey,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let accounts = UpdateNftV1Accounts::try_from(accounts)?;
+
+        Pda::validate(
+            accounts.config_pda,
+            &[
+                ConfigV1::SEED,
+                accounts.nft_collection.key.as_ref(),
+                accounts.token_mint.key.as_ref(),
+            ],
+            program_id,
+        )?;
+
+        let (_, nft_authority_bump) =
+            Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
+
+        Ok(Self {
+            accounts,
+            instruction_data,
+            nft_authority_bump,
+        })
+    }
+}
+
 impl<'a, 'info> UpdateNftV1<'a, 'info> {
     fn check_ownership(&self) -> ProgramResult {
         let asset_owner = MplCoreProgram::get_asset_owner(self.accounts.nft_asset)?;
@@ -142,45 +181,6 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
             },
             &[&[NftAuthorityV1::SEED, &[self.nft_authority_bump]]],
         )
-    }
-}
-
-impl<'a, 'info>
-    TryFrom<(
-        &'a [AccountInfo<'info>],
-        UpdateNftV1InstructionData,
-        &'a Pubkey,
-    )> for UpdateNftV1<'a, 'info>
-{
-    type Error = ProgramError;
-
-    fn try_from(
-        (accounts, instruction_data, program_id): (
-            &'a [AccountInfo<'info>],
-            UpdateNftV1InstructionData,
-            &'a Pubkey,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let accounts = UpdateNftV1Accounts::try_from(accounts)?;
-
-        Pda::validate(
-            accounts.config_pda,
-            &[
-                ConfigV1::SEED,
-                accounts.nft_collection.key.as_ref(),
-                accounts.token_mint.key.as_ref(),
-            ],
-            program_id,
-        )?;
-
-        let (_, nft_authority_bump) =
-            Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
-
-        Ok(Self {
-            accounts,
-            instruction_data,
-            nft_authority_bump,
-        })
     }
 }
 
