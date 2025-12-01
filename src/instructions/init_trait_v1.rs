@@ -166,7 +166,7 @@ impl<'a, 'info> InitTraitV1<'a, 'info> {
             InitMplCoreCollectionAccounts {
                 payer: self.accounts.authority,
                 collection: self.accounts.trait_collection,
-                update_authority: None,
+                update_authority: Some(self.accounts.trait_authority),
                 mpl_core: self.accounts.mpl_core,
                 system_program: self.accounts.system_program,
             },
