@@ -10,7 +10,8 @@ use tweetonium::{
     process_instruction,
     states::VaultV1,
     utils::{
-        ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, mock_base_asset, mock_mint, mock_mint_2022, mock_token_account, mock_token_account_2022, noop_processor
+        mock_base_asset, mock_mint, mock_mint_2022, mock_token_account, mock_token_account_2022,
+        noop_processor, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID,
     },
 };
 
@@ -160,9 +161,7 @@ async fn test_transfer_to_vault() {
 
     let (mut banks_client, _bank_payer, recent_blockhash) = program_test.start().await;
 
-    let ix_data = TransferToVaultV1InstructionData {
-        amount: 1_000_000,
-    };
+    let ix_data = TransferToVaultV1InstructionData { amount: 1_000_000 };
 
     let mut data = vec![11u8];
     data.extend(ix_data.try_to_vec().expect("Failed to serialize ix data"));
@@ -185,16 +184,16 @@ async fn test_transfer_to_vault() {
         data,
     };
 
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer_pubkey),
-        &[&payer],
-        recent_blockhash,
-    );
+    let tx =
+        Transaction::new_signed_with_payer(&[ix], Some(&payer_pubkey), &[&payer], recent_blockhash);
 
     let result = banks_client.process_transaction(tx).await;
 
-    assert!(result.is_ok(), "TransferToVaultV1 failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "TransferToVaultV1 failed: {:?}",
+        result.err()
+    );
 }
 
 #[tokio::test]
@@ -343,9 +342,7 @@ async fn test_transfer_to_vault_2022() {
 
     let (mut banks_client, _bank_payer, recent_blockhash) = program_test.start().await;
 
-    let ix_data = TransferToVaultV1InstructionData {
-        amount: 1_000_000,
-    };
+    let ix_data = TransferToVaultV1InstructionData { amount: 1_000_000 };
 
     let mut data = vec![11u8];
     data.extend(ix_data.try_to_vec().expect("Failed to serialize ix data"));
@@ -368,14 +365,14 @@ async fn test_transfer_to_vault_2022() {
         data,
     };
 
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer_pubkey),
-        &[&payer],
-        recent_blockhash,
-    );
+    let tx =
+        Transaction::new_signed_with_payer(&[ix], Some(&payer_pubkey), &[&payer], recent_blockhash);
 
     let result = banks_client.process_transaction(tx).await;
 
-    assert!(result.is_ok(), "TransferToVaultV1 failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "TransferToVaultV1 failed: {:?}",
+        result.err()
+    );
 }
