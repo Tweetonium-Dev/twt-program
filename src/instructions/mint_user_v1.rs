@@ -447,7 +447,6 @@ impl<'a, 'info> MintUserV1<'a, 'info> {
     }
 
     fn mint_nft(self, config: &mut ConfigV1, user_minted: &mut UserMintedV1) -> ProgramResult {
-        msg!("Create mpl core nft");
         MplCoreProgram::create(
             CreateMplCoreAssetAccounts {
                 payer: self.accounts.payer,
