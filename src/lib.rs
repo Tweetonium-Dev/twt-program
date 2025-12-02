@@ -9,8 +9,9 @@ use crate::{
         BurnAndRefundV1, ForceUnlockVestingV1, InitConfigV1, InitConfigV1InstructionData,
         InitTraitV1, InitTraitV1InstructionData, MintAdminV1, MintAdminV1InstructionData,
         MintTraitV1, MintTraitV1InstructionData, MintUserV1, MintUserV1InstructionData, MintVipV1,
-        MintVipV1InstructionData, UpdateConfigV1, UpdateConfigV1InstructionData, UpdateNftV1,
-        UpdateNftV1InstructionData, UpdateTraitV1, UpdateTraitV1InstructionData,
+        MintVipV1InstructionData, TransferToVaultV1, TransferToVaultV1InstructionData,
+        UpdateConfigV1, UpdateConfigV1InstructionData, UpdateNftV1, UpdateNftV1InstructionData,
+        UpdateTraitV1, UpdateTraitV1InstructionData,
     },
     utils::ProcessInstruction,
 };
@@ -40,6 +41,7 @@ pub fn process_instruction(
         Some((8, data)) => process_update_nft(program_id, accounts, data),
         Some((9, _)) => process_burn_nft(program_id, accounts),
         Some((10, _)) => process_force_unlock_vesting(program_id, accounts),
+        Some((11, data)) => process_transfer_to_vault(program_id, accounts, data),
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }
@@ -138,4 +140,16 @@ fn process_burn_nft(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramRes
 fn process_force_unlock_vesting(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     msg!("Force Unlock Vesting");
     ForceUnlockVestingV1::try_from((accounts, program_id))?.process()
+}
+
+#[inline(never)]
+fn process_transfer_to_vault(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    data: &[u8],
+) -> ProgramResult {
+    msg!("Transfer to Vault");
+    let data = TransferToVaultV1InstructionData::try_from_slice(data)
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
+    TransferToVaultV1::try_from((accounts, data, program_id))?.process()
 }

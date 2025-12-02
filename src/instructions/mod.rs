@@ -6,6 +6,7 @@ mod mint_admin_v1;
 mod mint_trait_v1;
 mod mint_user_v1;
 mod mint_vip_v1;
+mod transfer_to_vault_v1;
 mod update_config_v1;
 mod update_nft_v1;
 mod update_trait_v1;
@@ -18,6 +19,7 @@ pub use mint_admin_v1::*;
 pub use mint_trait_v1::*;
 pub use mint_user_v1::*;
 pub use mint_vip_v1::*;
+pub use transfer_to_vault_v1::*;
 pub use update_config_v1::*;
 pub use update_nft_v1::*;
 pub use update_trait_v1::*;
@@ -730,4 +732,65 @@ pub enum TweetoniumInstruction {
         desc = "MPL Core Collection account that groups NFTs under this project."
     )]
     ForceUnlockVestingV1,
+
+    #[account(
+        0,
+        signer,
+        writable,
+        name = "payer",
+        desc = "User transferring tokens to the vault."
+    )]
+    #[account(
+        1,
+        writable,
+        name = "payer_ata",
+        desc = "Payer's ATA for 'new_token_mint' — source of payment."
+    )]
+    #[account(
+        2,
+        name = "vault_pda",
+        desc = "Initialized vault pda with seeds [\"vault_v1\", nft_asset, nft_collection, project_token_mint, program_id]"
+    )]
+    #[account(
+        3,
+        writable,
+        name = "new_vault_ata",
+        desc = "Associated Token Account (ATA) of the vault PDA."
+    )]
+    #[account(
+        4,
+        name = "nft_collection",
+        desc = "MPL Core Collection account that groups NFTs under this project."
+    )]
+    #[account(
+        5,
+        name = "nft_asset",
+        desc = "Initialized NFT asset (MPL Core) — the NFT being minted."
+    )]
+    #[account(
+        6,
+        name = "project_token_mint",
+        desc = "Project token mint — the token already escrowed in the vault (e.g. TWT)"
+    )]
+    #[account(
+        7,
+        name = "new_token_mint",
+        desc = "New token mint — the new token being escrowed (e.g. TWT)"
+    )]
+    #[account(
+        8,
+        name = "token_program",
+        desc = "SPL Token Program (legacy) or Token-2022 Program."
+    )]
+    #[account(
+        9,
+        name = "associated_token_program",
+        desc = "Associated Token Program"
+    )]
+    #[account(
+        10,
+        name = "system_program",
+        desc = "System Program — required for PDA creation and rent."
+    )]
+    TransferToVaultV1(TransferToVaultV1InstructionData),
 }
