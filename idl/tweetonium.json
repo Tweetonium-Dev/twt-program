@@ -1158,6 +1158,111 @@
         "type": "u8",
         "value": 10
       }
+    },
+    {
+      "name": "TransferToVaultV1",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true,
+          "docs": [
+            "User paying the mint price in 'token_mint' and solana."
+          ]
+        },
+        {
+          "name": "payerAta",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Admin's ATA for 'token_mint' — source of payment."
+          ]
+        },
+        {
+          "name": "vaultPda",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Uninitialized vault pda with seeds [\"vault_v1\", nft_asset, nft_collection, token_mint, program_id]"
+          ]
+        },
+        {
+          "name": "newVaultAta",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Associated Token Account (ATA) of the vault PDA."
+          ]
+        },
+        {
+          "name": "nftCollection",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "MPL Core Collection account that groups NFTs under this project."
+          ]
+        },
+        {
+          "name": "nftAsset",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Uninitialize NFT asset (MPL Core) — the NFT being minted."
+          ]
+        },
+        {
+          "name": "projectTokenMint",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Project token mint — the token already escrowed in the (e.g. TWT)"
+          ]
+        },
+        {
+          "name": "newTokenMint",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "New token mint — the new token being escrowed (e.g. TWT)"
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "SPL Token Program (legacy) or Token-2022 Program."
+          ]
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Associated Token Program"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System Program — required for PDA creation and rent."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "transferToVaultV1InstructionData",
+          "type": {
+            "defined": "TransferToVaultV1InstructionData"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 11
+      }
     }
   ],
   "accounts": [
@@ -1487,6 +1592,18 @@
           {
             "name": "nftUri",
             "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TransferToVaultV1InstructionData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "amount",
+            "type": "u64"
           }
         ]
       }
