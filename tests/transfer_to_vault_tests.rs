@@ -97,7 +97,7 @@ async fn test_transfer_to_vault() {
         payer_ata,
         Account {
             lamports,
-            data: mock_token_account(&project_token_mint, &payer_pubkey, 1_000_000),
+            data: mock_token_account(&new_token_mint, &payer_pubkey, 1_000_000),
             owner: token_program_id,
             executable: false,
             rent_epoch: 0,
@@ -278,7 +278,7 @@ async fn test_transfer_to_vault_2022() {
         payer_ata,
         Account {
             lamports,
-            data: mock_token_account_2022(&project_token_mint, &payer_pubkey, 1_000_000),
+            data: mock_token_account_2022(&new_token_mint, &payer_pubkey, 1_000_000),
             owner: token_program_id,
             executable: false,
             rent_epoch: 0,

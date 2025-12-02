@@ -738,18 +738,18 @@ pub enum TweetoniumInstruction {
         signer,
         writable,
         name = "payer",
-        desc = "User paying the mint price in 'token_mint' and solana."
+        desc = "User transferring tokens to the vault."
     )]
     #[account(
         1,
         writable,
         name = "payer_ata",
-        desc = "Admin's ATA for 'token_mint' — source of payment."
+        desc = "Payer's ATA for 'new_token_mint' — source of payment."
     )]
     #[account(
         2,
         name = "vault_pda",
-        desc = "Uninitialized vault pda with seeds [\"vault_v1\", nft_asset, nft_collection, token_mint, program_id]"
+        desc = "Initialized vault pda with seeds [\"vault_v1\", nft_asset, nft_collection, project_token_mint, program_id]"
     )]
     #[account(
         3,
@@ -765,12 +765,12 @@ pub enum TweetoniumInstruction {
     #[account(
         5,
         name = "nft_asset",
-        desc = "Uninitialize NFT asset (MPL Core) — the NFT being minted."
+        desc = "Initialized NFT asset (MPL Core) — the NFT being minted."
     )]
     #[account(
         6,
         name = "project_token_mint",
-        desc = "Project token mint — the token already escrowed in the (e.g. TWT)"
+        desc = "Project token mint — the token already escrowed in the vault (e.g. TWT)"
     )]
     #[account(
         7,

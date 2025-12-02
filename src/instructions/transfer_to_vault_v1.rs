@@ -15,15 +15,15 @@ use crate::{
 
 #[derive(Debug)]
 pub struct TransferToVaultV1Accounts<'a, 'info> {
-    /// User paying the mint price in 'token_mint' and solana.
+    /// User transferring tokens to the vault.
     /// Must be signer and owner of `payer_ata`.
     pub payer: &'a AccountInfo<'info>,
 
-    /// Payer's ATA for 'token_mint' — source of payment.
+    /// Payer's ATA for 'new_token_mint' — source of payment.
     /// Must be writable, owned by `token_program`.
     pub payer_ata: &'a AccountInfo<'info>,
 
-    /// PDA: `["vault_v1", nft_asset, nft_collection, token_mint, program_id]` — stores `Vault` state.
+    /// PDA: `["vault_v1", nft_asset, nft_collection, project_token_mint, program_id]` — stores `Vault` state.
     /// Must be writable if updating vault balance.
     pub vault_pda: &'a AccountInfo<'info>,
 
@@ -37,7 +37,7 @@ pub struct TransferToVaultV1Accounts<'a, 'info> {
     /// Determines the project scope for mint rules, royalties, and limits.
     pub nft_collection: &'a AccountInfo<'info>,
 
-    /// NFT asset (MPL Core) — the NFT being minted.
+    /// MPL Core Asset account which used in vault PDA derivation and validation.
     /// Must be uninitialized, owned by `mpl_core`.
     pub nft_asset: &'a AccountInfo<'info>,
 
@@ -46,7 +46,7 @@ pub struct TransferToVaultV1Accounts<'a, 'info> {
     pub project_token_mint: &'a AccountInfo<'info>,
 
     /// New token mint — the new token being escrowed (e.g. TWT).
-    /// Must owned by `token_program`.
+    /// Must be owned by `token_program`.
     pub new_token_mint: &'a AccountInfo<'info>,
 
     /// SPL Token Program (legacy or Token-2022).

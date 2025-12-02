@@ -1167,7 +1167,7 @@
           "isMut": true,
           "isSigner": true,
           "docs": [
-            "User paying the mint price in 'token_mint' and solana."
+            "User transferring tokens to the vault."
           ]
         },
         {
@@ -1175,7 +1175,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Admin's ATA for 'token_mint' — source of payment."
+            "Payer's ATA for 'new_token_mint' — source of payment."
           ]
         },
         {
@@ -1183,7 +1183,7 @@
           "isMut": false,
           "isSigner": false,
           "docs": [
-            "Uninitialized vault pda with seeds [\"vault_v1\", nft_asset, nft_collection, token_mint, program_id]"
+            "Initialized vault pda with seeds [\"vault_v1\", nft_asset, nft_collection, project_token_mint, program_id]"
           ]
         },
         {
@@ -1207,7 +1207,7 @@
           "isMut": false,
           "isSigner": false,
           "docs": [
-            "Uninitialize NFT asset (MPL Core) — the NFT being minted."
+            "Initialized NFT asset (MPL Core) — the NFT being minted."
           ]
         },
         {
@@ -1215,7 +1215,7 @@
           "isMut": false,
           "isSigner": false,
           "docs": [
-            "Project token mint — the token already escrowed in the (e.g. TWT)"
+            "Project token mint — the token already escrowed in the vault (e.g. TWT)"
           ]
         },
         {
