@@ -54,13 +54,16 @@ jobs:
           cargo build-sbf
 
       - name: Prepare keypairs
+        env:
+          DEPLOYER_KEYPAIR: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          PROGRAM_KEYPAIR: ${{ secrets.PROGRAM_PRIVATE_KEY }}
         run: |
-          echo "${{ secrets.DEPLOYER_PRIVATE_KEY }}" > deployer.json
-          echo "${{ secrets.PROGRAM_PRIVATE_KEY }}" \
-            > ./target/deploy/tweetonium-keypair.json
+          echo "$DEPLOYER_KEYPAIR" > deployer.json
+          echo "$PROGRAM_KEYPAIR" \
+            > "${CARGO_TARGET_DIR}/deploy/tweetonium-keypair.json"
 
       - name: Deploy program
         run: |
-          solana program deploy target/deploy/tweetonium.so \
+          solana program deploy target-ci/deploy/tweetonium.so \
             --keypair deployer.json \
             --url https://api.devnet.solana.com
