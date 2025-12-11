@@ -8,6 +8,7 @@ on:
     paths:
       - "**/src/**.rs"
       - "Cargo.toml"
+  pull_request:
 
 env:
   RUST_TOOLCHAIN: stable
