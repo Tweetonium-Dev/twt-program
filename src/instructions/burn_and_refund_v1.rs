@@ -4,11 +4,11 @@ use solana_program::{
 };
 
 use crate::{
-    states::{ConfigV1, NftAuthorityV1, VaultV1, VestingMode},
+    states::{NftAuthorityV1, ProjectV1, VaultV1, VestingMode},
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck,
-        BurnMplCoreAssetAccounts, ConfigAccount, MintAccount, MplCoreProgram, Pda,
-        ProcessInstruction, SignerAccount, SystemProgram, TokenProgram, TokenTransferAccounts,
+        BurnMplCoreAssetAccounts, MintAccount, MplCoreProgram, Pda, ProcessInstruction,
+        ProjectAccount, SignerAccount, SystemProgram, TokenProgram, TokenTransferAccounts,
         TokenTransferArgs, VaultAccount, WritableAccount,
     },
 };
@@ -23,9 +23,9 @@ pub struct BurnAndRefundV1Accounts<'a, 'info> {
     /// Must be writable, owned by `token_program`.
     pub payer_ata: &'a AccountInfo<'info>,
 
-    /// PDA: `["config_v1", nft_collection, token_mint, program_id]` — for price/refund logic.
+    /// PDA: `["project_v1", nft_collection, token_mint, program_id]` — for price/refund logic.
     /// Must be readable.
-    pub config_pda: &'a AccountInfo<'info>,
+    pub project_pda: &'a AccountInfo<'info>,
 
     /// PDA: `["vault_v1", nft_asset, nft_collection, token_mint, program_id]` — escrow state.
     /// Must be readable.
@@ -41,7 +41,6 @@ pub struct BurnAndRefundV1Accounts<'a, 'info> {
     pub nft_authority: &'a AccountInfo<'info>,
 
     /// MPL Core Collection account that groups NFTs under this project.
-    /// Must be initialized before config creation via `CreateV1CpiBuilder`.
     /// Determines the project scope for mint rules, royalties, and limits.
     pub nft_collection: &'a AccountInfo<'info>,
 
@@ -49,7 +48,7 @@ pub struct BurnAndRefundV1Accounts<'a, 'info> {
     /// Must be valid MPL Core asset.
     pub nft_asset: &'a AccountInfo<'info>,
 
-    /// Token mint — must match config (e.g. ZDLT.
+    /// Token mint — must match project (e.g. TWT)
     /// Must be valid mint.
     pub token_mint: &'a AccountInfo<'info>,
 
@@ -69,7 +68,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [payer, payer_ata, config_pda, vault_pda, vault_ata, nft_authority, nft_collection, nft_asset, token_mint, token_program, system_program, mpl_core] =
+        let [payer, payer_ata, project_pda, vault_pda, vault_ata, nft_authority, nft_collection, nft_asset, token_mint, token_program, system_program, mpl_core] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -84,7 +83,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
         WritableAccount::check(nft_asset)?;
 
         VaultAccount::check(vault_pda)?;
-        ConfigAccount::check(config_pda)?;
+        ProjectAccount::check(project_pda)?;
         MintAccount::check(token_mint)?;
         SystemProgram::check(system_program)?;
         MplCoreProgram::check(mpl_core)?;
@@ -95,7 +94,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for BurnAndRefundV1Accounts<'a
         Ok(Self {
             payer,
             payer_ata,
-            config_pda,
+            project_pda,
             vault_pda,
             vault_ata,
             nft_authority,
@@ -128,9 +127,9 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)> for BurnAndRefun
             Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
 
         Pda::validate(
-            accounts.config_pda,
+            accounts.project_pda,
             &[
-                ConfigV1::SEED,
+                ProjectV1::SEED,
                 accounts.nft_collection.key.as_ref(),
                 accounts.token_mint.key.as_ref(),
             ],
@@ -157,7 +156,7 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)> for BurnAndRefun
 }
 
 impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
-    fn check_vesting(&self, config: &ConfigV1, vault: &VaultV1) -> ProgramResult {
+    fn check_vesting(&self, project: &ProjectV1, vault: &VaultV1) -> ProgramResult {
         let clock = Clock::get()?;
         let asset_owner = MplCoreProgram::get_asset_owner(self.accounts.nft_asset)?;
 
@@ -175,18 +174,18 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        match config.vesting_mode {
+        match project.vesting_mode {
             VestingMode::None => Ok(()),
             VestingMode::Permanent => {
                 msg!("This vault is permanently locked — burn and refund not allowed.");
                 Err(ProgramError::Immutable)
             }
             VestingMode::TimeStamp => {
-                if clock.unix_timestamp < config.vesting_unlock_ts {
+                if clock.unix_timestamp < project.vesting_unlock_ts {
                     msg!(
                         "Vesting not yet complete: current ts={} < unlock ts={}",
                         clock.unix_timestamp,
-                        config.vesting_unlock_ts
+                        project.vesting_unlock_ts
                     );
                     return Err(ProgramError::Custom(3));
                 }
@@ -209,7 +208,7 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
         )
     }
 
-    fn refund_token(&self, config: &ConfigV1, balance: u64) -> ProgramResult {
+    fn refund_token(&self, project: &ProjectV1, balance: u64) -> ProgramResult {
         let signers_seeds: &[&[&[u8]]] = &[&[
             VaultV1::SEED,
             self.accounts.nft_asset.key.as_ref(),
@@ -228,7 +227,7 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
             },
             TokenTransferArgs {
                 amount: balance,
-                decimals: config.mint_decimals,
+                decimals: project.mint_decimals,
             },
             signers_seeds,
         )
@@ -257,18 +256,18 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
 
 impl<'a, 'info> ProcessInstruction for BurnAndRefundV1<'a, 'info> {
     fn process(self) -> ProgramResult {
-        let config_data = self.accounts.config_pda.try_borrow_data()?;
-        let config = ConfigV1::load(config_data.as_ref())?;
+        let project_data = self.accounts.project_pda.try_borrow_data()?;
+        let project = ProjectV1::load(project_data.as_ref())?;
 
         let amount = {
             let vault_data = self.accounts.vault_pda.try_borrow_data()?;
             let vault = VaultV1::load(vault_data.as_ref())?;
-            self.check_vesting(config, vault)?;
+            self.check_vesting(project, vault)?;
             vault.amount
         };
 
         self.burn_nft()?;
-        self.refund_token(config, amount)?;
+        self.refund_token(project, amount)?;
         self.close_vault()
     }
 }

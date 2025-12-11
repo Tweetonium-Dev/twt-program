@@ -6,16 +6,16 @@ use solana_program::{
 
 use crate::{
     states::{
-        ConfigV1, InitUserMintedAccounts, InitUserMintedArgs, InitVaultAccounts, InitVaultArgs,
-        NftAuthorityV1, UserMintedV1, VaultV1,
+        InitUserMintedAccounts, InitUserMintedArgs, InitVaultAccounts, InitVaultArgs,
+        NftAuthorityV1, ProjectV1, UserMintedV1, VaultV1,
     },
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, AssociatedTokenProgram,
-        ConfigAccount, CreateMplCoreAssetAccounts, CreateMplCoreAssetArgs,
-        InitAssociatedTokenProgramAccounts, InitPdaAccounts, InitPdaArgs, MintAccount,
-        MplCoreProgram, Pda, ProcessInstruction, RevenueWallet, RevenueWalletAccounts,
-        RevenueWalletArgs, SignerAccount, SystemProgram, TokenProgram, TokenTransferAccounts,
-        TokenTransferArgs, UninitializedAccount, WritableAccount,
+        CreateMplCoreAssetAccounts, CreateMplCoreAssetArgs, InitAssociatedTokenProgramAccounts,
+        InitPdaAccounts, InitPdaArgs, MintAccount, MplCoreProgram, Pda, ProcessInstruction,
+        ProjectAccount, RevenueWallet, RevenueWalletAccounts, RevenueWalletArgs, SignerAccount,
+        SystemProgram, TokenProgram, TokenTransferAccounts, TokenTransferArgs,
+        UninitializedAccount, WritableAccount,
     },
 };
 
@@ -29,9 +29,9 @@ pub struct MintVipV1Accounts<'a, 'info> {
     /// Must be writable, owned by `token_program`.
     pub payer_ata: &'a AccountInfo<'info>,
 
-    /// PDA: `["config_v1", nft_collection, token_mint, program_id]` — stores global config.
+    /// PDA: `["project_v1", nft_collection, token_mint, program_id]` — stores global project config.
     /// Must be readable, owned by program.
-    pub config_pda: &'a AccountInfo<'info>,
+    pub project_pda: &'a AccountInfo<'info>,
 
     /// PDA: `["vault_v1", nft_asset, nft_collection, token_mint, program_id]` — stores `Vault` state.
     /// Must be writable if updating vault balance.
@@ -53,7 +53,7 @@ pub struct MintVipV1Accounts<'a, 'info> {
     pub nft_authority: &'a AccountInfo<'info>,
 
     /// MPL Core Collection account that groups NFTs under this project.
-    /// Must be initialized before config creation via `CreateV1CpiBuilder`.
+    /// Must be initialized before project creation via `CreateV1CpiBuilder`.
     /// Determines the project scope for mint rules, royalties, and limits.
     pub nft_collection: &'a AccountInfo<'info>,
 
@@ -62,31 +62,31 @@ pub struct MintVipV1Accounts<'a, 'info> {
     pub nft_asset: &'a AccountInfo<'info>,
 
     /// Token mint — the token being escrowed (e.g. ZDLT.
-    /// Must match `config_pda.data.mint`, owned by `token_program`.
+    /// Must match `project_pda.data.mint`, owned by `token_program`.
     pub token_mint: &'a AccountInfo<'info>,
 
     // ---------------- Revenue Wallets ----------------
-    /// Revenue wallet #0 — corresponds to `config.revenue_wallet(0)`.
+    /// Revenue wallet #0 — corresponds to `project.revenue_wallet(0)`.
     /// Must be writable if receiving transfer.
     pub revenue_wallet_0: &'a AccountInfo<'info>,
     pub revenue_wallet_ata_0: &'a AccountInfo<'info>,
 
-    /// Revenue wallet #1 — corresponds to `config.revenue_wallet(1)`.
+    /// Revenue wallet #1 — corresponds to `project.revenue_wallet(1)`.
     /// Must be writable if receiving transfer.
     pub revenue_wallet_1: &'a AccountInfo<'info>,
     pub revenue_wallet_ata_1: &'a AccountInfo<'info>,
 
-    /// Revenue wallet #2 — corresponds to `config.revenue_wallet(2)`.
+    /// Revenue wallet #2 — corresponds to `project.revenue_wallet(2)`.
     /// Must be writable if receiving transfer.
     pub revenue_wallet_2: &'a AccountInfo<'info>,
     pub revenue_wallet_ata_2: &'a AccountInfo<'info>,
 
-    /// Revenue wallet #3 — corresponds to `config.revenue_wallet(3)`.
+    /// Revenue wallet #3 — corresponds to `project.revenue_wallet(3)`.
     /// Must be writable if receiving transfer.
     pub revenue_wallet_3: &'a AccountInfo<'info>,
     pub revenue_wallet_ata_3: &'a AccountInfo<'info>,
 
-    /// Revenue wallet #4 — corresponds to `config.revenue_wallet(4)`.
+    /// Revenue wallet #4 — corresponds to `project.revenue_wallet(4)`.
     /// Must be writable if receiving transfer.
     pub revenue_wallet_4: &'a AccountInfo<'info>,
     pub revenue_wallet_ata_4: &'a AccountInfo<'info>,
@@ -117,7 +117,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintVipV1Accounts<'a, 'inf
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [payer, payer_ata, config_pda, vault_pda, vault_ata, user_minted_pda, nft_authority, nft_collection, nft_asset, token_mint, revenue_wallet_0, revenue_wallet_ata_0, revenue_wallet_1, revenue_wallet_ata_1, revenue_wallet_2, revenue_wallet_ata_2, revenue_wallet_3, revenue_wallet_ata_3, revenue_wallet_4, revenue_wallet_ata_4, protocol_wallet, token_program, associated_token_program, system_program, mpl_core] =
+        let [payer, payer_ata, project_pda, vault_pda, vault_ata, user_minted_pda, nft_authority, nft_collection, nft_asset, token_mint, revenue_wallet_0, revenue_wallet_ata_0, revenue_wallet_1, revenue_wallet_ata_1, revenue_wallet_2, revenue_wallet_ata_2, revenue_wallet_3, revenue_wallet_ata_3, revenue_wallet_4, revenue_wallet_ata_4, protocol_wallet, token_program, associated_token_program, system_program, mpl_core] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -127,7 +127,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintVipV1Accounts<'a, 'inf
         SignerAccount::check(nft_asset)?;
 
         WritableAccount::check(payer_ata)?;
-        WritableAccount::check(config_pda)?;
+        WritableAccount::check(project_pda)?;
         WritableAccount::check(vault_pda)?;
         WritableAccount::check(vault_ata)?;
         WritableAccount::check(user_minted_pda)?;
@@ -137,7 +137,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintVipV1Accounts<'a, 'inf
 
         UninitializedAccount::check(nft_asset)?;
 
-        ConfigAccount::check(config_pda)?;
+        ProjectAccount::check(project_pda)?;
         MintAccount::check(token_mint)?;
         SystemProgram::check(system_program)?;
         MplCoreProgram::check(mpl_core)?;
@@ -147,7 +147,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintVipV1Accounts<'a, 'inf
         Ok(Self {
             payer,
             payer_ata,
-            config_pda,
+            project_pda,
             vault_pda,
             vault_ata,
             user_minted_pda,
@@ -207,9 +207,9 @@ impl<'a, 'info>
         let accounts = MintVipV1Accounts::try_from(accounts)?;
 
         Pda::validate(
-            accounts.config_pda,
+            accounts.project_pda,
             &[
-                ConfigV1::SEED,
+                ProjectV1::SEED,
                 accounts.nft_collection.key.as_ref(),
                 accounts.token_mint.key.as_ref(),
             ],
@@ -229,14 +229,14 @@ impl<'a, 'info>
 }
 
 impl<'a, 'info> MintVipV1<'a, 'info> {
-    fn check_mint_eligibility(&self, config: &ConfigV1) -> ProgramResult {
-        let max_supply = config.max_supply;
-        let released = config.released;
-        let admin_minted = config.admin_minted;
-        let user_minted = config.user_minted;
+    fn check_mint_eligibility(&self, project: &ProjectV1) -> ProgramResult {
+        let max_supply = project.max_supply;
+        let released = project.released;
+        let admin_minted = project.admin_minted;
+        let user_minted = project.user_minted;
         let minted = admin_minted + user_minted;
 
-        if !config.nft_stock_available() {
+        if !project.nft_stock_available() {
             msg!(
                 "All nft are minted. Allowed supply: {}. Minted {}",
                 max_supply,
@@ -245,7 +245,7 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
             return Err(ProgramError::Custom(0));
         }
 
-        if !config.user_mint_available() {
+        if !project.user_mint_available() {
             msg!(
                 "Sold out. Allowed supply: {}. Minted: {}",
                 released,
@@ -285,8 +285,8 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
         )
     }
 
-    fn store_to_vault(&self, config: &ConfigV1) -> ProgramResult {
-        if !config.need_vault() {
+    fn store_to_vault(&self, project: &ProjectV1) -> ProgramResult {
+        if !project.need_vault() {
             return Ok(());
         }
 
@@ -303,7 +303,7 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
             },
             InitVaultArgs {
                 nft: *self.accounts.nft_asset.key,
-                amount: config.escrow_amount,
+                amount: project.escrow_amount,
                 is_unlocked: false,
             },
             InitPdaAccounts {
@@ -337,16 +337,16 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
                 token_program: self.accounts.token_program,
             },
             TokenTransferArgs {
-                amount: config.escrow_amount,
-                decimals: config.mint_decimals,
+                amount: project.escrow_amount,
+                decimals: project.mint_decimals,
             },
         )?;
 
         Ok(())
     }
 
-    fn pay_to_all_revenue_wallets(&self, config: &ConfigV1) -> ProgramResult {
-        let num_wallets = config.num_revenue_wallets as usize;
+    fn pay_to_all_revenue_wallets(&self, project: &ProjectV1) -> ProgramResult {
+        let num_wallets = project.num_revenue_wallets as usize;
 
         if num_wallets == 0 {
             return Ok(());
@@ -375,10 +375,10 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
 
         for index in 0..num_wallets {
             let (Ok(expected_revenue_wallet), Ok(amount)) = (
-                config
+                project
                     .revenue_wallet(index)
                     .inspect_err(|_| msg!("Revenue wallet index {} not found!", index)),
-                config
+                project
                     .revenue_share(index)
                     .inspect_err(|_| msg!("Revenue share index {} not found!", index)),
             ) else {
@@ -404,7 +404,7 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
                 return Err(ProgramError::InvalidAccountData);
             }
 
-            if !config.allow_tf_to_dao_wallet(index)
+            if !project.allow_tf_to_dao_wallet(index)
                 || *expected_revenue_wallet == Pubkey::default()
             {
                 continue;
@@ -426,7 +426,7 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
                 },
                 RevenueWalletArgs {
                     amount,
-                    decimals: config.mint_decimals,
+                    decimals: project.mint_decimals,
                 },
             )?;
         }
@@ -434,8 +434,8 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
         Ok(())
     }
 
-    fn pay_protocol_fee(&self, config: &ConfigV1) -> ProgramResult {
-        if config.is_free_mint_nft_fee() {
+    fn pay_protocol_fee(&self, project: &ProjectV1) -> ProgramResult {
+        if project.is_free_mint_nft_fee() {
             return Ok(());
         }
 
@@ -443,11 +443,11 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
             self.accounts.payer,
             self.accounts.protocol_wallet,
             self.accounts.system_program,
-            config.mint_nft_fee_lamports,
+            project.mint_nft_fee_lamports,
         )
     }
 
-    fn mint_nft(self, config: &mut ConfigV1, user_minted: &mut UserMintedV1) -> ProgramResult {
+    fn mint_nft(self, project: &mut ProjectV1, user_minted: &mut UserMintedV1) -> ProgramResult {
         MplCoreProgram::create(
             CreateMplCoreAssetAccounts {
                 payer: self.accounts.payer,
@@ -465,7 +465,7 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
         )?;
 
         user_minted.increment();
-        config.increment_user_minted()?;
+        project.increment_user_minted()?;
 
         Ok(())
     }
@@ -473,22 +473,22 @@ impl<'a, 'info> MintVipV1<'a, 'info> {
 
 impl<'a, 'info> ProcessInstruction for MintVipV1<'a, 'info> {
     fn process(self) -> ProgramResult {
-        let mut config_data = self.accounts.config_pda.try_borrow_mut_data()?;
-        let config = ConfigV1::load_mut(config_data.as_mut())?;
+        let mut project_data = self.accounts.project_pda.try_borrow_mut_data()?;
+        let project = ProjectV1::load_mut(project_data.as_mut())?;
 
         self.init_user_mint_if_needed()?;
 
         let mut user_minted_data = self.accounts.user_minted_pda.try_borrow_mut_data()?;
         let user_minted = UserMintedV1::load_mut(user_minted_data.as_mut())?;
-        if user_minted.has_reached_vip_limit(config) {
+        if user_minted.has_reached_vip_limit(project) {
             msg!("VIP user has minted their allowed supply");
             return Err(ProgramError::Custom(2));
         }
 
-        self.check_mint_eligibility(config)?;
-        self.store_to_vault(config)?;
-        self.pay_to_all_revenue_wallets(config)?;
-        self.pay_protocol_fee(config)?;
-        self.mint_nft(config, user_minted)
+        self.check_mint_eligibility(project)?;
+        self.store_to_vault(project)?;
+        self.pay_to_all_revenue_wallets(project)?;
+        self.pay_protocol_fee(project)?;
+        self.mint_nft(project, user_minted)
     }
 }

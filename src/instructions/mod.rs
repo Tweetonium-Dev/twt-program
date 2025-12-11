@@ -1,27 +1,27 @@
 mod burn_and_refund_v1;
 mod force_unlock_vesting_v1;
-mod init_config_v1;
+mod init_project_v1;
 mod init_trait_v1;
 mod mint_admin_v1;
 mod mint_trait_v1;
 mod mint_user_v1;
 mod mint_vip_v1;
 mod transfer_to_vault_v1;
-mod update_config_v1;
 mod update_nft_v1;
+mod update_project_v1;
 mod update_trait_v1;
 
 pub use burn_and_refund_v1::*;
 pub use force_unlock_vesting_v1::*;
-pub use init_config_v1::*;
+pub use init_project_v1::*;
 pub use init_trait_v1::*;
 pub use mint_admin_v1::*;
 pub use mint_trait_v1::*;
 pub use mint_user_v1::*;
 pub use mint_vip_v1::*;
 pub use transfer_to_vault_v1::*;
-pub use update_config_v1::*;
 pub use update_nft_v1::*;
+pub use update_project_v1::*;
 pub use update_trait_v1::*;
 
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -34,13 +34,13 @@ pub enum TweetoniumInstruction {
         0,
         signer,
         name = "admin",
-        desc = "Authority that will control config updates (e.g. admin wallet)."
+        desc = "Authority that will control project config updates (e.g. admin wallet)."
     )]
     #[account(
         1,
         writable,
-        name = "config_pda",
-        desc = "Uninitialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+        name = "project_pda",
+        desc = "Uninitialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
     )]
     #[account(
         2,
@@ -69,19 +69,19 @@ pub enum TweetoniumInstruction {
         name = "mpl_core",
         desc = "Metaplex Core program — must be the official MPL Core program."
     )]
-    InitConfigV1(InitConfigV1InstructionData),
+    InitProjectV1(InitProjectV1InstructionData),
 
     #[account(
         0,
         signer,
         name = "admin",
-        desc = "Authority that will control config updates (e.g. admin wallet)."
+        desc = "Authority that will control project config updates (e.g. admin wallet)."
     )]
     #[account(
         1,
         writable,
-        name = "config_pda",
-        desc = "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+        name = "project_pda",
+        desc = "Initialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
     )]
     #[account(
         2,
@@ -109,7 +109,7 @@ pub enum TweetoniumInstruction {
         name = "mpl_core",
         desc = "Metaplex Core program — must be the official MPL Core program."
     )]
-    UpdateConfigV1(UpdateConfigV1InstructionData),
+    UpdateProjectV1(UpdateProjectV1InstructionData),
 
     #[account(
         0,
@@ -126,8 +126,8 @@ pub enum TweetoniumInstruction {
     #[account(
         2,
         writable,
-        name = "config_pda",
-        desc = "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+        name = "project_pda",
+        desc = "Initialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
     )]
     #[account(
         3,
@@ -203,8 +203,8 @@ pub enum TweetoniumInstruction {
     #[account(
         2,
         writable,
-        name = "config_pda",
-        desc = "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+        name = "project_pda",
+        desc = "Initialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
     )]
     #[account(
         3,
@@ -247,7 +247,7 @@ pub enum TweetoniumInstruction {
         10,
         writable,
         name = "revenue_wallet_0",
-        desc = "Revenue wallet #0 — corresponds to config.revenue_wallet(0)."
+        desc = "Revenue wallet #0 — corresponds to project.revenue_wallet(0)."
     )]
     #[account(
         11,
@@ -259,7 +259,7 @@ pub enum TweetoniumInstruction {
         12,
         writable,
         name = "revenue_wallet_1",
-        desc = "Revenue wallet #1 — corresponds to config.revenue_wallet(1)."
+        desc = "Revenue wallet #1 — corresponds to project.revenue_wallet(1)."
     )]
     #[account(
         13,
@@ -271,7 +271,7 @@ pub enum TweetoniumInstruction {
         14,
         writable,
         name = "revenue_wallet_2",
-        desc = "Revenue wallet #2 — corresponds to config.revenue_wallet(2)."
+        desc = "Revenue wallet #2 — corresponds to project.revenue_wallet(2)."
     )]
     #[account(
         15,
@@ -283,7 +283,7 @@ pub enum TweetoniumInstruction {
         16,
         writable,
         name = "revenue_wallet_3",
-        desc = "Revenue wallet #3 — corresponds to config.revenue_wallet(3)."
+        desc = "Revenue wallet #3 — corresponds to project.revenue_wallet(3)."
     )]
     #[account(
         17,
@@ -295,7 +295,7 @@ pub enum TweetoniumInstruction {
         18,
         writable,
         name = "revenue_wallet_4",
-        desc = "Revenue wallet #4 — corresponds to config.revenue_wallet(4)."
+        desc = "Revenue wallet #4 — corresponds to project.revenue_wallet(4)."
     )]
     #[account(
         19,
@@ -346,8 +346,8 @@ pub enum TweetoniumInstruction {
     #[account(
         2,
         writable,
-        name = "config_pda",
-        desc = "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+        name = "project_pda",
+        desc = "Initialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
     )]
     #[account(
         3,
@@ -390,7 +390,7 @@ pub enum TweetoniumInstruction {
         10,
         writable,
         name = "revenue_wallet_0",
-        desc = "Revenue wallet #0 — corresponds to config.revenue_wallet(0)."
+        desc = "Revenue wallet #0 — corresponds to project.revenue_wallet(0)."
     )]
     #[account(
         11,
@@ -402,7 +402,7 @@ pub enum TweetoniumInstruction {
         12,
         writable,
         name = "revenue_wallet_1",
-        desc = "Revenue wallet #1 — corresponds to config.revenue_wallet(1)."
+        desc = "Revenue wallet #1 — corresponds to project.revenue_wallet(1)."
     )]
     #[account(
         13,
@@ -414,7 +414,7 @@ pub enum TweetoniumInstruction {
         14,
         writable,
         name = "revenue_wallet_2",
-        desc = "Revenue wallet #2 — corresponds to config.revenue_wallet(2)."
+        desc = "Revenue wallet #2 — corresponds to project.revenue_wallet(2)."
     )]
     #[account(
         15,
@@ -426,7 +426,7 @@ pub enum TweetoniumInstruction {
         16,
         writable,
         name = "revenue_wallet_3",
-        desc = "Revenue wallet #3 — corresponds to config.revenue_wallet(3)."
+        desc = "Revenue wallet #3 — corresponds to project.revenue_wallet(3)."
     )]
     #[account(
         17,
@@ -438,7 +438,7 @@ pub enum TweetoniumInstruction {
         18,
         writable,
         name = "revenue_wallet_4",
-        desc = "Revenue wallet #4 — corresponds to config.revenue_wallet(4)."
+        desc = "Revenue wallet #4 — corresponds to project.revenue_wallet(4)."
     )]
     #[account(
         19,
@@ -484,7 +484,7 @@ pub enum TweetoniumInstruction {
         1,
         writable,
         name = "trait_pda",
-        desc = "Uninitialize config pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
+        desc = "Uninitialize trait item pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
     )]
     #[account(
         2,
@@ -520,7 +520,7 @@ pub enum TweetoniumInstruction {
         1,
         writable,
         name = "trait_pda",
-        desc = "Initialized config pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
+        desc = "Initialized trait item pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
     )]
     #[account(
         2,
@@ -555,7 +555,7 @@ pub enum TweetoniumInstruction {
         1,
         writable,
         name = "trait_pda",
-        desc = "Initialized config pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
+        desc = "Initialized trait item pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
     )]
     #[account(
         2,
@@ -602,8 +602,8 @@ pub enum TweetoniumInstruction {
     #[account(
         1,
         writable,
-        name = "config_pda",
-        desc = "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+        name = "project_pda",
+        desc = "Initialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
     )]
     #[account(
         2,
@@ -658,8 +658,8 @@ pub enum TweetoniumInstruction {
     )]
     #[account(
         2,
-        name = "config_pda",
-        desc = "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+        name = "project_pda",
+        desc = "Initialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
     )]
     #[account(
         3,
@@ -717,8 +717,8 @@ pub enum TweetoniumInstruction {
     #[account(
         1,
         writable,
-        name = "config_pda",
-        desc = "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+        name = "project_pda",
+        desc = "Initialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
     )]
     #[account(
         2,

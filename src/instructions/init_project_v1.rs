@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{ConfigV1, InitConfigAccounts, InitConfigArgs, NftAuthorityV1, VestingMode},
+    states::{InitProjectAccounts, InitProjectArgs, NftAuthorityV1, ProjectV1, VestingMode},
     utils::{
         AccountCheck, InitMplCoreCollectionAccounts, InitMplCoreCollectionArgs, InitPdaAccounts,
         InitPdaArgs, MintAccount, MplCoreProgram, Pda, ProcessInstruction, SignerAccount,
@@ -14,14 +14,14 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct InitConfigV1Accounts<'a, 'info> {
-    /// Authority that will control config updates (e.g. admin wallet).
+pub struct InitProjectV1Accounts<'a, 'info> {
+    /// Authority that will control project updates (e.g. admin wallet).
     /// Must be a signer.
     pub admin: &'a AccountInfo<'info>,
 
-    /// PDA: `["config_v1", nft_collection, token_mint, program_id]` — stores global config.
+    /// PDA: `["project_v1", nft_collection, token_mint, program_id]` — stores global project config.
     /// Must be uninitialized, writable, owned by this program.
-    pub config_pda: &'a AccountInfo<'info>,
+    pub project_pda: &'a AccountInfo<'info>,
 
     /// PDA: `[program_id, "nft_authority"]`
     /// Controls: update/burn all NFTs.
@@ -45,11 +45,11 @@ pub struct InitConfigV1Accounts<'a, 'info> {
     pub mpl_core: &'a AccountInfo<'info>,
 }
 
-impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, 'info> {
+impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitProjectV1Accounts<'a, 'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [admin, config_pda, nft_authority, nft_collection, token_mint, system_program, mpl_core] =
+        let [admin, project_pda, nft_authority, nft_collection, token_mint, system_program, mpl_core] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -58,7 +58,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
         SignerAccount::check(admin)?;
         SignerAccount::check(nft_collection)?;
 
-        WritableAccount::check(config_pda)?;
+        WritableAccount::check(project_pda)?;
 
         UninitializedAccount::check(nft_collection)?;
 
@@ -68,7 +68,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
 
         Ok(Self {
             admin,
-            config_pda,
+            project_pda,
             nft_authority,
             nft_collection,
             token_mint,
@@ -79,7 +79,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for InitConfigV1Accounts<'a, '
 }
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
-pub struct InitConfigV1InstructionData {
+pub struct InitProjectV1InstructionData {
     pub max_supply: u64,
     pub released: u64,
     pub max_mint_per_user: u64,
@@ -101,29 +101,29 @@ pub struct InitConfigV1InstructionData {
 }
 
 #[derive(Debug)]
-pub struct InitConfigV1<'a, 'info> {
-    pub accounts: InitConfigV1Accounts<'a, 'info>,
-    pub instruction_data: InitConfigV1InstructionData,
+pub struct InitProjectV1<'a, 'info> {
+    pub accounts: InitProjectV1Accounts<'a, 'info>,
+    pub instruction_data: InitProjectV1InstructionData,
     pub program_id: &'a Pubkey,
 }
 
 impl<'a, 'info>
     TryFrom<(
         &'a [AccountInfo<'info>],
-        InitConfigV1InstructionData,
+        InitProjectV1InstructionData,
         &'a Pubkey,
-    )> for InitConfigV1<'a, 'info>
+    )> for InitProjectV1<'a, 'info>
 {
     type Error = ProgramError;
 
     fn try_from(
         (accounts, instruction_data, program_id): (
             &'a [AccountInfo<'info>],
-            InitConfigV1InstructionData,
+            InitProjectV1InstructionData,
             &'a Pubkey,
         ),
     ) -> Result<Self, Self::Error> {
-        let accounts = InitConfigV1Accounts::try_from(accounts)?;
+        let accounts = InitProjectV1Accounts::try_from(accounts)?;
 
         Pda::validate(accounts.nft_authority, &[NftAuthorityV1::SEED], program_id)?;
 
@@ -135,35 +135,35 @@ impl<'a, 'info>
     }
 }
 
-impl<'a, 'info> InitConfigV1<'a, 'info> {
-    fn check_config_data(&self) -> ProgramResult {
-        ConfigV1::check_revenue_wallets(
+impl<'a, 'info> InitProjectV1<'a, 'info> {
+    fn check_project_data(&self) -> ProgramResult {
+        ProjectV1::check_revenue_wallets(
             self.instruction_data.mint_price_total,
             self.instruction_data.escrow_amount,
             self.instruction_data.num_revenue_wallets,
             self.instruction_data.revenue_wallets,
             self.instruction_data.revenue_shares,
         )?;
-        ConfigV1::check_nft_royalties(
+        ProjectV1::check_nft_royalties(
             self.instruction_data.num_royalty_recipients,
             self.instruction_data.royalty_recipients,
             self.instruction_data.royalty_shares_bps,
         )
     }
 
-    fn init_config(&self) -> ProgramResult {
+    fn init_project(&self) -> ProgramResult {
         let seeds: &[&[u8]] = &[
-            ConfigV1::SEED,
+            ProjectV1::SEED,
             self.accounts.nft_collection.key.as_ref(),
             self.accounts.token_mint.key.as_ref(),
         ];
         let decimals = TokenProgram::get_decimal(self.accounts.token_mint)?;
 
-        ConfigV1::init_if_needed(
-            InitConfigAccounts {
-                pda: self.accounts.config_pda,
+        ProjectV1::init_if_needed(
+            InitProjectAccounts {
+                pda: self.accounts.project_pda,
             },
-            InitConfigArgs {
+            InitProjectArgs {
                 admin: *self.accounts.admin.key,
                 mint: *self.accounts.token_mint.key,
                 max_supply: self.instruction_data.max_supply,
@@ -185,12 +185,12 @@ impl<'a, 'info> InitConfigV1<'a, 'info> {
             },
             InitPdaAccounts {
                 payer: self.accounts.admin,
-                pda: self.accounts.config_pda,
+                pda: self.accounts.project_pda,
                 system_program: self.accounts.system_program,
             },
             InitPdaArgs {
                 seeds,
-                space: ConfigV1::LEN,
+                space: ProjectV1::LEN,
                 program_id: self.program_id,
             },
         )
@@ -216,10 +216,10 @@ impl<'a, 'info> InitConfigV1<'a, 'info> {
     }
 }
 
-impl<'a, 'info> ProcessInstruction for InitConfigV1<'a, 'info> {
+impl<'a, 'info> ProcessInstruction for InitProjectV1<'a, 'info> {
     fn process(self) -> ProgramResult {
-        self.check_config_data()?;
-        self.init_config()?;
+        self.check_project_data()?;
+        self.init_project()?;
         self.init_collection()
     }
 }

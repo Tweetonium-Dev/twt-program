@@ -10,18 +10,13 @@ use crate::{
     utils::{AccountCheck, InitPdaAccounts, InitPdaArgs, Pda, UninitializedAccount},
 };
 
-/// Global configuration account that defines minting, payment, and vesting rules
-/// for a single collection or minting campaign.
+/// Represents the configuration and state of a single trait item within a
+/// collection, governing supply limits and economics.
 ///
-/// This account is initialized once via `init_config_v1` and governs:
-/// - The payment token and price model (SPL mint, escrow, DAO shares)
-/// - The maximum mint supply and whitelist (WL) phase logic
-/// - Vesting parameters for escrowed tokens (time-based or off-chain unlock)
-/// - Royalty and DAO revenue splits
+/// This account acts as the primary source of truth for the collection's
+/// token distribution and pricing parameters.
 ///
-/// Each `Vault` and `MintedUser` record derives from this `Config` using its PDA.
-///
-/// PDA seed: `[program_id, "config", hashed_nft_symbol, token_mint]`
+/// PDA seed: `[program_id, "trait_item_v1", collection]`
 #[repr(C)]
 #[derive(Debug, Clone, Copy, ShankAccount)]
 pub struct TraitItemV1 {
@@ -64,18 +59,15 @@ impl TraitItemV1 {
         pda_accounts: InitPdaAccounts<'a, 'info>,
         pda_args: InitPdaArgs<'a>,
     ) -> ProgramResult {
-        println!("init pda");
         Pda::new(pda_accounts, pda_args)?.init()?;
 
-        println!("borrow data");
         let mut bytes = accounts.pda.try_borrow_mut_data()?;
 
-        println!("load mut trait");
-        let config = Self::load_mut(&mut bytes)?;
-        config.authority = args.authority;
-        config.max_supply = args.max_supply;
-        config.user_minted = args.user_minted;
-        config.mint_fee_lamports = args.mint_fee_lamports;
+        let trait_item = Self::load_mut(&mut bytes)?;
+        trait_item.authority = args.authority;
+        trait_item.max_supply = args.max_supply;
+        trait_item.user_minted = args.user_minted;
+        trait_item.mint_fee_lamports = args.mint_fee_lamports;
 
         Ok(())
     }
