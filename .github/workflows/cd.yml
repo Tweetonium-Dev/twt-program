@@ -78,3 +78,10 @@ jobs:
             --program-id ${CARGO_TARGET_DIR}/deploy/tweetonium-keypair.json \
             --keypair ${CARGO_TARGET_DIR}/deploy/deployer.json \
             --url https://api.devnet.solana.com
+
+      - name: Cleanup sensitive keypair files
+        if: always()
+        run: |
+          rm -f "${CARGO_TARGET_DIR}/deploy/deployer.json"
+          rm -f "${CARGO_TARGET_DIR}/deploy/tweetonium-keypair.json"
+        shell: bash
