@@ -86,22 +86,22 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)>
 
 impl<'a, 'info> ProcessInstruction for ForceUnlockVestingV1<'a, 'info> {
     fn process(self) -> ProgramResult {
-        let mut config_data = self.accounts.project_pda.data.borrow_mut();
-        let config = ProjectV1::load_mut(&mut config_data)?;
+        let mut project_data = self.accounts.project_pda.data.borrow_mut();
+        let project = ProjectV1::load_mut(&mut project_data)?;
 
-        self.check_vesting(config)?;
-        self.unlock_vesting(config)
+        self.check_vesting(project)?;
+        self.unlock_vesting(project)
     }
 }
 
 impl<'a, 'info> ForceUnlockVestingV1<'a, 'info> {
-    fn check_vesting(&self, config: &ProjectV1) -> ProgramResult {
-        if config.admin != *self.accounts.admin.key {
-            msg!("Unauthorized: only the config authority may trigger vesting unlocks.");
+    fn check_vesting(&self, project: &ProjectV1) -> ProgramResult {
+        if project.admin != *self.accounts.admin.key {
+            msg!("Unauthorized: only the project authority may trigger vesting unlocks.");
             return Err(ProgramError::IllegalOwner);
         }
 
-        match config.vesting_mode {
+        match project.vesting_mode {
             VestingMode::None => {
                 msg!("Vesting unlock denied: vesting mode is disabled (None).");
                 Err(ProgramError::InvalidInstructionData)
@@ -114,16 +114,16 @@ impl<'a, 'info> ForceUnlockVestingV1<'a, 'info> {
         }
     }
 
-    fn unlock_vesting(&self, config: &mut ProjectV1) -> ProgramResult {
+    fn unlock_vesting(&self, project: &mut ProjectV1) -> ProgramResult {
         let now = Clock::get()?.unix_timestamp;
 
-        if config.vesting_unlock_ts <= now {
+        if project.vesting_unlock_ts <= now {
             msg!("Vesting already unlocked");
             return Ok(());
         }
 
-        let old_ts = config.vesting_unlock_ts;
-        config.vesting_unlock_ts = now;
+        let old_ts = project.vesting_unlock_ts;
+        project.vesting_unlock_ts = now;
 
         msg!(
             "ForceUnlockVesting: vesting unlocked early. Was {} → now {}",

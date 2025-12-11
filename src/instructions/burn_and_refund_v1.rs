@@ -156,7 +156,7 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)> for BurnAndRefun
 }
 
 impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
-    fn check_vesting(&self, config: &ProjectV1, vault: &VaultV1) -> ProgramResult {
+    fn check_vesting(&self, project: &ProjectV1, vault: &VaultV1) -> ProgramResult {
         let clock = Clock::get()?;
         let asset_owner = MplCoreProgram::get_asset_owner(self.accounts.nft_asset)?;
 
@@ -174,18 +174,18 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        match config.vesting_mode {
+        match project.vesting_mode {
             VestingMode::None => Ok(()),
             VestingMode::Permanent => {
                 msg!("This vault is permanently locked — burn and refund not allowed.");
                 Err(ProgramError::Immutable)
             }
             VestingMode::TimeStamp => {
-                if clock.unix_timestamp < config.vesting_unlock_ts {
+                if clock.unix_timestamp < project.vesting_unlock_ts {
                     msg!(
                         "Vesting not yet complete: current ts={} < unlock ts={}",
                         clock.unix_timestamp,
-                        config.vesting_unlock_ts
+                        project.vesting_unlock_ts
                     );
                     return Err(ProgramError::Custom(3));
                 }
@@ -208,7 +208,7 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
         )
     }
 
-    fn refund_token(&self, config: &ProjectV1, balance: u64) -> ProgramResult {
+    fn refund_token(&self, project: &ProjectV1, balance: u64) -> ProgramResult {
         let signers_seeds: &[&[&[u8]]] = &[&[
             VaultV1::SEED,
             self.accounts.nft_asset.key.as_ref(),
@@ -227,7 +227,7 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
             },
             TokenTransferArgs {
                 amount: balance,
-                decimals: config.mint_decimals,
+                decimals: project.mint_decimals,
             },
             signers_seeds,
         )
@@ -256,18 +256,18 @@ impl<'a, 'info> BurnAndRefundV1<'a, 'info> {
 
 impl<'a, 'info> ProcessInstruction for BurnAndRefundV1<'a, 'info> {
     fn process(self) -> ProgramResult {
-        let config_data = self.accounts.project_pda.try_borrow_data()?;
-        let config = ProjectV1::load(config_data.as_ref())?;
+        let project_data = self.accounts.project_pda.try_borrow_data()?;
+        let project = ProjectV1::load(project_data.as_ref())?;
 
         let amount = {
             let vault_data = self.accounts.vault_pda.try_borrow_data()?;
             let vault = VaultV1::load(vault_data.as_ref())?;
-            self.check_vesting(config, vault)?;
+            self.check_vesting(project, vault)?;
             vault.amount
         };
 
         self.burn_nft()?;
-        self.refund_token(config, amount)?;
+        self.refund_token(project, amount)?;
         self.close_vault()
     }
 }
