@@ -33,7 +33,6 @@ pub struct TransferToVaultV1Accounts<'a, 'info> {
     pub new_vault_ata: &'a AccountInfo<'info>,
 
     /// MPL Core Collection account that groups NFTs under this project.
-    /// Must be initialized before config creation via `CreateV1CpiBuilder`.
     /// Determines the project scope for mint rules, royalties, and limits.
     pub nft_collection: &'a AccountInfo<'info>,
 
@@ -42,7 +41,7 @@ pub struct TransferToVaultV1Accounts<'a, 'info> {
     pub nft_asset: &'a AccountInfo<'info>,
 
     /// Project token mint — the token already escrowed in the vault (e.g. TWT).
-    /// Must match `config_pda.data.mint`, owned by `token_program`.
+    /// Must match `project.data.mint`, owned by `token_program`.
     pub project_token_mint: &'a AccountInfo<'info>,
 
     /// New token mint — the new token being escrowed (e.g. TWT).

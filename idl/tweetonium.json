@@ -3,22 +3,22 @@
   "name": "tweetonium",
   "instructions": [
     {
-      "name": "InitConfigV1",
+      "name": "InitProjectV1",
       "accounts": [
         {
           "name": "admin",
           "isMut": false,
           "isSigner": true,
           "docs": [
-            "Authority that will control config updates (e.g. admin wallet)."
+            "Authority that will control project config updates (e.g. admin wallet)."
           ]
         },
         {
-          "name": "configPda",
+          "name": "projectPda",
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Uninitialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+            "Uninitialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -64,9 +64,9 @@
       ],
       "args": [
         {
-          "name": "initConfigV1InstructionData",
+          "name": "initProjectV1InstructionData",
           "type": {
-            "defined": "InitConfigV1InstructionData"
+            "defined": "InitProjectV1InstructionData"
           }
         }
       ],
@@ -76,22 +76,22 @@
       }
     },
     {
-      "name": "UpdateConfigV1",
+      "name": "UpdateProjectV1",
       "accounts": [
         {
           "name": "admin",
           "isMut": false,
           "isSigner": true,
           "docs": [
-            "Authority that will control config updates (e.g. admin wallet)."
+            "Authority that will control project config updates (e.g. admin wallet)."
           ]
         },
         {
-          "name": "configPda",
+          "name": "projectPda",
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+            "Initialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -137,9 +137,9 @@
       ],
       "args": [
         {
-          "name": "updateConfigV1InstructionData",
+          "name": "updateProjectV1InstructionData",
           "type": {
-            "defined": "UpdateConfigV1InstructionData"
+            "defined": "UpdateProjectV1InstructionData"
           }
         }
       ],
@@ -168,11 +168,11 @@
           ]
         },
         {
-          "name": "configPda",
+          "name": "projectPda",
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+            "Initialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -297,11 +297,11 @@
           ]
         },
         {
-          "name": "configPda",
+          "name": "projectPda",
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+            "Initialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -365,7 +365,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Revenue wallet #0 — corresponds to config.revenue_wallet(0)."
+            "Revenue wallet #0 — corresponds to project.revenue_wallet(0)."
           ]
         },
         {
@@ -381,7 +381,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Revenue wallet #1 — corresponds to config.revenue_wallet(1)."
+            "Revenue wallet #1 — corresponds to project.revenue_wallet(1)."
           ]
         },
         {
@@ -397,7 +397,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Revenue wallet #2 — corresponds to config.revenue_wallet(2)."
+            "Revenue wallet #2 — corresponds to project.revenue_wallet(2)."
           ]
         },
         {
@@ -413,7 +413,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Revenue wallet #3 — corresponds to config.revenue_wallet(3)."
+            "Revenue wallet #3 — corresponds to project.revenue_wallet(3)."
           ]
         },
         {
@@ -429,7 +429,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Revenue wallet #4 — corresponds to config.revenue_wallet(4)."
+            "Revenue wallet #4 — corresponds to project.revenue_wallet(4)."
           ]
         },
         {
@@ -514,11 +514,11 @@
           ]
         },
         {
-          "name": "configPda",
+          "name": "projectPda",
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+            "Initialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -582,7 +582,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Revenue wallet #0 — corresponds to config.revenue_wallet(0)."
+            "Revenue wallet #0 — corresponds to project.revenue_wallet(0)."
           ]
         },
         {
@@ -598,7 +598,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Revenue wallet #1 — corresponds to config.revenue_wallet(1)."
+            "Revenue wallet #1 — corresponds to project.revenue_wallet(1)."
           ]
         },
         {
@@ -614,7 +614,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Revenue wallet #2 — corresponds to config.revenue_wallet(2)."
+            "Revenue wallet #2 — corresponds to project.revenue_wallet(2)."
           ]
         },
         {
@@ -630,7 +630,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Revenue wallet #3 — corresponds to config.revenue_wallet(3)."
+            "Revenue wallet #3 — corresponds to project.revenue_wallet(3)."
           ]
         },
         {
@@ -646,7 +646,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Revenue wallet #4 — corresponds to config.revenue_wallet(4)."
+            "Revenue wallet #4 — corresponds to project.revenue_wallet(4)."
           ]
         },
         {
@@ -727,7 +727,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Uninitialize config pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
+            "Uninitialize trait item pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
           ]
         },
         {
@@ -792,7 +792,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Initialized config pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
+            "Initialized trait item pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
           ]
         },
         {
@@ -857,7 +857,7 @@
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Initialized config pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
+            "Initialized trait item pda with seeds [\"trait_item_v1\", trait_collection, program_id]"
           ]
         },
         {
@@ -934,11 +934,11 @@
           ]
         },
         {
-          "name": "configPda",
+          "name": "projectPda",
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+            "Initialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -1031,11 +1031,11 @@
           ]
         },
         {
-          "name": "configPda",
+          "name": "projectPda",
           "isMut": false,
           "isSigner": false,
           "docs": [
-            "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+            "Initialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -1129,11 +1129,11 @@
           ]
         },
         {
-          "name": "configPda",
+          "name": "projectPda",
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Initialized config pda with seeds [\"config_v1\", nft_collection, token_mint, program_id]"
+            "Initialized project pda with seeds [\"project_v1\", nft_collection, token_mint, program_id]"
           ]
         },
         {
@@ -1267,7 +1267,7 @@
   ],
   "accounts": [
     {
-      "name": "ConfigV1",
+      "name": "ProjectV1",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1385,7 +1385,7 @@
   ],
   "types": [
     {
-      "name": "InitConfigV1InstructionData",
+      "name": "InitProjectV1InstructionData",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1609,7 +1609,23 @@
       }
     },
     {
-      "name": "UpdateConfigV1InstructionData",
+      "name": "UpdateNftV1InstructionData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "nftName",
+            "type": "string"
+          },
+          {
+            "name": "nftUri",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdateProjectV1InstructionData",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1705,22 +1721,6 @@
           },
           {
             "name": "collectionUri",
-            "type": "string"
-          }
-        ]
-      }
-    },
-    {
-      "name": "UpdateNftV1InstructionData",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "nftName",
-            "type": "string"
-          },
-          {
-            "name": "nftUri",
             "type": "string"
           }
         ]

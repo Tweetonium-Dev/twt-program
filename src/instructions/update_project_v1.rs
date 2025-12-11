@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{ConfigV1, NftAuthorityV1, UpdateConfigArgs, VestingMode},
+    states::{NftAuthorityV1, ProjectV1, UpdateProjectArgs, VestingMode},
     utils::{
         AccountCheck, MintAccount, MplCoreProgram, Pda, ProcessInstruction, SignerAccount,
         SystemProgram, UpdateMplCoreCollectionAccounts, UpdateMplCoreCollectionArgs,
@@ -14,14 +14,14 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct UpdateConfigV1Accounts<'a, 'info> {
-    /// Authority that will control config updates (e.g. admin wallet).
+pub struct UpdateProjectV1Accounts<'a, 'info> {
+    /// Authority that will control project updates (e.g. admin wallet).
     /// Must be a signer.
     pub admin: &'a AccountInfo<'info>,
 
-    /// PDA: `["config_v1", nft_collection, token_mint, program_id]` — stores global config.
+    /// PDA: `["project_v1", nft_collection, token_mint, program_id]` — stores global project config.
     /// Must be uninitialized, writable, owned by this program.
-    pub config_pda: &'a AccountInfo<'info>,
+    pub project_pda: &'a AccountInfo<'info>,
 
     /// PDA: `[program_id, "nft_authority"]`
     /// Controls: update/burn all NFTs.
@@ -45,11 +45,11 @@ pub struct UpdateConfigV1Accounts<'a, 'info> {
     pub mpl_core: &'a AccountInfo<'info>,
 }
 
-impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateConfigV1Accounts<'a, 'info> {
+impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateProjectV1Accounts<'a, 'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [admin, config_pda, nft_authority, nft_collection, token_mint, system_program, mpl_core] =
+        let [admin, project_pda, nft_authority, nft_collection, token_mint, system_program, mpl_core] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -57,7 +57,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateConfigV1Accounts<'a,
 
         SignerAccount::check(admin)?;
 
-        WritableAccount::check(config_pda)?;
+        WritableAccount::check(project_pda)?;
         WritableAccount::check(nft_collection)?;
 
         MintAccount::check(token_mint)?;
@@ -66,7 +66,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateConfigV1Accounts<'a,
 
         Ok(Self {
             admin,
-            config_pda,
+            project_pda,
             nft_authority,
             nft_collection,
             token_mint,
@@ -77,7 +77,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateConfigV1Accounts<'a,
 }
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
-pub struct UpdateConfigV1InstructionData {
+pub struct UpdateProjectV1InstructionData {
     pub max_supply: u64,
     pub released: u64,
     pub max_mint_per_user: u64,
@@ -99,33 +99,33 @@ pub struct UpdateConfigV1InstructionData {
 }
 
 #[derive(Debug)]
-pub struct UpdateConfigV1<'a, 'info> {
-    pub accounts: UpdateConfigV1Accounts<'a, 'info>,
-    pub instruction_data: UpdateConfigV1InstructionData,
+pub struct UpdateProjectV1<'a, 'info> {
+    pub accounts: UpdateProjectV1Accounts<'a, 'info>,
+    pub instruction_data: UpdateProjectV1InstructionData,
     pub nft_authority_bump: u8,
 }
 
 impl<'a, 'info>
     TryFrom<(
         &'a [AccountInfo<'info>],
-        UpdateConfigV1InstructionData,
+        UpdateProjectV1InstructionData,
         &'a Pubkey,
-    )> for UpdateConfigV1<'a, 'info>
+    )> for UpdateProjectV1<'a, 'info>
 {
     type Error = ProgramError;
     fn try_from(
         (accounts, instruction_data, program_id): (
             &'a [AccountInfo<'info>],
-            UpdateConfigV1InstructionData,
+            UpdateProjectV1InstructionData,
             &'a Pubkey,
         ),
     ) -> Result<Self, Self::Error> {
-        let accounts = UpdateConfigV1Accounts::try_from(accounts)?;
+        let accounts = UpdateProjectV1Accounts::try_from(accounts)?;
 
         Pda::validate(
-            accounts.config_pda,
+            accounts.project_pda,
             &[
-                ConfigV1::SEED,
+                ProjectV1::SEED,
                 accounts.nft_collection.key.as_ref(),
                 accounts.token_mint.key.as_ref(),
             ],
@@ -143,16 +143,16 @@ impl<'a, 'info>
     }
 }
 
-impl<'a, 'info> UpdateConfigV1<'a, 'info> {
-    fn check_config_data(&self) -> ProgramResult {
-        ConfigV1::check_revenue_wallets(
+impl<'a, 'info> UpdateProjectV1<'a, 'info> {
+    fn check_project_data(&self) -> ProgramResult {
+        ProjectV1::check_revenue_wallets(
             self.instruction_data.mint_price_total,
             self.instruction_data.escrow_amount,
             self.instruction_data.num_revenue_wallets,
             self.instruction_data.revenue_wallets,
             self.instruction_data.revenue_shares,
         )?;
-        ConfigV1::check_nft_royalties(
+        ProjectV1::check_nft_royalties(
             self.instruction_data.num_royalty_recipients,
             self.instruction_data.royalty_recipients,
             self.instruction_data.royalty_shares_bps,
@@ -179,16 +179,16 @@ impl<'a, 'info> UpdateConfigV1<'a, 'info> {
         )
     }
 
-    fn update_config(&self) -> ProgramResult {
-        let mut config_data = self.accounts.config_pda.try_borrow_mut_data()?;
-        let config = ConfigV1::load_mut(config_data.as_mut())?;
+    fn update_project(&self) -> ProgramResult {
+        let mut project_data = self.accounts.project_pda.try_borrow_mut_data()?;
+        let project = ProjectV1::load_mut(project_data.as_mut())?;
 
-        if config.admin != *self.accounts.admin.key {
-            msg!("Unauthorized authority for config update");
+        if project.admin != *self.accounts.admin.key {
+            msg!("Unauthorized authority for project update");
             return Err(ProgramError::InvalidAccountData);
         }
 
-        config.update(UpdateConfigArgs {
+        project.update(UpdateProjectArgs {
             max_supply: self.instruction_data.max_supply,
             released: self.instruction_data.released,
             max_mint_per_user: self.instruction_data.max_mint_per_user,
@@ -208,10 +208,10 @@ impl<'a, 'info> UpdateConfigV1<'a, 'info> {
     }
 }
 
-impl<'a, 'info> ProcessInstruction for UpdateConfigV1<'a, 'info> {
+impl<'a, 'info> ProcessInstruction for UpdateProjectV1<'a, 'info> {
     fn process(self) -> ProgramResult {
-        self.check_config_data()?;
+        self.check_project_data()?;
         self.update_collection()?;
-        self.update_config()
+        self.update_project()
     }
 }

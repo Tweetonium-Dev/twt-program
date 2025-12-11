@@ -8,7 +8,7 @@ use solana_sdk::{account::Account, signature::Keypair, signer::Signer, transacti
 use tweetonium::{
     instructions::MintUserV1InstructionData,
     process_instruction,
-    states::{ConfigV1, NftAuthorityV1, UserMintedV1, VaultV1, VestingMode},
+    states::{NftAuthorityV1, ProjectV1, UserMintedV1, VaultV1, VestingMode},
     utils::{
         mock_mint, mock_mint_2022, mock_token_account, mock_token_account_2022, noop_processor,
         ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID,
@@ -65,8 +65,12 @@ async fn test_mint_user() {
         &associated_token_program_id,
     );
 
-    let (config_pda, _) = Pubkey::find_program_address(
-        &[ConfigV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
+    let (project_pda, _) = Pubkey::find_program_address(
+        &[
+            ProjectV1::SEED,
+            nft_collection.as_ref(),
+            token_mint.as_ref(),
+        ],
         &program_id,
     );
 
@@ -125,7 +129,7 @@ async fn test_mint_user() {
     revenue_shares[0] = 5_000_000;
     revenue_shares[1] = 10_000_000;
 
-    let cfg = ConfigV1 {
+    let cfg = ProjectV1 {
         admin: payer_pubkey,
         mint: token_mint,
         mint_decimals: 6,
@@ -171,7 +175,7 @@ async fn test_mint_user() {
     );
 
     program_test.add_account(
-        config_pda,
+        project_pda,
         Account {
             lamports,
             data: cfg.to_bytes(),
@@ -262,7 +266,7 @@ async fn test_mint_user() {
         accounts: vec![
             AccountMeta::new(payer_pubkey, true),
             AccountMeta::new(payer_ata, false),
-            AccountMeta::new(config_pda, false),
+            AccountMeta::new(project_pda, false),
             AccountMeta::new(vault_pda, false),
             AccountMeta::new(vault_ata, false),
             AccountMeta::new(user_minted_pda, false),
@@ -351,8 +355,12 @@ async fn test_mint_user_2022() {
         &associated_token_program_id,
     );
 
-    let (config_pda, _) = Pubkey::find_program_address(
-        &[ConfigV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
+    let (project_pda, _) = Pubkey::find_program_address(
+        &[
+            ProjectV1::SEED,
+            nft_collection.as_ref(),
+            token_mint.as_ref(),
+        ],
         &program_id,
     );
 
@@ -411,7 +419,7 @@ async fn test_mint_user_2022() {
     revenue_shares[0] = 5_000_000;
     revenue_shares[1] = 10_000_000;
 
-    let cfg = ConfigV1 {
+    let cfg = ProjectV1 {
         admin: payer_pubkey,
         mint: token_mint,
         mint_decimals: 6,
@@ -457,7 +465,7 @@ async fn test_mint_user_2022() {
     );
 
     program_test.add_account(
-        config_pda,
+        project_pda,
         Account {
             lamports,
             data: cfg.to_bytes(),
@@ -548,7 +556,7 @@ async fn test_mint_user_2022() {
         accounts: vec![
             AccountMeta::new(payer_pubkey, true),
             AccountMeta::new(payer_ata, false),
-            AccountMeta::new(config_pda, false),
+            AccountMeta::new(project_pda, false),
             AccountMeta::new(vault_pda, false),
             AccountMeta::new(vault_ata, false),
             AccountMeta::new(user_minted_pda, false),

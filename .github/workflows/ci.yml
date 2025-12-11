@@ -2,9 +2,6 @@
 name: Solana CI
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
@@ -42,9 +39,9 @@ jobs:
           restore-keys: ${{ runner.os }}-agave-${{ env.SOLANA_VERSION }}
 
       - name: Install Solana CLI
-        run: ./.scripts/install_solana.sh
         env:
           SOLANA_VERSION: ${{ env.SOLANA_VERSION }}
+        run: ./.scripts/install_solana.sh
 
       - name: Install protoc (fixes solana-svm test builds)
         run: apt-get update -qq && apt-get install -y protobuf-compiler

@@ -6,12 +6,12 @@ use solana_program::{
 
 use crate::{
     instructions::{
-        BurnAndRefundV1, ForceUnlockVestingV1, InitConfigV1, InitConfigV1InstructionData,
+        BurnAndRefundV1, ForceUnlockVestingV1, InitProjectV1, InitProjectV1InstructionData,
         InitTraitV1, InitTraitV1InstructionData, MintAdminV1, MintAdminV1InstructionData,
         MintTraitV1, MintTraitV1InstructionData, MintUserV1, MintUserV1InstructionData, MintVipV1,
-        MintVipV1InstructionData, TransferToVaultV1, TransferToVaultV1InstructionData,
-        UpdateConfigV1, UpdateConfigV1InstructionData, UpdateNftV1, UpdateNftV1InstructionData,
-        UpdateTraitV1, UpdateTraitV1InstructionData,
+        MintVipV1InstructionData, TransferToVaultV1, TransferToVaultV1InstructionData, UpdateNftV1,
+        UpdateNftV1InstructionData, UpdateProjectV1, UpdateProjectV1InstructionData, UpdateTraitV1,
+        UpdateTraitV1InstructionData,
     },
     utils::ProcessInstruction,
 };
@@ -30,8 +30,8 @@ pub fn process_instruction(
     instruction_data: &[u8],
 ) -> ProgramResult {
     match instruction_data.split_first() {
-        Some((0, data)) => process_init_config(program_id, accounts, data),
-        Some((1, data)) => process_update_config(program_id, accounts, data),
+        Some((0, data)) => process_init_project(program_id, accounts, data),
+        Some((1, data)) => process_update_project(program_id, accounts, data),
         Some((2, data)) => process_mint_admin(program_id, accounts, data),
         Some((3, data)) => process_mint_user(program_id, accounts, data),
         Some((4, data)) => process_mint_vip(program_id, accounts, data),
@@ -47,27 +47,27 @@ pub fn process_instruction(
 }
 
 #[inline(never)]
-fn process_init_config(
+fn process_init_project(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    msg!("Initialize Config");
-    let data = InitConfigV1InstructionData::try_from_slice(data)
+    msg!("Initialize Project");
+    let data = InitProjectV1InstructionData::try_from_slice(data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
-    InitConfigV1::try_from((accounts, data, program_id))?.process()
+    InitProjectV1::try_from((accounts, data, program_id))?.process()
 }
 
 #[inline(never)]
-fn process_update_config(
+fn process_update_project(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    msg!("Update Config");
-    let data = UpdateConfigV1InstructionData::try_from_slice(data)
+    msg!("Update Project");
+    let data = UpdateProjectV1InstructionData::try_from_slice(data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
-    UpdateConfigV1::try_from((accounts, data, program_id))?.process()
+    UpdateProjectV1::try_from((accounts, data, program_id))?.process()
 }
 
 #[inline(never)]
