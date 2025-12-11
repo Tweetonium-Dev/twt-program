@@ -75,6 +75,6 @@ jobs:
       - name: Deploy program
         run: |
           solana program deploy target-ci/deploy/tweetonium.so \
-            --program-id $CARGO_TARGET_DIR/deploy/tweetonium-keypair.json \
-            --keypair $CARGO_TARGET_DIR/deploy/deployer.json \
+            --program-id ${CARGO_TARGET_DIR}/deploy/tweetonium-keypair.json \
+            --keypair ${CARGO_TARGET_DIR}/deploy/deployer.json \
             --url https://api.devnet.solana.com
