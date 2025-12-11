@@ -78,8 +78,7 @@ change-authority:
 		exit 1; \
 	fi
 	@echo "$(CYAN)🔑 [AUTH] Changing upgrade authority...$(RESET)"
-	@solana program set-upgrade-authority \
-		--program-id ./target/deploy/tweetonium-keypair.json \
+	@solana program set-upgrade-authority ./target/deploy/tweetonium-keypair.json \
 		--new-upgrade-authority $(NEW_AUTH)
 	@echo "$(GREEN)🟢 [AUTH] Upgrade authority changed to $(NEW_AUTH)$(RESET)"
 
