@@ -8,7 +8,7 @@ use solana_sdk::{account::Account, signature::Keypair, signer::Signer, transacti
 use tweetonium::{
     instructions::UpdateNftV1InstructionData,
     process_instruction,
-    states::{ProjectV1, NftAuthorityV1, VestingMode},
+    states::{NftAuthorityV1, ProjectV1, VestingMode},
     utils::{
         mock_base_asset, mock_mint, mock_mint_2022, noop_processor, TOKEN_2022_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
@@ -43,7 +43,11 @@ async fn test_update_nft() {
     let (nft_authority, _) = Pubkey::find_program_address(&[NftAuthorityV1::SEED], &program_id);
 
     let (project_pda, _) = Pubkey::find_program_address(
-        &[ProjectV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
+        &[
+            ProjectV1::SEED,
+            nft_collection.as_ref(),
+            token_mint.as_ref(),
+        ],
         &program_id,
     );
 
@@ -213,7 +217,11 @@ async fn test_update_nft_2022() {
     let (nft_authority, _) = Pubkey::find_program_address(&[NftAuthorityV1::SEED], &program_id);
 
     let (project_pda, _) = Pubkey::find_program_address(
-        &[ProjectV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
+        &[
+            ProjectV1::SEED,
+            nft_collection.as_ref(),
+            token_mint.as_ref(),
+        ],
         &program_id,
     );
 

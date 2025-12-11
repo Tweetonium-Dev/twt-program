@@ -6,7 +6,7 @@ use solana_program::{
 use crate::{
     states::{ProjectV1, VestingMode},
     utils::{
-        AccountCheck, ProjectAccount, MintAccount, Pda, ProcessInstruction, SignerAccount,
+        AccountCheck, MintAccount, Pda, ProcessInstruction, ProjectAccount, SignerAccount,
         WritableAccount,
     },
 };

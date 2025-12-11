@@ -8,7 +8,7 @@ use solana_sdk::{account::Account, signature::Keypair, signer::Signer, transacti
 use tweetonium::{
     instructions::InitProjectV1InstructionData,
     process_instruction,
-    states::{ProjectV1, NftAuthorityV1, VestingMode},
+    states::{NftAuthorityV1, ProjectV1, VestingMode},
     utils::{mock_mint_2022, noop_processor, TOKEN_2022_PROGRAM_ID},
 };
 

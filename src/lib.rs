@@ -9,9 +9,9 @@ use crate::{
         BurnAndRefundV1, ForceUnlockVestingV1, InitProjectV1, InitProjectV1InstructionData,
         InitTraitV1, InitTraitV1InstructionData, MintAdminV1, MintAdminV1InstructionData,
         MintTraitV1, MintTraitV1InstructionData, MintUserV1, MintUserV1InstructionData, MintVipV1,
-        MintVipV1InstructionData, TransferToVaultV1, TransferToVaultV1InstructionData,
-        UpdateProjectV1, UpdateProjectV1InstructionData, UpdateNftV1, UpdateNftV1InstructionData,
-        UpdateTraitV1, UpdateTraitV1InstructionData,
+        MintVipV1InstructionData, TransferToVaultV1, TransferToVaultV1InstructionData, UpdateNftV1,
+        UpdateNftV1InstructionData, UpdateProjectV1, UpdateProjectV1InstructionData, UpdateTraitV1,
+        UpdateTraitV1InstructionData,
     },
     utils::ProcessInstruction,
 };

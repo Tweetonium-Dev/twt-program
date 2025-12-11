@@ -6,7 +6,7 @@ use solana_program_test::{processor, ProgramTest};
 use solana_sdk::{account::Account, signature::Keypair, signer::Signer, transaction::Transaction};
 use tweetonium::{
     process_instruction,
-    states::{ProjectV1, NftAuthorityV1, VaultV1, VestingMode},
+    states::{NftAuthorityV1, ProjectV1, VaultV1, VestingMode},
     utils::{
         mock_base_asset, mock_mint, mock_mint_2022, mock_token_account, mock_token_account_2022,
         noop_processor, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID,
@@ -49,7 +49,11 @@ async fn test_burn_and_refund_v1() {
     );
 
     let (project_pda, _) = Pubkey::find_program_address(
-        &[ProjectV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
+        &[
+            ProjectV1::SEED,
+            nft_collection.as_ref(),
+            token_mint.as_ref(),
+        ],
         &program_id,
     );
 

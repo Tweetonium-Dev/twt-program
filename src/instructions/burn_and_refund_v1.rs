@@ -4,11 +4,11 @@ use solana_program::{
 };
 
 use crate::{
-    states::{ProjectV1, NftAuthorityV1, VaultV1, VestingMode},
+    states::{NftAuthorityV1, ProjectV1, VaultV1, VestingMode},
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck,
-        BurnMplCoreAssetAccounts, ProjectAccount, MintAccount, MplCoreProgram, Pda,
-        ProcessInstruction, SignerAccount, SystemProgram, TokenProgram, TokenTransferAccounts,
+        BurnMplCoreAssetAccounts, MintAccount, MplCoreProgram, Pda, ProcessInstruction,
+        ProjectAccount, SignerAccount, SystemProgram, TokenProgram, TokenTransferAccounts,
         TokenTransferArgs, VaultAccount, WritableAccount,
     },
 };

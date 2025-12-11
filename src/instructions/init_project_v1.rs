@@ -5,7 +5,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{ProjectV1, InitProjectAccounts, InitProjectArgs, NftAuthorityV1, VestingMode},
+    states::{InitProjectAccounts, InitProjectArgs, NftAuthorityV1, ProjectV1, VestingMode},
     utils::{
         AccountCheck, InitMplCoreCollectionAccounts, InitMplCoreCollectionArgs, InitPdaAccounts,
         InitPdaArgs, MintAccount, MplCoreProgram, Pda, ProcessInstruction, SignerAccount,

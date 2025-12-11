@@ -33,7 +33,11 @@ async fn test_force_unlock_vesting_v1() {
     // PDAs
 
     let (project_pda, _) = Pubkey::find_program_address(
-        &[ProjectV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
+        &[
+            ProjectV1::SEED,
+            nft_collection.as_ref(),
+            token_mint.as_ref(),
+        ],
         &program_id,
     );
 
