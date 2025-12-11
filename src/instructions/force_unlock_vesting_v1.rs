@@ -4,29 +4,28 @@ use solana_program::{
 };
 
 use crate::{
-    states::{ConfigV1, VestingMode},
+    states::{ProjectV1, VestingMode},
     utils::{
-        AccountCheck, ConfigAccount, MintAccount, Pda, ProcessInstruction, SignerAccount,
+        AccountCheck, ProjectAccount, MintAccount, Pda, ProcessInstruction, SignerAccount,
         WritableAccount,
     },
 };
 
 #[derive(Debug)]
 pub struct ForceUnlockVestingV1Accounts<'a, 'info> {
-    /// The config authority — must sign.
-    /// Must match `config.admin`.
+    /// The project authority — must sign.
+    /// Must match `project.admin`.
     pub admin: &'a AccountInfo<'info>,
 
-    /// PDA: `[program_id, token_mint, nft_collection,, "config"]` — stores global config.
+    /// PDA: `["project_v1", nft_collection, token_mint, program_id]`.
     /// Must be writable.
-    pub config_pda: &'a AccountInfo<'info>,
+    pub project_pda: &'a AccountInfo<'info>,
 
     /// Token mint (fungible token used for minting/refunding e.g. ZDLT).
     /// Must be valid mint (82 or 90+ bytes), owned by SPL Token or Token-2022.
     pub token_mint: &'a AccountInfo<'info>,
 
     /// MPL Core Collection account that groups NFTs under this project.
-    /// Must be initialized before config creation via `CreateV1CpiBuilder`.
     /// Determines the project scope for mint rules, royalties, and limits.
     pub nft_collection: &'a AccountInfo<'info>,
 }
@@ -35,21 +34,21 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for ForceUnlockVestingV1Accoun
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [admin, config_pda, token_mint, nft_collection] = accounts else {
+        let [admin, project_pda, token_mint, nft_collection] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         SignerAccount::check(admin)?;
 
-        WritableAccount::check(config_pda)?;
+        WritableAccount::check(project_pda)?;
         WritableAccount::check(nft_collection)?;
 
         MintAccount::check(token_mint)?;
-        ConfigAccount::check(config_pda)?;
+        ProjectAccount::check(project_pda)?;
 
         Ok(Self {
             admin,
-            config_pda,
+            project_pda,
             token_mint,
             nft_collection,
         })
@@ -72,9 +71,9 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)>
         let accounts = ForceUnlockVestingV1Accounts::try_from(accounts)?;
 
         Pda::validate(
-            accounts.config_pda,
+            accounts.project_pda,
             &[
-                ConfigV1::SEED,
+                ProjectV1::SEED,
                 accounts.nft_collection.key.as_ref(),
                 accounts.token_mint.key.as_ref(),
             ],
@@ -87,8 +86,8 @@ impl<'a, 'info> TryFrom<(&'a [AccountInfo<'info>], &'a Pubkey)>
 
 impl<'a, 'info> ProcessInstruction for ForceUnlockVestingV1<'a, 'info> {
     fn process(self) -> ProgramResult {
-        let mut config_data = self.accounts.config_pda.data.borrow_mut();
-        let config = ConfigV1::load_mut(&mut config_data)?;
+        let mut config_data = self.accounts.project_pda.data.borrow_mut();
+        let config = ProjectV1::load_mut(&mut config_data)?;
 
         self.check_vesting(config)?;
         self.unlock_vesting(config)
@@ -96,7 +95,7 @@ impl<'a, 'info> ProcessInstruction for ForceUnlockVestingV1<'a, 'info> {
 }
 
 impl<'a, 'info> ForceUnlockVestingV1<'a, 'info> {
-    fn check_vesting(&self, config: &ConfigV1) -> ProgramResult {
+    fn check_vesting(&self, config: &ProjectV1) -> ProgramResult {
         if config.admin != *self.accounts.admin.key {
             msg!("Unauthorized: only the config authority may trigger vesting unlocks.");
             return Err(ProgramError::IllegalOwner);
@@ -115,7 +114,7 @@ impl<'a, 'info> ForceUnlockVestingV1<'a, 'info> {
         }
     }
 
-    fn unlock_vesting(&self, config: &mut ConfigV1) -> ProgramResult {
+    fn unlock_vesting(&self, config: &mut ProjectV1) -> ProgramResult {
         let now = Clock::get()?.unix_timestamp;
 
         if config.vesting_unlock_ts <= now {

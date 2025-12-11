@@ -5,10 +5,10 @@ use solana_program::{
 };
 
 use crate::{
-    states::{ConfigV1, InitVaultAccounts, InitVaultArgs, NftAuthorityV1, VaultV1},
+    states::{ProjectV1, InitVaultAccounts, InitVaultArgs, NftAuthorityV1, VaultV1},
     utils::{
         AccountCheck, AssociatedTokenAccount, AssociatedTokenAccountCheck, AssociatedTokenProgram,
-        ConfigAccount, CreateMplCoreAssetAccounts, CreateMplCoreAssetArgs,
+        ProjectAccount, CreateMplCoreAssetAccounts, CreateMplCoreAssetArgs,
         InitAssociatedTokenProgramAccounts, InitPdaAccounts, InitPdaArgs, MintAccount,
         MplCoreProgram, Pda, ProcessInstruction, SignerAccount, SystemProgram, TokenProgram,
         TokenTransferAccounts, TokenTransferArgs, UninitializedAccount, WritableAccount,
@@ -25,9 +25,9 @@ pub struct MintAdminV1Accounts<'a, 'info> {
     /// Must be writable, owned by `token_program`.
     pub admin_ata: &'a AccountInfo<'info>,
 
-    /// PDA: `["config_v1", nft_collection, token_mint, program_id]` — stores global config.
+    /// PDA: `["project_v1", nft_collection, token_mint, program_id]` — stores global project config.
     /// Must be readable, owned by program.
-    pub config_pda: &'a AccountInfo<'info>,
+    pub project_pda: &'a AccountInfo<'info>,
 
     /// PDA: `["vault_v1", nft_asset, nft_collection, token_mint, program_id]` — stores `Vault` state.
     /// Must be writable if updating vault balance.
@@ -44,7 +44,7 @@ pub struct MintAdminV1Accounts<'a, 'info> {
     pub nft_authority: &'a AccountInfo<'info>,
 
     /// MPL Core Collection account that groups NFTs under this project.
-    /// Must be initialized before config creation via `CreateV1CpiBuilder`.
+    /// Must be initialized before project creation via `CreateV1CpiBuilder`.
     /// Determines the project scope for mint rules, royalties, and limits.
     pub nft_collection: &'a AccountInfo<'info>,
 
@@ -53,7 +53,7 @@ pub struct MintAdminV1Accounts<'a, 'info> {
     pub nft_asset: &'a AccountInfo<'info>,
 
     /// Token mint — the token being escrowed (e.g. ZDLT).
-    /// Must match `config_pda.data.mint`, owned by `token_program`.
+    /// Must match `project_pda.data.mint`, owned by `token_program`.
     pub token_mint: &'a AccountInfo<'info>,
 
     /// SPL Token Program (legacy or Token-2022).
@@ -81,7 +81,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAdminV1Accounts<'a, 'i
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [admin, admin_ata, config_pda, vault_pda, vault_ata, nft_authority, nft_collection, nft_asset, token_mint, token_program, associated_token_program, protocol_wallet, system_program, mpl_core] =
+        let [admin, admin_ata, project_pda, vault_pda, vault_ata, nft_authority, nft_collection, nft_asset, token_mint, token_program, associated_token_program, protocol_wallet, system_program, mpl_core] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -91,7 +91,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAdminV1Accounts<'a, 'i
         SignerAccount::check(nft_asset)?;
 
         WritableAccount::check(admin_ata)?;
-        WritableAccount::check(config_pda)?;
+        WritableAccount::check(project_pda)?;
         WritableAccount::check(vault_pda)?;
         WritableAccount::check(vault_ata)?;
         WritableAccount::check(nft_collection)?;
@@ -100,7 +100,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAdminV1Accounts<'a, 'i
 
         UninitializedAccount::check(nft_asset)?;
 
-        ConfigAccount::check(config_pda)?;
+        ProjectAccount::check(project_pda)?;
         MintAccount::check(token_mint)?;
         SystemProgram::check(system_program)?;
         MplCoreProgram::check(mpl_core)?;
@@ -110,7 +110,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for MintAdminV1Accounts<'a, 'i
         Ok(Self {
             admin,
             admin_ata,
-            config_pda,
+            project_pda,
             vault_pda,
             vault_ata,
             nft_authority,
@@ -159,9 +159,9 @@ impl<'a, 'info>
         let accounts = MintAdminV1Accounts::try_from(accounts)?;
 
         Pda::validate(
-            accounts.config_pda,
+            accounts.project_pda,
             &[
-                ConfigV1::SEED,
+                ProjectV1::SEED,
                 accounts.nft_collection.key.as_ref(),
                 accounts.token_mint.key.as_ref(),
             ],
@@ -181,15 +181,15 @@ impl<'a, 'info>
 }
 
 impl<'a, 'info> MintAdminV1<'a, 'info> {
-    fn check_mint_eligibility(&self, config: &ConfigV1) -> ProgramResult {
-        let max_supply = config.max_supply;
-        let released = config.released;
+    fn check_mint_eligibility(&self, project: &ProjectV1) -> ProgramResult {
+        let max_supply = project.max_supply;
+        let released = project.released;
         let admin_supply = max_supply - released;
-        let admin_minted = config.admin_minted;
-        let user_minted = config.user_minted;
+        let admin_minted = project.admin_minted;
+        let user_minted = project.user_minted;
         let minted = admin_minted + user_minted;
 
-        if !config.nft_stock_available() {
+        if !project.nft_stock_available() {
             msg!(
                 "All NFTs are minted. Allowed supply: {}. Minted: {}",
                 max_supply,
@@ -198,7 +198,7 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
             return Err(ProgramError::Custom(0));
         }
 
-        if !config.admin_mint_available() {
+        if !project.admin_mint_available() {
             msg!(
                 "All admin NFTs already minted. Allowed supply: {}. Minted: {}",
                 admin_supply,
@@ -210,8 +210,8 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
         Ok(())
     }
 
-    fn store_to_vault(&self, config: &ConfigV1) -> ProgramResult {
-        if !config.need_vault() {
+    fn store_to_vault(&self, project: &ProjectV1) -> ProgramResult {
+        if !project.need_vault() {
             return Ok(());
         }
 
@@ -228,7 +228,7 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
             },
             InitVaultArgs {
                 nft: *self.accounts.nft_asset.key,
-                amount: config.escrow_amount,
+                amount: project.escrow_amount,
                 is_unlocked: false,
             },
             InitPdaAccounts {
@@ -262,14 +262,14 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
                 token_program: self.accounts.token_program,
             },
             TokenTransferArgs {
-                amount: config.escrow_amount,
-                decimals: config.mint_decimals,
+                amount: project.escrow_amount,
+                decimals: project.mint_decimals,
             },
         )
     }
 
-    fn pay_protocol_fee(&self, config: &ConfigV1) -> ProgramResult {
-        if config.is_free_mint_nft_fee() {
+    fn pay_protocol_fee(&self, project: &ProjectV1) -> ProgramResult {
+        if project.is_free_mint_nft_fee() {
             return Ok(());
         }
 
@@ -277,11 +277,11 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
             self.accounts.admin,
             self.accounts.protocol_wallet,
             self.accounts.system_program,
-            config.mint_nft_fee_lamports,
+            project.mint_nft_fee_lamports,
         )
     }
 
-    fn mint_nft(self, config: &mut ConfigV1) -> ProgramResult {
+    fn mint_nft(self, project: &mut ProjectV1) -> ProgramResult {
         MplCoreProgram::create(
             CreateMplCoreAssetAccounts {
                 payer: self.accounts.admin,
@@ -298,7 +298,7 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
             &[&[NftAuthorityV1::SEED, &[self.nft_authority_bump]]],
         )?;
 
-        config.increment_admin_minted()?;
+        project.increment_admin_minted()?;
 
         Ok(())
     }
@@ -306,12 +306,12 @@ impl<'a, 'info> MintAdminV1<'a, 'info> {
 
 impl<'a, 'info> ProcessInstruction for MintAdminV1<'a, 'info> {
     fn process(self) -> ProgramResult {
-        let mut config_data = self.accounts.config_pda.try_borrow_mut_data()?;
-        let config = ConfigV1::load_mut(config_data.as_mut())?;
+        let mut project_data = self.accounts.project_pda.try_borrow_mut_data()?;
+        let project = ProjectV1::load_mut(project_data.as_mut())?;
 
-        self.check_mint_eligibility(config)?;
-        self.store_to_vault(config)?;
-        self.pay_protocol_fee(config)?;
-        self.mint_nft(config)
+        self.check_mint_eligibility(project)?;
+        self.store_to_vault(project)?;
+        self.pay_protocol_fee(project)?;
+        self.mint_nft(project)
     }
 }

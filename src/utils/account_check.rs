@@ -4,7 +4,7 @@ use solana_program::{
 };
 
 use crate::{
-    states::{ConfigV1, VaultV1},
+    states::{ProjectV1, VaultV1},
     utils::{
         AssociatedTokenProgram, MINT_2022_MIN_LEN, MINT_LEN, TOKEN_2022_PROGRAM_ID,
         TOKEN_ACCOUNT_2022_MIN_LEN, TOKEN_ACCOUNT_LEN, TOKEN_PROGRAM_ID,
@@ -149,23 +149,23 @@ impl AccountCheck for TokenAccount {
     }
 }
 
-pub struct ConfigAccount;
+pub struct ProjectAccount;
 
-impl AccountCheck for ConfigAccount {
+impl AccountCheck for ProjectAccount {
     fn check<'info>(account: &AccountInfo<'info>) -> ProgramResult {
         if account.owner != &crate::ID {
             msg!(
-                "ConfigAccount: invalid owner {} (expected program {})",
+                "ProjectAccount: invalid owner {} (expected program {})",
                 account.owner,
                 crate::ID
             );
             return Err(ProgramError::InvalidAccountOwner);
         }
 
-        if account.data_len() != ConfigV1::LEN {
+        if account.data_len() != ProjectV1::LEN {
             msg!(
-                "ConfigAccount: invalid data length (expected {}, found {}) for account {}",
-                ConfigV1::LEN,
+                "ProjectAccount: invalid data length (expected {}, found {}) for account {}",
+                ProjectV1::LEN,
                 account.data_len(),
                 account.key
             );
@@ -370,18 +370,18 @@ mod tests {
 
     #[test]
     fn test_config_account() {
-        let acc = mock_account_info(false, false, PROGRAM_ID, ConfigV1::LEN);
-        assert!(ConfigAccount::check(&acc).is_ok());
+        let acc = mock_account_info(false, false, PROGRAM_ID, ProjectV1::LEN);
+        assert!(ProjectAccount::check(&acc).is_ok());
 
-        let acc = mock_account_info(false, false, PROGRAM_ID, ConfigV1::LEN + 1);
+        let acc = mock_account_info(false, false, PROGRAM_ID, ProjectV1::LEN + 1);
         assert_eq!(
-            ConfigAccount::check(&acc).unwrap_err(),
+            ProjectAccount::check(&acc).unwrap_err(),
             ProgramError::InvalidAccountData
         );
 
-        let acc = mock_account_info(false, false, WRONG_PROGRAM_ID, ConfigV1::LEN);
+        let acc = mock_account_info(false, false, WRONG_PROGRAM_ID, ProjectV1::LEN);
         assert_eq!(
-            ConfigAccount::check(&acc).unwrap_err(),
+            ProjectAccount::check(&acc).unwrap_err(),
             ProgramError::InvalidAccountOwner
         );
     }

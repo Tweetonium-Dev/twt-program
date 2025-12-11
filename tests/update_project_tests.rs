@@ -6,14 +6,14 @@ use solana_program::{
 use solana_program_test::{processor, ProgramTest};
 use solana_sdk::{account::Account, signature::Keypair, signer::Signer, transaction::Transaction};
 use tweetonium::{
-    instructions::UpdateConfigV1InstructionData,
+    instructions::UpdateProjectV1InstructionData,
     process_instruction,
-    states::{ConfigV1, NftAuthorityV1, VestingMode},
+    states::{NftAuthorityV1, ProjectV1, VestingMode},
     utils::{mock_mint, mock_mint_2022, noop_processor, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID},
 };
 
 #[tokio::test]
-async fn test_update_config() {
+async fn test_update_project() {
     let program_id = tweetonium::ID;
     let token_program_id = TOKEN_PROGRAM_ID;
     let system_program_id = solana_program::system_program::id();
@@ -36,12 +36,16 @@ async fn test_update_config() {
     // PDAs
     let (nft_authority, _) = Pubkey::find_program_address(&[NftAuthorityV1::SEED], &program_id);
 
-    let (config_pda, _) = Pubkey::find_program_address(
-        &[ConfigV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
+    let (project_pda, _) = Pubkey::find_program_address(
+        &[
+            ProjectV1::SEED,
+            nft_collection.as_ref(),
+            token_mint.as_ref(),
+        ],
         &program_id,
     );
 
-    let cfg = ConfigV1 {
+    let cfg = ProjectV1 {
         admin: admin_pubkey,
         mint: token_mint,
         mint_decimals: 6,
@@ -76,7 +80,7 @@ async fn test_update_config() {
     );
 
     program_test.add_account(
-        config_pda,
+        project_pda,
         Account {
             lamports,
             data: cfg.to_bytes(),
@@ -121,7 +125,7 @@ async fn test_update_config() {
 
     let (mut banks_client, _bank_payer, recent_blockhash) = program_test.start().await;
 
-    let ix_data = UpdateConfigV1InstructionData {
+    let ix_data = UpdateProjectV1InstructionData {
         max_supply: 10_000,
         released: 0,
         max_mint_per_user: 5,
@@ -161,7 +165,7 @@ async fn test_update_config() {
         program_id,
         accounts: vec![
             AccountMeta::new(admin_pubkey, true),
-            AccountMeta::new(config_pda, false),
+            AccountMeta::new(project_pda, false),
             AccountMeta::new_readonly(nft_authority, false),
             AccountMeta::new(nft_collection, false),
             AccountMeta::new_readonly(token_mint, false),
@@ -176,11 +180,11 @@ async fn test_update_config() {
 
     let result = banks_client.process_transaction(tx).await;
 
-    assert!(result.is_ok(), "UpdateConfigV1 failed: {:?}", result.err());
+    assert!(result.is_ok(), "UpdateProjectV1 failed: {:?}", result.err());
 }
 
 #[tokio::test]
-async fn test_update_config_2022() {
+async fn test_update_project_2022() {
     let program_id = tweetonium::ID;
     let token_program_id = TOKEN_2022_PROGRAM_ID;
     let system_program_id = solana_program::system_program::id();
@@ -203,12 +207,16 @@ async fn test_update_config_2022() {
     // PDAs
     let (nft_authority, _) = Pubkey::find_program_address(&[NftAuthorityV1::SEED], &program_id);
 
-    let (config_pda, _) = Pubkey::find_program_address(
-        &[ConfigV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
+    let (project_pda, _) = Pubkey::find_program_address(
+        &[
+            ProjectV1::SEED,
+            nft_collection.as_ref(),
+            token_mint.as_ref(),
+        ],
         &program_id,
     );
 
-    let cfg = ConfigV1 {
+    let cfg = ProjectV1 {
         admin: admin_pubkey,
         mint: token_mint,
         mint_decimals: 6,
@@ -243,7 +251,7 @@ async fn test_update_config_2022() {
     );
 
     program_test.add_account(
-        config_pda,
+        project_pda,
         Account {
             lamports,
             data: cfg.to_bytes(),
@@ -288,7 +296,7 @@ async fn test_update_config_2022() {
 
     let (mut banks_client, _bank_payer, recent_blockhash) = program_test.start().await;
 
-    let ix_data = UpdateConfigV1InstructionData {
+    let ix_data = UpdateProjectV1InstructionData {
         max_supply: 10_000,
         released: 0,
         max_mint_per_user: 5,
@@ -328,7 +336,7 @@ async fn test_update_config_2022() {
         program_id,
         accounts: vec![
             AccountMeta::new(admin_pubkey, true),
-            AccountMeta::new(config_pda, false),
+            AccountMeta::new(project_pda, false),
             AccountMeta::new_readonly(nft_authority, false),
             AccountMeta::new(nft_collection, false),
             AccountMeta::new_readonly(token_mint, false),
@@ -343,5 +351,5 @@ async fn test_update_config_2022() {
 
     let result = banks_client.process_transaction(tx).await;
 
-    assert!(result.is_ok(), "UpdateConfigV1 failed: {:?}", result.err());
+    assert!(result.is_ok(), "UpdateProjectV1 failed: {:?}", result.err());
 }

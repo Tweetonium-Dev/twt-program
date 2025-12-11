@@ -2,7 +2,7 @@ use core::mem::transmute;
 use solana_program::{account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{
-    states::ConfigV1,
+    states::ProjectV1,
     utils::{AccountCheck, InitPdaAccounts, InitPdaArgs, Pda, UninitializedAccount},
 };
 
@@ -78,7 +78,7 @@ impl UserMintedV1 {
     }
 
     #[inline(always)]
-    pub fn has_reached_limit(&self, config: &ConfigV1) -> bool {
+    pub fn has_reached_limit(&self, config: &ProjectV1) -> bool {
         if config.max_mint_per_user == 0 {
             return false;
         }
@@ -86,7 +86,7 @@ impl UserMintedV1 {
     }
 
     #[inline(always)]
-    pub fn has_reached_vip_limit(&self, config: &ConfigV1) -> bool {
+    pub fn has_reached_vip_limit(&self, config: &ProjectV1) -> bool {
         if config.max_mint_per_vip_user == 0 {
             return false;
         }
@@ -118,7 +118,7 @@ mod tests {
     }
 
     fn zero_config() -> Vec<u8> {
-        vec![0u8; ConfigV1::LEN]
+        vec![0u8; ProjectV1::LEN]
     }
 
     // --- Test Cases ---
@@ -144,7 +144,7 @@ mod tests {
     #[test]
     fn test_user_minted_has_reached_limit() {
         let mut buf = zero_config();
-        let config = ConfigV1::load_mut(&mut buf).expect("load_mut should succeed");
+        let config = ProjectV1::load_mut(&mut buf).expect("load_mut should succeed");
         config.max_mint_per_user = 3;
         config.max_mint_per_vip_user = 10;
 

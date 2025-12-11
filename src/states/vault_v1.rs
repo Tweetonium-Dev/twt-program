@@ -12,7 +12,7 @@ use crate::utils::{AccountCheck, InitPdaAccounts, InitPdaArgs, Pda, Uninitialize
 /// until the vesting period ends. Once unlocked, the user can burn their NFT
 /// and reclaim the escrowed tokens.
 ///
-/// PDA seed: `[program_id, config_pda, payer, "vault"]`
+/// PDA seed: `[program_id, project_pda, payer, "vault"]`
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct VaultV1 {
@@ -35,7 +35,7 @@ pub struct VaultV1 {
     /// Set to `1` atomically in `burn_and_refund_v1` after the refund transfer.
     pub is_unlocked: u8,
 
-    /// The bump seed used when deriving the vault PDA (`["vault", config_pda]`).
+    /// The bump seed used when deriving the vault PDA (`["vault", project_pda]`).
     ///
     /// Stored for replay protection and deterministic PDA re-derivation.
     pub bump: [u8; 1],

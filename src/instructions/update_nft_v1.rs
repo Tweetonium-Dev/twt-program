@@ -5,9 +5,9 @@ use solana_program::{
 };
 
 use crate::{
-    states::{ConfigV1, NftAuthorityV1},
+    states::{ProjectV1, NftAuthorityV1},
     utils::{
-        AccountCheck, ConfigAccount, MintAccount, MplCoreProgram, Pda, ProcessInstruction,
+        AccountCheck, ProjectAccount, MintAccount, MplCoreProgram, Pda, ProcessInstruction,
         SignerAccount, SystemProgram, UpdateMplCoreAssetAccounts, UpdateMplCoreAssetArgs,
         WritableAccount,
     },
@@ -19,9 +19,9 @@ pub struct UpdateNftV1Accounts<'a, 'info> {
     /// Must be signer if required by MPL Core.
     pub payer: &'a AccountInfo<'info>,
 
-    /// PDA: `["config", nft_collection, token_mint, program_id]` — for price/refund logic.
+    /// PDA: `["project_v1", nft_collection, token_mint, program_id]` — stores global project config.
     /// Must be readable, owned by program.
-    pub config_pda: &'a AccountInfo<'info>,
+    pub project_pda: &'a AccountInfo<'info>,
 
     /// Token mint (fungible token used for minting/refunding e.g. ZDLT).
     /// Must be valid mint (82 or 90+ bytes), owned by SPL Token or Token-2022.
@@ -33,7 +33,6 @@ pub struct UpdateNftV1Accounts<'a, 'info> {
     pub nft_authority: &'a AccountInfo<'info>,
 
     /// MPL Core Collection account that groups NFTs under this project.
-    /// Must be initialized before config creation via `CreateV1CpiBuilder`.
     /// Determines the project scope for mint rules, royalties, and limits.
     pub nft_collection: &'a AccountInfo<'info>,
 
@@ -57,7 +56,7 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateNftV1Accounts<'a, 'i
     type Error = ProgramError;
 
     fn try_from(accounts: &'a [AccountInfo<'info>]) -> Result<Self, Self::Error> {
-        let [payer, config_pda, token_mint, nft_authority, nft_collection, nft_asset, protocol_wallet, system_program, mpl_core] =
+        let [payer, project_pda, token_mint, nft_authority, nft_collection, nft_asset, protocol_wallet, system_program, mpl_core] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -65,18 +64,18 @@ impl<'a, 'info> TryFrom<&'a [AccountInfo<'info>]> for UpdateNftV1Accounts<'a, 'i
 
         SignerAccount::check(payer)?;
 
-        WritableAccount::check(config_pda)?;
+        WritableAccount::check(project_pda)?;
         WritableAccount::check(nft_asset)?;
         WritableAccount::check(protocol_wallet)?;
 
-        ConfigAccount::check(config_pda)?;
+        ProjectAccount::check(project_pda)?;
         MintAccount::check(token_mint)?;
         SystemProgram::check(system_program)?;
         MplCoreProgram::check(mpl_core)?;
 
         Ok(Self {
             payer,
-            config_pda,
+            project_pda,
             token_mint,
             nft_authority,
             nft_collection,
@@ -120,9 +119,9 @@ impl<'a, 'info>
         let accounts = UpdateNftV1Accounts::try_from(accounts)?;
 
         Pda::validate(
-            accounts.config_pda,
+            accounts.project_pda,
             &[
-                ConfigV1::SEED,
+                ProjectV1::SEED,
                 accounts.nft_collection.key.as_ref(),
                 accounts.token_mint.key.as_ref(),
             ],
@@ -152,8 +151,8 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
         Ok(())
     }
 
-    fn pay_protocol_fee(&self, config: &ConfigV1) -> ProgramResult {
-        if config.is_free_update_nft_fee() {
+    fn pay_protocol_fee(&self, project: &ProjectV1) -> ProgramResult {
+        if project.is_free_update_nft_fee() {
             return Ok(());
         }
 
@@ -161,7 +160,7 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
             self.accounts.payer,
             self.accounts.protocol_wallet,
             self.accounts.system_program,
-            config.update_nft_fee_lamports,
+            project.update_nft_fee_lamports,
         )
     }
 
@@ -186,11 +185,11 @@ impl<'a, 'info> UpdateNftV1<'a, 'info> {
 
 impl<'a, 'info> ProcessInstruction for UpdateNftV1<'a, 'info> {
     fn process(self) -> ProgramResult {
-        let config_data = self.accounts.config_pda.data.borrow_mut();
-        let config = ConfigV1::load(&config_data)?;
+        let project_data = self.accounts.project_pda.data.borrow_mut();
+        let project = ProjectV1::load(&project_data)?;
 
         self.check_ownership()?;
-        self.pay_protocol_fee(config)?;
+        self.pay_protocol_fee(project)?;
         self.update_nft()
     }
 }

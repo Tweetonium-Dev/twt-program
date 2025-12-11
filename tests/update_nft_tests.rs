@@ -8,7 +8,7 @@ use solana_sdk::{account::Account, signature::Keypair, signer::Signer, transacti
 use tweetonium::{
     instructions::UpdateNftV1InstructionData,
     process_instruction,
-    states::{ConfigV1, NftAuthorityV1, VestingMode},
+    states::{ProjectV1, NftAuthorityV1, VestingMode},
     utils::{
         mock_base_asset, mock_mint, mock_mint_2022, noop_processor, TOKEN_2022_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
@@ -42,12 +42,12 @@ async fn test_update_nft() {
     // PDAs
     let (nft_authority, _) = Pubkey::find_program_address(&[NftAuthorityV1::SEED], &program_id);
 
-    let (config_pda, _) = Pubkey::find_program_address(
-        &[ConfigV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
+    let (project_pda, _) = Pubkey::find_program_address(
+        &[ProjectV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
         &program_id,
     );
 
-    let cfg = ConfigV1 {
+    let cfg = ProjectV1 {
         admin: payer_pubkey,
         mint: token_mint,
         mint_decimals: 6,
@@ -82,7 +82,7 @@ async fn test_update_nft() {
     );
 
     program_test.add_account(
-        config_pda,
+        project_pda,
         Account {
             lamports,
             data: cfg.to_bytes(),
@@ -165,7 +165,7 @@ async fn test_update_nft() {
         program_id,
         accounts: vec![
             AccountMeta::new(payer_pubkey, true),
-            AccountMeta::new(config_pda, false),
+            AccountMeta::new(project_pda, false),
             AccountMeta::new_readonly(token_mint, false),
             AccountMeta::new_readonly(nft_authority, false),
             AccountMeta::new_readonly(nft_collection, false),
@@ -212,12 +212,12 @@ async fn test_update_nft_2022() {
     // PDAs
     let (nft_authority, _) = Pubkey::find_program_address(&[NftAuthorityV1::SEED], &program_id);
 
-    let (config_pda, _) = Pubkey::find_program_address(
-        &[ConfigV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
+    let (project_pda, _) = Pubkey::find_program_address(
+        &[ProjectV1::SEED, nft_collection.as_ref(), token_mint.as_ref()],
         &program_id,
     );
 
-    let cfg = ConfigV1 {
+    let cfg = ProjectV1 {
         admin: payer_pubkey,
         mint: token_mint,
         mint_decimals: 6,
@@ -252,7 +252,7 @@ async fn test_update_nft_2022() {
     );
 
     program_test.add_account(
-        config_pda,
+        project_pda,
         Account {
             lamports,
             data: cfg.to_bytes(),
@@ -335,7 +335,7 @@ async fn test_update_nft_2022() {
         program_id,
         accounts: vec![
             AccountMeta::new(payer_pubkey, true),
-            AccountMeta::new(config_pda, false),
+            AccountMeta::new(project_pda, false),
             AccountMeta::new_readonly(token_mint, false),
             AccountMeta::new_readonly(nft_authority, false),
             AccountMeta::new_readonly(nft_collection, false),

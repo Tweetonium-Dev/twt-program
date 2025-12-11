@@ -11,20 +11,20 @@ use crate::{
 };
 
 /// Global configuration account that defines minting, payment, and vesting rules
-/// for a single collection or minting campaign.
+/// for a single project (collection and minting campaign).
 ///
-/// This account is initialized once via `init_config_v1` and governs:
+/// This account is initialized once via `init_project_v1` and governs:
 /// - The payment token and price model (SPL mint, escrow, DAO shares)
 /// - The maximum mint supply and whitelist (WL) phase logic
 /// - Vesting parameters for escrowed tokens (time-based or off-chain unlock)
 /// - Royalty and DAO revenue splits
 ///
-/// Each `Vault` and `MintedUser` record derives from this `Config` using its PDA.
+/// Each `Vault` and `MintedUser` record derives from this `ProjectV1` using its PDA.
 ///
-/// PDA seed: `[program_id, "config", hashed_nft_symbol, token_mint]`
+/// PDA seed: `[program_id, "project_v1", hashed_nft_symbol, token_mint]`
 #[repr(C)]
 #[derive(Debug, Clone, Copy, ShankAccount)]
-pub struct ConfigV1 {
+pub struct ProjectV1 {
     /// The authority that controls configuration updates and protocol-level actions.
     ///
     /// - Must match the signer in `update_config_v1`.
@@ -140,16 +140,16 @@ pub struct ConfigV1 {
     pub revenue_shares: [u64; 5],
 }
 
-impl ConfigV1 {
+impl ProjectV1 {
     pub const LEN: usize = size_of::<Self>();
-    pub const SEED: &[u8; 9] = b"config_v1";
+    pub const SEED: &[u8; 10] = b"project_v1";
 }
 
-impl ConfigV1 {
+impl ProjectV1 {
     #[inline(always)]
     pub fn init<'a, 'info>(
-        accounts: InitConfigAccounts,
-        args: InitConfigArgs,
+        accounts: InitProjectAccounts,
+        args: InitProjectArgs,
         pda_accounts: InitPdaAccounts<'a, 'info>,
         pda_args: InitPdaArgs<'a>,
     ) -> ProgramResult {
@@ -157,33 +157,33 @@ impl ConfigV1 {
 
         let mut bytes = accounts.pda.try_borrow_mut_data()?;
 
-        let config = Self::load_mut(&mut bytes)?;
-        config.admin = args.admin;
-        config.mint = args.mint;
-        config.mint_decimals = args.mint_decimals;
-        config.max_supply = args.max_supply;
-        config.released = args.released;
-        config.max_mint_per_user = args.max_mint_per_user;
-        config.max_mint_per_vip_user = args.max_mint_per_vip_user;
-        config.admin_minted = args.admin_minted;
-        config.user_minted = args.user_minted;
-        config.vesting_mode = args.vesting_mode;
-        config.vesting_unlock_ts = args.vesting_unlock_ts;
-        config.mint_nft_fee_lamports = args.mint_nft_fee_lamports;
-        config.update_nft_fee_lamports = args.update_nft_fee_lamports;
-        config.mint_price_total = args.mint_price_total;
-        config.escrow_amount = args.escrow_amount;
-        config.num_revenue_wallets = args.num_revenue_wallets;
-        config.revenue_wallets = args.revenue_wallets;
-        config.revenue_shares = args.revenue_shares;
+        let project = Self::load_mut(&mut bytes)?;
+        project.admin = args.admin;
+        project.mint = args.mint;
+        project.mint_decimals = args.mint_decimals;
+        project.max_supply = args.max_supply;
+        project.released = args.released;
+        project.max_mint_per_user = args.max_mint_per_user;
+        project.max_mint_per_vip_user = args.max_mint_per_vip_user;
+        project.admin_minted = args.admin_minted;
+        project.user_minted = args.user_minted;
+        project.vesting_mode = args.vesting_mode;
+        project.vesting_unlock_ts = args.vesting_unlock_ts;
+        project.mint_nft_fee_lamports = args.mint_nft_fee_lamports;
+        project.update_nft_fee_lamports = args.update_nft_fee_lamports;
+        project.mint_price_total = args.mint_price_total;
+        project.escrow_amount = args.escrow_amount;
+        project.num_revenue_wallets = args.num_revenue_wallets;
+        project.revenue_wallets = args.revenue_wallets;
+        project.revenue_shares = args.revenue_shares;
 
         Ok(())
     }
 
     #[inline(always)]
     pub fn init_if_needed<'a, 'info>(
-        accounts: InitConfigAccounts,
-        args: InitConfigArgs,
+        accounts: InitProjectAccounts,
+        args: InitProjectArgs,
         pda_accounts: InitPdaAccounts<'a, 'info>,
         pda_args: InitPdaArgs<'a>,
     ) -> ProgramResult {
@@ -230,7 +230,7 @@ impl ConfigV1 {
     }
 }
 
-impl ConfigV1 {
+impl ProjectV1 {
     #[inline(always)]
     pub fn is_free_mint_nft_fee(&self) -> bool {
         self.mint_nft_fee_lamports == 0
@@ -426,7 +426,7 @@ impl ConfigV1 {
     }
 
     #[inline(always)]
-    pub fn update(&mut self, args: UpdateConfigArgs) {
+    pub fn update(&mut self, args: UpdateProjectArgs) {
         self.max_supply = args.max_supply;
         self.released = args.released;
         self.max_mint_per_user = args.max_mint_per_user;
@@ -443,11 +443,11 @@ impl ConfigV1 {
     }
 }
 
-pub struct InitConfigAccounts<'a, 'info> {
+pub struct InitProjectAccounts<'a, 'info> {
     pub pda: &'a AccountInfo<'info>,
 }
 
-pub struct InitConfigArgs {
+pub struct InitProjectArgs {
     pub admin: Pubkey,
     pub mint: Pubkey,
     pub mint_decimals: u8,
@@ -468,7 +468,7 @@ pub struct InitConfigArgs {
     pub revenue_shares: [u64; MAX_REVENUE_WALLETS],
 }
 
-pub struct UpdateConfigArgs {
+pub struct UpdateProjectArgs {
     pub max_supply: u64,
     pub released: u64,
     pub max_mint_per_user: u64,
@@ -491,38 +491,38 @@ mod tests {
 
     // --- Test Helpers ---
 
-    fn zero_config() -> Vec<u8> {
-        vec![0u8; ConfigV1::LEN]
+    fn zero_project() -> Vec<u8> {
+        vec![0u8; ProjectV1::LEN]
     }
 
     // --- Test Cases ---
 
     #[test]
     fn test_free_mint_nft_fee() {
-        let buf = zero_config();
-        let cfg = ConfigV1::load(&buf).expect("load should succeed");
+        let buf = zero_project();
+        let cfg = ProjectV1::load(&buf).expect("load should succeed");
         assert!(cfg.is_free_mint_nft_fee());
     }
 
     #[test]
     fn test_free_update_nft_fee() {
-        let buf = zero_config();
-        let cfg = ConfigV1::load(&buf).expect("load should succeed");
+        let buf = zero_project();
+        let cfg = ProjectV1::load(&buf).expect("load should succeed");
         assert!(cfg.is_free_update_nft_fee());
     }
 
     #[test]
     fn test_need_pay_mint_fee() {
-        let mut buf = zero_config();
-        let cfg = ConfigV1::load_mut(&mut buf).expect("load_mut should succeed");
+        let mut buf = zero_project();
+        let cfg = ProjectV1::load_mut(&mut buf).expect("load_mut should succeed");
         cfg.mint_nft_fee_lamports = 100;
         assert!(!cfg.is_free_mint_nft_fee());
     }
 
     #[test]
     fn test_total_minted() {
-        let mut buf = zero_config();
-        let cfg = ConfigV1::load_mut(&mut buf).expect("load_mut should succeed");
+        let mut buf = zero_project();
+        let cfg = ProjectV1::load_mut(&mut buf).expect("load_mut should succeed");
         cfg.admin_minted = 3;
         cfg.user_minted = 7;
         assert_eq!(cfg.total_minted(), 10);
@@ -530,8 +530,8 @@ mod tests {
 
     #[test]
     fn test_admin_supply() {
-        let mut buf = zero_config();
-        let cfg = ConfigV1::load_mut(&mut buf).expect("load_mut should succeed");
+        let mut buf = zero_project();
+        let cfg = ProjectV1::load_mut(&mut buf).expect("load_mut should succeed");
         cfg.max_supply = 100;
         cfg.released = 40;
         assert_eq!(cfg.admin_supply(), 60);
@@ -539,8 +539,8 @@ mod tests {
 
     #[test]
     fn test_nft_stock_available() {
-        let mut buf = zero_config();
-        let cfg = ConfigV1::load_mut(&mut buf).expect("load_mut should succeed");
+        let mut buf = zero_project();
+        let cfg = ProjectV1::load_mut(&mut buf).expect("load_mut should succeed");
         cfg.max_supply = 1;
         cfg.admin_minted = 2;
         cfg.user_minted = 3;
@@ -549,8 +549,8 @@ mod tests {
 
     #[test]
     fn test_nft_stock_unavailable() {
-        let mut buf = zero_config();
-        let cfg = ConfigV1::load_mut(&mut buf).expect("load_mut should succeed");
+        let mut buf = zero_project();
+        let cfg = ProjectV1::load_mut(&mut buf).expect("load_mut should succeed");
         cfg.max_supply = 100;
         cfg.admin_minted = 2;
         cfg.user_minted = 3;
@@ -559,8 +559,8 @@ mod tests {
 
     #[test]
     fn test_admin_mint_available() {
-        let mut buf = zero_config();
-        let cfg = ConfigV1::load_mut(&mut buf).expect("load_mut should succeed");
+        let mut buf = zero_project();
+        let cfg = ProjectV1::load_mut(&mut buf).expect("load_mut should succeed");
         cfg.max_supply = 100;
         cfg.released = 40;
         cfg.admin_minted = 2;
@@ -569,8 +569,8 @@ mod tests {
 
     #[test]
     fn test_admin_mint_unavailable() {
-        let mut buf = zero_config();
-        let cfg = ConfigV1::load_mut(&mut buf).expect("load_mut should succeed");
+        let mut buf = zero_project();
+        let cfg = ProjectV1::load_mut(&mut buf).expect("load_mut should succeed");
         cfg.max_supply = 100;
         cfg.released = 99;
         cfg.admin_minted = 2;
@@ -579,8 +579,8 @@ mod tests {
 
     #[test]
     fn test_user_mint_available() {
-        let mut buf = zero_config();
-        let cfg = ConfigV1::load_mut(&mut buf).expect("load_mut should succeed");
+        let mut buf = zero_project();
+        let cfg = ProjectV1::load_mut(&mut buf).expect("load_mut should succeed");
         cfg.released = 40;
         cfg.user_minted = 3;
         assert!(cfg.user_mint_available());
@@ -588,30 +588,30 @@ mod tests {
 
     #[test]
     fn test_user_mint_unavailable() {
-        let buf = zero_config();
-        let cfg = ConfigV1::load(&buf).expect("load should succeed");
+        let buf = zero_project();
+        let cfg = ProjectV1::load(&buf).expect("load should succeed");
         assert!(!cfg.user_mint_available());
     }
 
     #[test]
     fn test_need_vault() {
-        let mut buf = zero_config();
-        let cfg = ConfigV1::load_mut(&mut buf).expect("load_mut should succeed");
+        let mut buf = zero_project();
+        let cfg = ProjectV1::load_mut(&mut buf).expect("load_mut should succeed");
         cfg.escrow_amount = 200;
         assert!(cfg.need_vault());
     }
 
     #[test]
     fn test_dont_need_vault() {
-        let buf = zero_config();
-        let cfg = ConfigV1::load(&buf).expect("load should succeed");
+        let buf = zero_project();
+        let cfg = ProjectV1::load(&buf).expect("load should succeed");
         assert!(!cfg.need_vault());
     }
 
     #[test]
     fn test_allow_tf_to_dao_wallet() {
-        let mut buf = zero_config();
-        let cfg = ConfigV1::load_mut(&mut buf).expect("load_mut should succeed");
+        let mut buf = zero_project();
+        let cfg = ProjectV1::load_mut(&mut buf).expect("load_mut should succeed");
 
         let mut shares = mock_u64s::<MAX_REVENUE_WALLETS>(0);
         shares[1] = 50;
@@ -623,8 +623,8 @@ mod tests {
 
     #[test]
     fn test_revenue_wallet_and_share_accessors() {
-        let mut buf = zero_config();
-        let cfg = ConfigV1::load_mut(&mut buf).expect("load_mut should succeed");
+        let mut buf = zero_project();
+        let cfg = ProjectV1::load_mut(&mut buf).expect("load_mut should succeed");
 
         let wallets = mock_pubkeys::<MAX_REVENUE_WALLETS>();
         let mut shares = mock_u64s::<MAX_REVENUE_WALLETS>(0);
@@ -642,8 +642,8 @@ mod tests {
 
     #[test]
     fn test_increment_admin_user_minted_and_overflow() {
-        let mut buf = zero_config();
-        let cfg = ConfigV1::load_mut(&mut buf).expect("load_mut should succeed");
+        let mut buf = zero_project();
+        let cfg = ProjectV1::load_mut(&mut buf).expect("load_mut should succeed");
 
         cfg.admin_minted = 0;
         cfg.user_minted = 0;
@@ -677,7 +677,7 @@ mod tests {
         shares[0] = 300;
         shares[1] = 500;
 
-        ConfigV1::check_revenue_wallets(
+        ProjectV1::check_revenue_wallets(
             mint_price_total,
             escrow_amount,
             num_revenue_wallets,
@@ -699,7 +699,7 @@ mod tests {
         let mut shares = mock_u64s::<MAX_REVENUE_WALLETS>(0);
         shares[0] = 300;
 
-        let res = ConfigV1::check_revenue_wallets(
+        let res = ProjectV1::check_revenue_wallets(
             mint_price_total,
             escrow_amount,
             num_revenue_wallets,
@@ -724,7 +724,7 @@ mod tests {
         shares[0] = 500;
         shares[0] = 300;
 
-        let res = ConfigV1::check_revenue_wallets(
+        let res = ProjectV1::check_revenue_wallets(
             mint_price_total,
             escrow_amount,
             num_revenue_wallets,
@@ -739,7 +739,7 @@ mod tests {
     fn test_check_nft_royalties_zero_recipients_valid() {
         let recipients = default_pubkeys::<MAX_ROYALTY_RECIPIENTS>();
         let bps = mock_u16s::<MAX_ROYALTY_RECIPIENTS>(0);
-        ConfigV1::check_nft_royalties(0u8, recipients, bps).expect("zero recipients ok");
+        ProjectV1::check_nft_royalties(0u8, recipients, bps).expect("zero recipients ok");
     }
 
     #[test]
@@ -752,7 +752,7 @@ mod tests {
         bps[0] = 3_000;
         bps[1] = 1_000;
 
-        ConfigV1::check_nft_royalties(0u8, recipients, bps).expect("royalties ok");
+        ProjectV1::check_nft_royalties(0u8, recipients, bps).expect("royalties ok");
     }
 
     #[test]
@@ -762,7 +762,7 @@ mod tests {
 
         let bps = mock_u16s::<MAX_ROYALTY_RECIPIENTS>(0);
 
-        let res = ConfigV1::check_nft_royalties(2u8, recipients, bps);
+        let res = ProjectV1::check_nft_royalties(2u8, recipients, bps);
 
         assert!(res.is_err());
     }
@@ -777,15 +777,15 @@ mod tests {
         bps[0] = (MAX_BASIS_POINTS / 2) + 1;
         bps[1] = (MAX_BASIS_POINTS / 2) + 1;
 
-        let res = ConfigV1::check_nft_royalties(2u8, recipients, bps);
+        let res = ProjectV1::check_nft_royalties(2u8, recipients, bps);
 
         assert!(res.is_err());
     }
 
     #[test]
     fn test_update_applies_changes() {
-        let mut buf = zero_config();
-        let cfg = ConfigV1::load_mut(&mut buf).expect("load_mut should succeed");
+        let mut buf = zero_project();
+        let cfg = ProjectV1::load_mut(&mut buf).expect("load_mut should succeed");
 
         cfg.max_supply = 100;
         cfg.released = 20;
@@ -796,7 +796,7 @@ mod tests {
         let mut new_shares = mock_u64s::<MAX_REVENUE_WALLETS>(0);
         new_shares[0] = 100;
 
-        let args = UpdateConfigArgs {
+        let args = UpdateProjectArgs {
             max_supply: 200,
             released: 50,
             max_mint_per_user: 7,
