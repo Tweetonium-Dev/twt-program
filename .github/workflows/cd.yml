@@ -1,0 +1,86 @@
+---
+name: Devnet Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**/src/**.rs"
+      - "Cargo.toml"
+
+env:
+  RUST_TOOLCHAIN: stable
+  SOLANA_VERSION: "2.3.13"
+  CARGO_TARGET_DIR: target-ci
+
+jobs:
+  devnet_deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Cache cargo registry + git
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Cache BPF Build Artifacts
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CARGO_TARGET_DIR }}
+          key: ${{ runner.os }}-build-sbf-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-build-sbf-
+
+      - name: Install Solana CLI
+        env:
+          SOLANA_VERSION: ${{ env.SOLANA_VERSION }}
+        run: ./.scripts/install_solana.sh
+
+      - name: Install protoc (fixes solana-svm test builds)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y protobuf-compiler
+
+      - name: Verify solana version
+        run: solana --version
+
+      - name: Clean build
+        run: |
+          cargo clean
+          cargo build-sbf
+
+      - name: Prepare keypairs
+        env:
+          DEPLOYER_KEYPAIR: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          PROGRAM_KEYPAIR: ${{ secrets.PROGRAM_PRIVATE_KEY }}
+        run: |
+          echo "$DEPLOYER_KEYPAIR" \
+            > "${CARGO_TARGET_DIR}/deploy/deployer.json"
+          echo "$PROGRAM_KEYPAIR" \
+            > "${CARGO_TARGET_DIR}/deploy/tweetonium-keypair.json"
+
+      - name: Deploy program
+        run: |
+          solana program deploy target-ci/deploy/tweetonium.so \
+            --program-id ${CARGO_TARGET_DIR}/deploy/tweetonium-keypair.json \
+            --keypair ${CARGO_TARGET_DIR}/deploy/deployer.json \
+            --url https://api.devnet.solana.com
+
+      - name: Cleanup sensitive keypair files
+        if: always()
+        run: |
+          rm -f "${CARGO_TARGET_DIR}/deploy/deployer.json"
+          rm -f "${CARGO_TARGET_DIR}/deploy/tweetonium-keypair.json"
+        shell: bash
